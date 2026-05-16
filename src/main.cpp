@@ -355,14 +355,22 @@ void setup() {
     }
 
     startNetwork();                            // loads brightness, joins WiFi, starts UI
+
+    // Isolate LED rendering to Core 0 (Hardware optimization for ESP32 dual-core)
+    xTaskCreatePinnedToCore(
+        [](void *pvParameters) {
+            for (;;) {
+                updateWind();
+                fireEffect();
+                FastLED.show();
+                vTaskDelay(pdMS_TO_TICKS(1)); // small yield to feed Core 0 watchdog/WiFi
+            }
+        },
+        "LEDTask", 4096, NULL, 1, NULL, 0
+    );
 }
 
 void loop() {
     serviceNetwork();
-    updateWind();
-    fireEffect();
-    FastLED.show();
-    // No delay(): single-line WS2812B at 800 LEDs self-paces at ~40 FPS
-    // (24 ms of protocol time per frame). RMT5 async overlaps the next
-    // frame's compute with the current frame's transmission for free.
+    vTaskDelay(pdMS_TO_TICKS(10)); // Yield Core 1
 }
