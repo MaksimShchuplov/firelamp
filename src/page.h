@@ -146,25 +146,55 @@ document.getElementById('rwifi').onclick=function(){
   if(confirm(ru?'Сбросить настройки Wi-Fi?\nЛампа перезагрузится в режим настройки.\nПодключитесь к сети "FireLamp-Setup" и откройте 192.168.4.1':'Reset WiFi credentials?\nThe lamp will reboot into setup mode.\nConnect to "FireLamp-Setup" and open 192.168.4.1'))
     {var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;xf('/resetwifi').catch(function(){});}
 };
-var latestVer=null;
+function startOTA(){
+  ['sb','sc','sco','ssp','rst','chk','rwifi'].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
+  var btn=document.getElementById('chk'),info=document.getElementById('vinfo');
+  btn.textContent=ru?'Прошивка...':'Flashing...';
+  btn.style.borderColor='#f59e0b';btn.style.color='#fbbf24';
+  var pb=document.createElement('div');
+  pb.style.cssText='margin-top:8px;height:4px;border-radius:2px;background:#1a1a1a;overflow:hidden';
+  var pf=document.createElement('div');
+  pf.style.cssText='height:100%;width:0%;background:#fbbf24;border-radius:2px;transition:width 35s linear';
+  pb.appendChild(pf);info.insertAdjacentElement('afterend',pb);
+  info.textContent=ru?'Скачивание... Не закрывайте страницу.':'Downloading... Do not close this page.';
+  setTimeout(function(){pf.style.width='88%';},50);
+  function pollReboot(){
+    var n=0,tid=setInterval(function(){n++;
+      fetch('/info',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+        clearInterval(tid);
+        pf.style.transition='width .4s';pf.style.width='100%';pf.style.background='#4ade80';
+        btn.textContent=ru?'Готово! ✓':'Done! ✓';btn.style.borderColor='#4ade80';btn.style.color='#4ade80';
+        info.textContent=(ru?'Обновлено до ':'Updated to ')+d.version;
+        setTimeout(function(){location.reload();},2000);
+      }).catch(function(){if(n>20){clearInterval(tid);pf.style.background='#ef4444';
+        info.textContent=ru?'Лампа не отвечает. Обновите страницу вручную.':'Lamp not responding. Refresh manually.';
+        btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.disabled=false;
+        btn.onclick=function(){location.reload();};}});
+    },3000);
+  }
+  var doAfter=function(){
+    pf.style.transition='width 2s';pf.style.width='95%';
+    btn.textContent=ru?'Перезагрузка...':'Rebooting...';
+    info.textContent=ru?'Лампа перезагружается...':'Lamp rebooting...';
+    setTimeout(pollReboot,5000);
+  };
+  xf('/update').then(doAfter,doAfter);
+}
 document.getElementById('chk').onclick=function(){
   var btn=document.getElementById('chk');
   btn.textContent=ru?'Проверка...':'Checking...';
   btn.disabled=true;
   fetch('/checkupdate').then(r=>r.json()).then(x=>{
-    latestVer=x.latest;
     document.getElementById('vinfo').textContent=(ru?'Текущая: ':'Current: ')+x.current+' → GitHub: '+x.latest;
     if(x.update_available){
       btn.textContent=ru?'Установить обновление ↑':'Install Update ↑';
       btn.style.borderColor='#16a34a';btn.style.color='#4ade80';btn.disabled=false;
-      btn.onclick=function(){
-        if(confirm(ru?'Начать обновление? Лампа перезагрузится.':'Install update? The lamp will reboot.')){xf('/update').then(()=>alert(ru?'Обновление запущено...':'Update started...'))}
-      };
+      btn.onclick=function(){if(confirm(ru?'Начать обновление? Лампа перезагрузится.':'Install update? The lamp will reboot.'))startOTA();};
     } else {
       btn.textContent=ru?'Версия актуальна ✓':'Up to date ✓';btn.style.color='#4ade80';
-      setTimeout(()=>{btn.textContent=ru?'Проверить обновления':'Check for Update';btn.style.color='#60a5fa';btn.disabled=false;},3000);
+      setTimeout(function(){btn.textContent=ru?'Проверить обновления':'Check for Update';btn.style.color='#60a5fa';btn.disabled=false;},3000);
     }
-  }).catch(()=>{btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;});
+  }).catch(function(){btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;});
 };
 pull();setInterval(function(){if(!document.hidden)pull()},4000);
 </script></body></html>)HTML";
