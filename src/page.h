@@ -31,10 +31,10 @@ h1{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:600;c
 .bar{margin:24px 0;-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:9px;
  outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.7);
  background:linear-gradient(90deg,#2a0d04,#7a1f06 22%,#d6510c 55%,#ff8a1f 78%,#ffe7b8)}
-.bar::-webkit-slider-thumb{-webkit-appearance:none;width:44px;height:44px;border-radius:50%;cursor:pointer;
+.bar::-webkit-slider-thumb{-webkit-appearance:none;width:48px;height:48px;border-radius:50%;cursor:pointer;
  background:radial-gradient(circle at 38% 32%,#fff,#ffae45 40%,#ff5e10 75%,#7a1f00);
  box-shadow:0 0 16px rgba(255,140,40,.9),0 2px 6px rgba(0,0,0,.6)}
-.bar::-moz-range-thumb{width:44px;height:44px;border:0;border-radius:50%;
+.bar::-moz-range-thumb{width:48px;height:48px;border:0;border-radius:50%;
  background:radial-gradient(circle at 38% 32%,#fff,#ffae45 40%,#ff5e10 75%,#7a1f00);
  box-shadow:0 0 16px rgba(255,140,40,.9)}
 .desc{font-size:12px;color:#a85a22;margin-top:-14px;margin-bottom:24px;letter-spacing:0.05em;line-height:1.4;opacity:0.8;font-weight:400;}
