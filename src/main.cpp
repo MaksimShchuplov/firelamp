@@ -70,6 +70,11 @@
 #define WIFI_RETRY_MS           15000         // background reconnect interval
 #define NVS_COMMIT_DELAY_MS     2500          // defer brightness writes to spare flash
 #define FIRMWARE_URL            "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"
+#define VERSION_URL             "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/version.json"
+#ifndef FIRMWARE_VERSION
+  #define FIRMWARE_VERSION      "dev"
+#endif
+
 
 // =============================================================================
 //  GLOBALS
@@ -314,7 +319,8 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <input class=bar id=ssp type=range min=0 max=255 value=95>
 <div class=desc id=dsp>Higher = hotter base.</div>
 <button class=reset id=rst>Reset to Default</button>
-<button class=reset id=upd style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Update from GitHub</button>
+<button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
+<div id=vinfo style="font-size:11px;color:#888;margin-top:6px;text-align:center"></div>
 <div class=stat><span id=lw>Power:</span> <span id=vw>0.0</span> W</div>
 </div><script>
 var vb=document.getElementById('vb'),sb=document.getElementById('sb');
@@ -335,7 +341,7 @@ function ul() {
  document.getElementById('lsp').textContent=ru?'Искры':'Sparking';
  document.getElementById('dsp').textContent=ru?'Больше = горячее основание.':'Higher = hotter base.';
  document.getElementById('rst').textContent=ru?'По умолчанию':'Reset to Default';
- document.getElementById('upd').textContent=ru?'Обновить прошивку':'Update from GitHub';
+ document.getElementById('chk').textContent=ru?'Проверить обновления':'Check for Update';
  document.getElementById('lw').textContent=ru?'Потребление:':'Power:';
  document.getElementById('mt1').textContent=ru?'Яркость (Масштаб)':'Brightness (Scale)';
  document.getElementById('md1').textContent=ru?'Линейно масштабирует общую мощность свечения лампы. Не меняет физику пламени.':'Linearly scales the overall light output of the lamp. Does not change the flame physics.';
@@ -361,8 +367,31 @@ sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTime
 sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){fetch('/setco?v='+sco.value)},120)});
 ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){fetch('/setsp?v='+ssp.value)},120)});
 document.getElementById('rst').onclick=function(){fetch('/reset').then(pull)};
-document.getElementById('upd').onclick=function(){if(confirm(ru?'Начать обновление из GitHub? Лампа перезагрузится.':'Start update from GitHub? The lamp will reboot.')){fetch('/update').then(()=>alert(ru?'Обновление запущено...':'Update started...'))}};
+var latestVer=null;
+document.getElementById('chk').onclick=function(){
+  var btn=document.getElementById('chk');
+  btn.textContent=ru?'Проверка...':'Checking...';
+  btn.disabled=true;
+  fetch('/checkupdate').then(r=>r.json()).then(x=>{
+    latestVer=x.latest;
+    var vi=document.getElementById('vinfo');
+    vi.textContent=(ru?'Текущая: ':'Current: ')+x.current+(ru?' → GitHub: ':' → GitHub: ')+x.latest;
+    if(x.update_available){
+      btn.textContent=ru?'Установить обновление ↑':'Install Update ↑';
+      btn.style.borderColor='#16a34a';btn.style.color='#4ade80';
+      btn.disabled=false;
+      btn.onclick=function(){
+        if(confirm(ru?'Начать обновление? Лампа перезагрузится.':'Install update? The lamp will reboot.')){fetch('/update').then(()=>alert(ru?'Обновление запущено...':'Update started...'))}
+      };
+    } else {
+      btn.textContent=ru?'Версия актуальна ✓':'Up to date ✓';
+      btn.style.color='#4ade80';
+      setTimeout(()=>{btn.textContent=ru?'Проверить обновления':'Check for Update';btn.style.color='#60a5fa';btn.disabled=false;},3000);
+    }
+  }).catch(()=>{btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;});
+};
 pull();setInterval(function(){if(!document.hidden)pull()},4000);
+
 </script></body></html>)HTML";
 
 // =============================================================================
@@ -447,30 +476,87 @@ void handleReset() {
     sendVal();
 }
 
-void handleUpdate() {
-    server.send(200, "text/plain", "Update starting...");
-    delay(500);
-    
+// Fetches version.json from GitHub and returns parsed fields.
+// Returns false if fetch failed. out_version and out_md5 are filled on success.
+bool fetchVersionInfo(String &out_version, String &out_md5) {
     WiFiClientSecure client;
-    client.setInsecure(); // GitHub uses HTTPS
-    
-    httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // GitHub Releases redirect to AWS S3
-    
-    Serial.println("Starting OTA from GitHub Releases...");
+    client.setInsecure();
+    HTTPClient http;
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    http.begin(client, VERSION_URL);
+    int code = http.GET();
+    if (code != 200) {
+        Serial.printf("fetchVersionInfo: HTTP %d\n", code);
+        http.end();
+        return false;
+    }
+    String body = http.getString();
+    http.end();
+
+    // Minimal JSON parse — no external lib needed for two known keys
+    auto extract = [&](const char *key) -> String {
+        String search = String("\"") + key + "\":\"";
+        int idx = body.indexOf(search);
+        if (idx < 0) return "";
+        idx += search.length();
+        int end = body.indexOf("\"", idx);
+        return (end > idx) ? body.substring(idx, end) : "";
+    };
+    out_version = extract("version");
+    out_md5     = extract("md5");
+    return out_version.length() > 0;
+}
+
+void handleCheckUpdate() {
+    String latestVer, latestMd5;
+    if (!fetchVersionInfo(latestVer, latestMd5)) {
+        server.send(503, "application/json", "{\"error\":\"fetch_failed\"}");
+        return;
+    }
+    String current  = FIRMWARE_VERSION;
+    bool available  = (latestVer != current);
+    String j = "{\"current\":\"" + current +
+               "\",\"latest\":\"" + latestVer +
+               "\",\"update_available\":" + (available ? "true" : "false") +
+               ",\"date\":\"" + __DATE__ " " __TIME__ "\"}";
+    server.send(200, "application/json", j);
+}
+
+void handleUpdate() {
+    // Step 1: fetch version.json for MD5 integrity check
+    String latestVer, latestMd5;
+    bool haveMd5 = fetchVersionInfo(latestVer, latestMd5);
+    if (haveMd5 && latestMd5.length() == 32) {
+        Update.setMD5(latestMd5.c_str()); // verified against downloaded binary
+        Serial.printf("OTA: MD5 pre-set to %s\n", latestMd5.c_str());
+    } else {
+        Serial.println("OTA: no MD5 available, proceeding without integrity check");
+    }
+
+    // Step 2: respond NOW — browser will disconnect after reboot anyway
+    server.send(200, "text/plain", "Update starting...");
+    server.client().stop(); // flush + close before blocking OTA
+
+    WiFiClientSecure client;
+    client.setInsecure();
+    httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+    Serial.printf("Starting OTA from GitHub Releases (target: %s)...\n", latestVer.c_str());
     t_httpUpdate_return ret = httpUpdate.update(client, FIRMWARE_URL);
-    
+
     switch (ret) {
         case HTTP_UPDATE_FAILED:
             Serial.printf("OTA Failed (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
             break;
         case HTTP_UPDATE_NO_UPDATES:
-            Serial.println("OTA No updates");
+            Serial.println("OTA: server says no update");
             break;
         case HTTP_UPDATE_OK:
-            Serial.println("OTA Success");
+            Serial.println("OTA Success — rebooting");
             break;
     }
 }
+
 
 void safeBootCheck() {
     esp_reset_reason_t reason = esp_reset_reason();
@@ -537,15 +623,18 @@ void startNetwork() {
     server.on("/setsp", handleSetSp);
     server.on("/reset", handleReset);
     server.on("/update", handleUpdate);
+    server.on("/checkupdate", handleCheckUpdate);
     server.on("/info", []() {
         String j = "{\"flash_mb\":";
         j += ESP.getFlashChipSize() / (1024 * 1024);
         j += ",\"free_heap\":";
         j += ESP.getFreeHeap();
+        j += ",\"version\":\"" FIRMWARE_VERSION "\"";
         j += ",\"build\":\"" __DATE__ " " __TIME__ "\"}";
         server.send(200, "application/json", j);
     });
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
+
 
     server.begin();
 }
