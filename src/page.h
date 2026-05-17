@@ -61,6 +61,10 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=mt id=mt2>Contrast</div><div class=md id=md2></div>
 <div class=mt id=mt3>Cooling</div><div class=md id=md3></div>
 <div class=mt id=mt4>Sparking</div><div class=md id=md4></div>
+<div class=mt id=mt5>Reset to Default</div><div class=md id=md5></div>
+<div class=mt id=mt6>Check for Update</div><div class=md id=md6></div>
+<div class=mt id=mt7>Reset WiFi</div><div class=md id=md7></div>
+<div class=mt id=mt8>Power</div><div class=md id=md8></div>
 </div>
 <div class=lang><button id=len class="lbtn act">EN</button><button id=lru class=lbtn>RU</button></div>
 <div class=wrap>
@@ -106,13 +110,21 @@ function ul(){
  document.getElementById('rwifi').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
  document.getElementById('lw').textContent=ru?'Потребление:':'Power:';
  document.getElementById('mt1').textContent=ru?'Яркость (Масштаб)':'Brightness (Scale)';
- document.getElementById('md1').textContent=ru?'Линейно масштабирует общую мощность свечения лампы. Не меняет физику пламени.':'Linearly scales the overall light output of the lamp. Does not change the flame physics.';
+ document.getElementById('md1').textContent=ru?'Управляет общей яркостью лампы. Гамма-коррекция 2.2 обеспечивает равномерное восприятие по всей шкале. Не меняет физику пламени.':'Controls the overall light output. A gamma-2.2 curve makes the slider feel perceptually even across its range. Does not change the flame physics.';
  document.getElementById('mt2').textContent=ru?'Контрастность (Цвет)':'Contrast (Palette)';
  document.getElementById('md2').textContent=ru?'Не влияет на физику. Сдвигает цвета: низкая контрастность дает больше желтого/белого, высокая оставляет только глубокий красный.':'Does not affect physics. Shifts the colors: low contrast allows more yellow/white, high contrast forces deep reds.';
  document.getElementById('mt3').textContent=ru?'Охлаждение (Высота)':'Cooling (Height)';
  document.getElementById('md3').textContent=ru?'Управляет скоростью затухания искр по мере подъема. Меньше значение = выше пламя. Больше значение = короткие искры.':'Dictates how quickly sparks die out as they travel up. Lower value = taller flames. Higher value = short embers.';
  document.getElementById('mt4').textContent=ru?'Искры (Бензин)':'Sparking (Ignition)';
  document.getElementById('md4').textContent=ru?'Управляет хаосом у основания. Высокое значение = сплошной, ревущий белый/желтый жар. Низкое = спокойное тление.':'Dictates chaos at the base. Higher value = a solid, roaring white/yellow inferno. Lower value = calm smoldering.';
+ document.getElementById('mt5').textContent=ru?'По умолчанию':'Reset to Default';
+ document.getElementById('md5').textContent=ru?'Восстанавливает все ползунки к заводским значениям: яркость 100, контрастность 50, охлаждение 45, искры 36.':'Restores all sliders to factory defaults: brightness 100, contrast 50, cooling 45, sparking 36.';
+ document.getElementById('mt6').textContent=ru?'Проверить обновления':'Check for Update';
+ document.getElementById('md6').textContent=ru?'Сравнивает текущую прошивку с последней сборкой на GitHub. При наличии обновления предложит установить его — лампа перезагрузится автоматически.':'Compares current firmware with the latest build on GitHub. If an update is available you can install it — the lamp reboots automatically.';
+ document.getElementById('mt7').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
+ document.getElementById('md7').textContent=ru?'Удаляет сохранённые данные сети и перезагружает лампу в режим настройки. Подключитесь к точке доступа "FireLamp-Setup" и откройте 192.168.4.1 чтобы выбрать новую сеть.':'Clears saved Wi-Fi credentials and reboots into setup mode. Connect to the "FireLamp-Setup" hotspot and open 192.168.4.1 to choose a new network.';
+ document.getElementById('mt8').textContent=ru?'Потребление':'Power';
+ document.getElementById('md8').textContent=ru?'Расчётное потребление в ваттах на основе текущего цвета и яркости каждого светодиода. Обновляется каждые 4 секунды.':'Estimated power draw in watts based on the current colour and brightness of each LED. Updates every 4 seconds.';
 }
 ul();
 document.getElementById('ibtn').onclick=function(){document.getElementById('mod').classList.add('show')};
