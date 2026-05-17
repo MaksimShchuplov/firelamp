@@ -62,7 +62,7 @@ jobs:
           artifacts: ".pio/build/esp32s3/firmware.bin,version.json"
           tag: "build-${{ env.GIT_SHA }}"
           name: "Build ${{ env.GIT_SHA }}"
-          body: "Firmware built from commit ${{ env.GIT_SHA }}."
+          generateReleaseNotes: true
           makeLatest: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -73,7 +73,7 @@ jobs:
           artifacts: ".pio/build/esp32s3/firmware.bin,version.json"
           tag: "latest"
           name: "Latest Firmware"
-          body: "Auto-generated firmware build from main branch (commit ${{ env.GIT_SHA }})."
+          body: "Latest build from commit ${{ env.GIT_SHA }}. See versioned release for full changelog."
           allowUpdates: true
           makeLatest: true
         env:
