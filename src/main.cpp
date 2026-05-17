@@ -67,7 +67,7 @@
 #define WIFI_CONNECT_MS         10000         // setup() stops blocking after this
 #define WIFI_RETRY_MS           15000         // background reconnect interval
 #define NVS_COMMIT_DELAY_MS     2500          // defer brightness writes to spare flash
-#define FIRMWARE_URL            "https://raw.githubusercontent.com/MaksimShchuplov/firelamp/binaries/firmware.bin"
+#define FIRMWARE_URL            "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"
 
 // =============================================================================
 //  GLOBALS
@@ -450,9 +450,11 @@ void handleUpdate() {
     delay(500);
     
     WiFiClientSecure client;
-    client.setInsecure(); // GitHub raw uses HTTPS
+    client.setInsecure(); // GitHub uses HTTPS
     
-    Serial.println("Starting OTA from GitHub...");
+    httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // GitHub Releases redirect to AWS S3
+    
+    Serial.println("Starting OTA from GitHub Releases...");
     t_httpUpdate_return ret = httpUpdate.update(client, FIRMWARE_URL);
     
     switch (ret) {
