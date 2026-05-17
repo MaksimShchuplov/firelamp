@@ -49,6 +49,7 @@ jobs:
       - name: Generate version.json
         run: |
           GIT_SHA=$(git rev-parse --short HEAD)
+          echo "GIT_SHA=${GIT_SHA}" >> $GITHUB_ENV
           BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           MD5=$(md5sum .pio/build/esp32s3/firmware.bin | awk '{print $1}')
           echo "{\"version\":\"${GIT_SHA}\",\"date\":\"${BUILD_DATE}\",\"md5\":\"${MD5}\"}" > version.json
@@ -59,9 +60,9 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: ".pio/build/esp32s3/firmware.bin,version.json"
-          tag: ${{ github.sha }}
-          name: "Build ${{ github.sha }}"
-          body: "Firmware built from commit ${{ github.sha }}."
+          tag: "build-${{ env.GIT_SHA }}"
+          name: "Build ${{ env.GIT_SHA }}"
+          body: "Firmware built from commit ${{ env.GIT_SHA }}."
           makeLatest: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
