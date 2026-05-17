@@ -8,10 +8,11 @@
 // so sliders show correct state immediately without waiting for pull().
 static const char PAGE[] PROGMEM = R"HTML(<!doctype html><html lang=en><head>
 <meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name=viewport content="width=device-width,initial-scale=1">
 <meta name=theme-color content="#0a0503"><title>Ember</title><style>
 :root{--b:60;--g:calc(var(--b)/100)}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+button,input[type=range]{touch-action:manipulation}
 html,body{min-height:100%}
 body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#f6d9b0;
  display:flex;align-items:center;justify-content:center;overflow-x:hidden;overflow-y:auto;padding:40px 0;
@@ -38,18 +39,18 @@ h1{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:600;c
  background:radial-gradient(circle at 38% 32%,#fff,#ffae45 40%,#ff5e10 75%,#7a1f00);
  box-shadow:0 0 16px rgba(255,140,40,.9)}
 .desc{font-size:12px;color:#a85a22;margin-top:-14px;margin-bottom:24px;letter-spacing:0.05em;line-height:1.4;opacity:0.8;font-weight:400;}
-.reset{margin-top:10px;padding:12px 24px;background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:24px;cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;transition:all 0.2s;}
+.reset{margin-top:10px;padding:14px 24px;background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:24px;cursor:pointer;font-size:13px;text-transform:uppercase;letter-spacing:0.1em;transition:all 0.2s;}
 .reset:active{background:#7a3f16;color:#fff2dd;}
 .lang{position:absolute;top:20px;right:20px;display:flex;gap:4px;z-index:3;}
-.lbtn{background:none;border:1px solid #7a3f16;color:#c8743a;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;transition:all 0.2s;}
+.lbtn{background:none;border:1px solid #7a3f16;color:#c8743a;padding:0 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;transition:all 0.2s;display:inline-flex;align-items:center;min-height:44px;}
 .lbtn.act{background:#7a3f16;color:#fff2dd;}
 .stat{margin-top:20px;text-align:center;font-size:13px;color:#a85a22;letter-spacing:0.1em;opacity:0.8;font-weight:400;}
 .stat span{color:#ffb14a;font-weight:bold;}
-.ibtn{position:absolute;top:20px;left:20px;background:none;border:1px solid #7a3f16;color:#c8743a;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;transition:all 0.2s;z-index:3;}
+.ibtn{position:absolute;top:20px;left:20px;background:none;border:1px solid #7a3f16;color:#c8743a;padding:0 16px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;transition:all 0.2s;z-index:3;display:inline-flex;align-items:center;min-height:44px;min-width:44px;}
 .ibtn:active{background:#7a3f16;color:#fff2dd;}
 .mod{display:none;position:fixed;inset:0;background:rgba(10,5,3,0.95);z-index:10;flex-direction:column;padding:30px;overflow-y:auto;color:#f6d9b0;text-align:left;font-size:14px;line-height:1.5;}
 .mod.show{display:flex;}
-.mcls{align-self:flex-end;background:none;border:none;color:#ffb14a;font-size:28px;cursor:pointer;margin-bottom:10px;}
+.mcls{align-self:flex-end;background:none;border:none;color:#ffb14a;font-size:28px;cursor:pointer;margin-bottom:10px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;}
 .mt{font-size:16px;font-weight:bold;color:#ff6a18;margin-top:15px;margin-bottom:5px;letter-spacing:.1em;text-transform:uppercase;}
 .md{margin-bottom:15px;opacity:0.85;}
 body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
