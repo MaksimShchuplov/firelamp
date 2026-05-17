@@ -140,7 +140,7 @@ function ul(){
  document.getElementById('mt4').textContent=ru?'Искры (Бензин)':'Sparking (Ignition)';
  document.getElementById('md4').textContent=ru?'Управляет хаосом у основания. Высокое значение = сплошной, ревущий белый/желтый жар. Низкое = спокойное тление.':'Dictates chaos at the base. Higher value = a solid, roaring white/yellow inferno. Lower value = calm smoldering.';
  document.getElementById('mt5').textContent=ru?'По умолчанию':'Reset to Default';
- document.getElementById('md5').textContent=ru?'Восстанавливает все ползунки к заводским значениям: яркость 100, контрастность 50, охлаждение 45, искры 36.':'Restores all sliders to factory defaults: brightness 100, contrast 50, cooling 45, sparking 36.';
+ document.getElementById('md5').textContent=ru?'Восстанавливает все параметры к заводским значениям: яркость 100, контрастность 50, охлаждение 45, искры 36, плавность 50, тема Огонь.':'Restores all parameters to factory defaults: brightness 100, contrast 50, cooling 45, sparking 36, blend 50, theme Fire.';
  document.getElementById('mt6').textContent=ru?'Проверить обновления':'Check for Update';
  document.getElementById('md6').textContent=ru?'Сравнивает текущую прошивку с последней сборкой на GitHub. При наличии обновления предложит установить его — лампа перезагрузится автоматически.':'Compares current firmware with the latest build on GitHub. If an update is available you can install it — the lamp reboots automatically.';
  document.getElementById('mt7').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
