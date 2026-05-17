@@ -20,6 +20,9 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
+#include <HTTPClient.h>
+#include <HTTPUpdate.h>
+#include <WiFiClientSecure.h>
 
 // =============================================================================
 //  CONFIG
@@ -64,6 +67,7 @@
 #define WIFI_CONNECT_MS         10000         // setup() stops blocking after this
 #define WIFI_RETRY_MS           15000         // background reconnect interval
 #define NVS_COMMIT_DELAY_MS     2500          // defer brightness writes to spare flash
+#define FIRMWARE_URL            "https://raw.githubusercontent.com/MaksimShchuplov/firelamp/binaries/firmware.bin"
 
 // =============================================================================
 //  GLOBALS
@@ -308,6 +312,7 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <input class=bar id=ssp type=range min=0 max=255 value=95>
 <div class=desc id=dsp>Higher = hotter base.</div>
 <button class=reset id=rst>Reset to Default</button>
+<button class=reset id=upd style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Update from GitHub</button>
 <div class=stat><span id=lw>Power:</span> <span id=vw>0.0</span> W</div>
 </div><script>
 var vb=document.getElementById('vb'),sb=document.getElementById('sb');
@@ -328,6 +333,7 @@ function ul() {
  document.getElementById('lsp').textContent=ru?'Искры':'Sparking';
  document.getElementById('dsp').textContent=ru?'Больше = горячее основание.':'Higher = hotter base.';
  document.getElementById('rst').textContent=ru?'По умолчанию':'Reset to Default';
+ document.getElementById('upd').textContent=ru?'Обновить прошивку':'Update from GitHub';
  document.getElementById('lw').textContent=ru?'Потребление:':'Power:';
  document.getElementById('mt1').textContent=ru?'Яркость (Масштаб)':'Brightness (Scale)';
  document.getElementById('md1').textContent=ru?'Линейно масштабирует общую мощность свечения лампы. Не меняет физику пламени.':'Linearly scales the overall light output of the lamp. Does not change the flame physics.';
@@ -353,6 +359,7 @@ sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTime
 sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){fetch('/setco?v='+sco.value)},120)});
 ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){fetch('/setsp?v='+ssp.value)},120)});
 document.getElementById('rst').onclick=function(){fetch('/reset').then(pull)};
+document.getElementById('upd').onclick=function(){if(confirm(ru?'Начать обновление из GitHub? Лампа перезагрузится.':'Start update from GitHub? The lamp will reboot.')){fetch('/update').then(()=>alert(ru?'Обновление запущено...':'Update started...'))}};
 pull();setInterval(function(){if(!document.hidden)pull()},4000);
 </script></body></html>)HTML";
 
@@ -438,6 +445,29 @@ void handleReset() {
     sendVal();
 }
 
+void handleUpdate() {
+    server.send(200, "text/plain", "Update starting...");
+    delay(500);
+    
+    WiFiClientSecure client;
+    client.setInsecure(); // GitHub raw uses HTTPS
+    
+    Serial.println("Starting OTA from GitHub...");
+    t_httpUpdate_return ret = httpUpdate.update(client, FIRMWARE_URL);
+    
+    switch (ret) {
+        case HTTP_UPDATE_FAILED:
+            Serial.printf("OTA Failed (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+            break;
+        case HTTP_UPDATE_NO_UPDATES:
+            Serial.println("OTA No updates");
+            break;
+        case HTTP_UPDATE_OK:
+            Serial.println("OTA Success");
+            break;
+    }
+}
+
 void startNetwork() {
     prefs.begin("lamp", false);
     uiBright = prefs.getUChar("bright2", BRIGHT_DEFAULT);
@@ -466,6 +496,7 @@ void startNetwork() {
     server.on("/setco", handleSetCo);
     server.on("/setsp", handleSetSp);
     server.on("/reset", handleReset);
+    server.on("/update", handleUpdate);
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
     server.begin();
 }
