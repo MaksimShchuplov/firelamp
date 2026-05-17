@@ -51,7 +51,11 @@ jobs:
       - name: Generate version.json and changelog
         run: |
           GIT_SHA=$(git rev-parse --short HEAD)
+          BUILD_STAMP=$(date -u +"%Y%m%d-%H%M%S")
+          BUILD_TAG="build-${BUILD_STAMP}-${GIT_SHA}"
           echo "GIT_SHA=${GIT_SHA}" >> $GITHUB_ENV
+          echo "BUILD_TAG=${BUILD_TAG}" >> $GITHUB_ENV
+          echo "BUILD_STAMP=${BUILD_STAMP}" >> $GITHUB_ENV
           BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           MD5=$(md5sum .pio/build/esp32s3/firmware.bin | awk '{print $1}')
           echo "{\"version\":\"${GIT_SHA}\",\"date\":\"${BUILD_DATE}\",\"md5\":\"${MD5}\"}" > version.json
@@ -76,8 +80,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: ".pio/build/esp32s3/firmware.bin,version.json"
-          tag: "build-${{ env.GIT_SHA }}"
-          name: "Build ${{ env.GIT_SHA }}"
+          tag: "${{ env.BUILD_TAG }}"
+          name: "Build ${{ env.BUILD_STAMP }} (${{ env.GIT_SHA }})"
           bodyFile: "changelog.txt"
           makeLatest: false
         env:
