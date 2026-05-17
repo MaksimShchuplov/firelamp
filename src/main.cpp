@@ -10,9 +10,10 @@
 //             LED transmission, which is the actual perf win on the S3.
 //  FPS wall:  ~40 FPS for 800 LEDs on one data line is WS2812B protocol
 //             physics. Parallel segments are the only way past it.
-//  Power:     800 LEDs full-white = ~48 A. Mean Well 60 W = 12 A. FastLED's
-//             real-time current limiter (setMaxPowerInVoltsAndMilliamps) is
-//             what keeps a spark burst from sagging or tripping the rail.
+//  Power:     Mean Well 60W (5V 12A) PSU. Due to physical voltage drop along
+//             the 800-LED strip, real-world current is lower than theoretical.
+//             FastLED's safety limiter is hardcoded to 20A (100W) to allow maximum
+//             brightness without tripping the PSU's over-current protection.
 // =============================================================================
 
 #include <FastLED.h>
@@ -33,8 +34,7 @@
 #define COLOR_TEST              0             // 1 = solid-red boot test for 1 s
 
 // ---- Fire algorithm --------------------------------------------------------
-#define COOLING                 70
-#define SPARKING                95
+// Cooling & Sparking are now dynamically controlled via the Web UI variables
 #define SPARK_INTENSITY         240           // per-spark heat add range upper bound
                                               // (was 180; lower = smaller per-frame jumps)
 #define WIND_CHANGE_INTERVAL    2000
@@ -47,7 +47,7 @@
 
 // ---- Power -----------------------------------------------------------------
 #define PSU_VOLTS               5
-#define MAX_PSU_MA              12000         // Mean Well 60 W @ 5 V, full rating
+// MAX_PSU_MA is hardcoded to 20000mA (20A) in setup() to account for voltage drop
 
 // ---- Brightness ------------------------------------------------------------
 #define BRIGHT_DEFAULT          100           // 0..100, until UI / NVS overrides
@@ -75,24 +75,34 @@ CRGB     heatPalette[256];
 
 float    windDir[ROWS];
 float    windTarget[ROWS];
-uint8_t  coolMax[ROWS];                       // per-row cooling cap (constant after init)
+uint8_t  coolMax[ROWS];                       // per-row cooling cap (updated via UI)
 uint32_t lastWindChange = 0;
 
 WebServer   server(80);
 Preferences prefs;
 uint8_t  uiBright    = BRIGHT_DEFAULT;        // 0..100, user-facing
+uint8_t  uiContrast  = 50;                    // 0..100, user-facing
+uint8_t  uiCooling   = 45;                    // Tuned for IKEA Vidja 138cm
+uint8_t  uiSparking  = 36;                    // Tuned for solid hot core
 uint8_t  appliedRaw  = 0;                     // last 0..255 sent to FastLED
-bool     brightDirty = false;                 // pending NVS commit
-uint32_t brightTouch = 0;                     // millis of last brightness change
+bool     prefsDirty  = false;                 // pending NVS commit
+uint32_t prefsTouch  = 0;                     // millis of last setting change
 uint32_t wifiRetryAt = 0;
+float    currentPowerW = 0.0f;                // Estimated power in Watts
+uint32_t lastPowerCalc = 0;                   // millis of last power calc
 
 // =============================================================================
 //  PALETTE — heat LUT (red -> orange -> white-hot), built once at boot
 // =============================================================================
 
 void buildHeatPalette() {
+    float power = 1.0f + ((uiContrast - 50.0f) / 50.0f); // 50 -> 1.0, 100 -> 2.0 (more aggressive reds/oranges)
     for (int i = 0; i < 256; i++) {
-        uint8_t t192 = (uint8_t)(((uint16_t)i * 191) / 255);
+        float normalized = (float)i / 255.0f;
+        float adjusted = powf(normalized, power);
+        uint16_t mapped = (uint16_t)(adjusted * 255.0f);
+        
+        uint8_t t192 = (uint8_t)((mapped * 191) / 255);
         uint8_t ramp = (uint8_t)((t192 & 0x3F) << 2);
         if      (t192 > 0x80) heatPalette[i] = CRGB(255, 255, ramp);  // white-hot
         else if (t192 > 0x40) heatPalette[i] = CRGB(255, ramp, 0);    // orange
@@ -131,8 +141,8 @@ void setBright(int v) {
     if (v < 0) v = 0; else if (v > 100) v = 100;
     if ((uint8_t)v != uiBright) {
         uiBright    = (uint8_t)v;
-        brightDirty = true;
-        brightTouch = millis();
+        prefsDirty  = true;
+        prefsTouch  = millis();
         applyBrightness();
     }
 }
@@ -152,6 +162,20 @@ void updateWind() {
     }
     for (int y = 0; y < ROWS; y++)
         windDir[y] += (windTarget[y] - windDir[y]) * 0.1f;
+}
+
+void recalcCooling() {
+    for (int y = 0; y < ROWS; y++) {
+        uint8_t cf = random8(uiCooling - 10, uiCooling + 10);
+        coolMax[y] = (uint8_t)((cf * 10) / ROWS + 2);
+    }
+}
+
+void updatePowerCalc() {
+    float reqW = (float)calculate_unscaled_power_mW(leds, NUM_LEDS) * ((float)appliedRaw / 255.0f) / 1000.0f;
+    float maxW = (float)(PSU_VOLTS * 20000) / 1000.0f;
+    currentPowerW = (reqW > maxW) ? maxW : reqW;
+    lastPowerCalc = millis();
 }
 
 void fireEffect() {
@@ -178,10 +202,9 @@ void fireEffect() {
         }
     }
 
-    // 3. Base sparks (saturating add). The heat skyrockets in one frame —
-    //    the temporal blend in step 4 is what turns that snap into a glow-up.
+    // 3. Ignite new sparks at the base
     for (int x = 0; x < COLUMNS; x++) {
-        if (random8() < SPARKING) {
+        if (random8() < uiSparking) {
             int y = random8(3);
             heat[y][x] = qadd8(heat[y][x],
                                random8(SPARK_INTENSITY - 40, SPARK_INTENSITY));
@@ -199,6 +222,10 @@ void fireEffect() {
             nblend(leds[base + x], heatPalette[heat[y][x]], FIRE_BLEND);
         }
     }
+
+    if (millis() - lastPowerCalc > 3000) {
+        updatePowerCalc();
+    }
 }
 
 // =============================================================================
@@ -211,9 +238,9 @@ static const char PAGE[] PROGMEM = R"HTML(<!doctype html><html lang=en><head>
 <meta name=theme-color content="#0a0503"><title>Ember</title><style>
 :root{--b:60;--g:calc(var(--b)/100)}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
+html,body{min-height:100%}
 body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#f6d9b0;
- display:flex;align-items:center;justify-content:center;overflow:hidden;
+ display:flex;align-items:center;justify-content:center;overflow-x:hidden;overflow-y:auto;padding:40px 0;
  background:radial-gradient(120% 90% at 50% 118%,
   rgba(255,120,20,calc(.55*var(--g))) 0%,rgba(180,40,8,calc(.32*var(--g))) 32%,
   rgba(20,6,2,0) 66%),#0a0503}
@@ -222,13 +249,12 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#f6d9b0;
 @keyframes fl{0%,100%{opacity:.85}45%{opacity:1}70%{opacity:.78}}
 .wrap{width:min(92vw,420px);text-align:center;position:relative;z-index:2}
 .kick{font-size:12px;letter-spacing:.42em;text-transform:uppercase;color:#c8743a;opacity:.85;margin-bottom:6px}
-h1{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:600;color:#8a4a22;margin-bottom:44px}
-.val{font-size:108px;font-weight:200;line-height:1;letter-spacing:-.04em;
+h1{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:600;color:#8a4a22;margin-bottom:12px;margin-top:24px}
+.val{font-size:72px;font-weight:200;line-height:1;letter-spacing:-.04em;
  background:linear-gradient(180deg,#fff3d6,#ffb14a 55%,#ff6a18);-webkit-background-clip:text;
  background-clip:text;color:transparent;transition:filter .25s;
- filter:drop-shadow(0 0 calc(6px + 34px*var(--g)) rgba(255,140,40,calc(.4 + .5*var(--g))))}
-.unit{font-size:13px;letter-spacing:.35em;color:#9c5a2c;margin-top:8px;text-transform:uppercase}
-.bar{margin:42px 0 38px;-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:9px;
+ filter:drop-shadow(0 0 calc(6px + 20px*var(--g)) rgba(255,140,40,calc(.4 + .5*var(--g))))}
+.bar{margin:24px 0;-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:9px;
  outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.7);
  background:linear-gradient(90deg,#2a0d04,#7a1f06 22%,#d6510c 55%,#ff8a1f 78%,#ffe7b8)}
 .bar::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;cursor:pointer;
@@ -237,29 +263,97 @@ h1{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:600;c
 .bar::-moz-range-thumb{width:30px;height:30px;border:0;border-radius:50%;
  background:radial-gradient(circle at 38% 32%,#fff,#ffae45 40%,#ff5e10 75%,#7a1f00);
  box-shadow:0 0 16px rgba(255,140,40,.9)}
-.row{display:flex;gap:26px;justify-content:center}
-.btn{width:96px;height:96px;border:0;border-radius:50%;cursor:pointer;font-size:38px;font-weight:300;
- color:#fff2dd;background:radial-gradient(circle at 40% 34%,#5a2208,transparent 70%),#1b0a03;
- transition:transform .08s,box-shadow .2s;
- box-shadow:0 10px 24px rgba(0,0,0,.6),inset 0 0 22px rgba(255,110,30,.28),
-  inset 0 1px 1px rgba(255,180,90,.25)}
-.btn:active{transform:scale(.93);box-shadow:0 0 0 1px #000,inset 0 0 30px rgba(255,120,30,.5)}
+.desc{font-size:12px;color:#a85a22;margin-top:-14px;margin-bottom:24px;letter-spacing:0.05em;line-height:1.4;opacity:0.8;font-weight:400;}
+.reset{margin-top:10px;padding:12px 24px;background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:24px;cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;transition:all 0.2s;}
+.reset:active{background:#7a3f16;color:#fff2dd;}
+.lang{position:absolute;top:20px;right:20px;display:flex;gap:4px;z-index:3;}
+.lbtn{background:none;border:1px solid #7a3f16;color:#c8743a;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;transition:all 0.2s;}
+.lbtn.act{background:#7a3f16;color:#fff2dd;}
+.stat{margin-top:20px;text-align:center;font-size:13px;color:#a85a22;letter-spacing:0.1em;opacity:0.8;font-weight:400;}
+.stat span{color:#ffb14a;font-weight:bold;}
+.ibtn{position:absolute;top:20px;left:20px;background:none;border:1px solid #7a3f16;color:#c8743a;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;transition:all 0.2s;z-index:3;}
+.ibtn:active{background:#7a3f16;color:#fff2dd;}
+.mod{display:none;position:fixed;inset:0;background:rgba(10,5,3,0.95);z-index:10;flex-direction:column;padding:30px;overflow-y:auto;color:#f6d9b0;text-align:left;font-size:14px;line-height:1.5;}
+.mod.show{display:flex;}
+.mcls{align-self:flex-end;background:none;border:none;color:#ffb14a;font-size:28px;cursor:pointer;margin-bottom:10px;}
+.mt{font-size:16px;font-weight:bold;color:#ff6a18;margin-top:15px;margin-bottom:5px;letter-spacing:.1em;text-transform:uppercase;}
+.md{margin-bottom:15px;opacity:0.85;}
 body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
-</style></head><body><div class=amb></div><div class=wrap>
-<div class=kick>Fire Lamp</div><h1>Brightness</h1>
-<div class=val id=v>60</div><div class=unit>percent</div>
-<input class=bar id=s type=range min=0 max=100 value=60>
-<div class=row><button class=btn id=dn>&minus;</button><button class=btn id=up>&plus;</button></div>
+</style></head><body><div class=amb></div>
+<button id=ibtn class=ibtn>?</button>
+<div id=mod class=mod>
+<button id=mcls class=mcls>&times;</button>
+<div class=mt id=mt1>Brightness</div><div class=md id=md1></div>
+<div class=mt id=mt2>Contrast</div><div class=md id=md2></div>
+<div class=mt id=mt3>Cooling</div><div class=md id=md3></div>
+<div class=mt id=mt4>Sparking</div><div class=md id=md4></div>
+</div>
+<div class=lang><button id=len class="lbtn act">EN</button><button id=lru class=lbtn>RU</button></div>
+<div class=wrap>
+<div class=kick>Fire Lamp</div>
+<h1 id=lb>Brightness</h1>
+<div class=val id=vb>60</div>
+<input class=bar id=sb type=range min=0 max=100 value=60>
+<div class=desc id=db>Controls the overall light output of the lamp.</div>
+<h1 id=lc>Contrast</h1>
+<div class=val id=vc>50</div>
+<input class=bar id=sc type=range min=0 max=100 value=50>
+<div class=desc id=dc>Adjusts the intensity of reds and oranges.</div>
+<h1 id=lco>Cooling</h1>
+<div class=val id=vco>70</div>
+<input class=bar id=sco type=range min=20 max=150 value=70>
+<div class=desc id=dco>Lower = taller flames.</div>
+<h1 id=lsp>Sparking</h1>
+<div class=val id=vsp>95</div>
+<input class=bar id=ssp type=range min=0 max=255 value=95>
+<div class=desc id=dsp>Higher = hotter base.</div>
+<button class=reset id=rst>Reset to Default</button>
+<div class=stat><span id=lw>Power:</span> <span id=vw>0.0</span> W</div>
 </div><script>
-var v=document.getElementById('v'),s=document.getElementById('s'),R=document.documentElement,t;
-function paint(n){n=Math.max(0,Math.min(100,n|0));v.textContent=n;s.value=n;
- R.style.setProperty('--b',n);document.body.classList.toggle('off',n===0)}
-function pull(u){fetch(u).then(r=>r.text()).then(x=>paint(parseInt(x,10))).catch(()=>{})}
-document.getElementById('up').onclick=function(){pull('/up')};
-document.getElementById('dn').onclick=function(){pull('/down')};
-s.addEventListener('input',function(){paint(+s.value);
- clearTimeout(t);t=setTimeout(function(){pull('/set?v='+s.value)},120)});
-pull('/state');setInterval(function(){if(!document.hidden)pull('/state')},4000);
+var vb=document.getElementById('vb'),sb=document.getElementById('sb');
+var vc=document.getElementById('vc'),sc=document.getElementById('sc');
+var vco=document.getElementById('vco'),sco=document.getElementById('sco');
+var vsp=document.getElementById('vsp'),ssp=document.getElementById('ssp');
+var R=document.documentElement,t1,t2,t4,t5;
+var ru=(localStorage.getItem('lang')==='ru')||(!localStorage.getItem('lang')&&navigator.language.startsWith('ru'));
+function ul() {
+ document.getElementById('len').classList.toggle('act',!ru);
+ document.getElementById('lru').classList.toggle('act',ru);
+ document.getElementById('lb').textContent=ru?'Яркость':'Brightness';
+ document.getElementById('db').textContent=ru?'Управляет общей яркостью лампы.':'Controls the overall light output of the lamp.';
+ document.getElementById('lc').textContent=ru?'Контрастность':'Contrast';
+ document.getElementById('dc').textContent=ru?'Насыщенность красных и оранжевых оттенков.':'Adjusts the intensity of reds and oranges.';
+ document.getElementById('lco').textContent=ru?'Охлаждение':'Cooling';
+ document.getElementById('dco').textContent=ru?'Меньше = выше пламя.':'Lower = taller flames.';
+ document.getElementById('lsp').textContent=ru?'Искры':'Sparking';
+ document.getElementById('dsp').textContent=ru?'Больше = горячее основание.':'Higher = hotter base.';
+ document.getElementById('rst').textContent=ru?'По умолчанию':'Reset to Default';
+ document.getElementById('lw').textContent=ru?'Потребление:':'Power:';
+ document.getElementById('mt1').textContent=ru?'Яркость (Масштаб)':'Brightness (Scale)';
+ document.getElementById('md1').textContent=ru?'Линейно масштабирует общую мощность свечения лампы. Не меняет физику пламени.':'Linearly scales the overall light output of the lamp. Does not change the flame physics.';
+ document.getElementById('mt2').textContent=ru?'Контрастность (Цвет)':'Contrast (Palette)';
+ document.getElementById('md2').textContent=ru?'Не влияет на физику. Сдвигает цвета: низкая контрастность дает больше желтого/белого, высокая оставляет только глубокий красный.':'Does not affect physics. Shifts the colors: low contrast allows more yellow/white, high contrast forces deep reds.';
+ document.getElementById('mt3').textContent=ru?'Охлаждение (Высота)':'Cooling (Height)';
+ document.getElementById('md3').textContent=ru?'Управляет скоростью затухания искр по мере подъема. Меньше значение = выше пламя. Больше значение = короткие искры.':'Dictates how quickly sparks die out as they travel up. Lower value = taller flames. Higher value = short embers.';
+ document.getElementById('mt4').textContent=ru?'Искры (Бензин)':'Sparking (Ignition)';
+ document.getElementById('md4').textContent=ru?'Управляет хаосом у основания. Высокое значение = сплошной, ревущий белый/желтый жар. Низкое = спокойное тление.':'Dictates chaos at the base. Higher value = a solid, roaring white/yellow inferno. Lower value = calm smoldering.';
+}
+ul();
+document.getElementById('ibtn').onclick=function(){document.getElementById('mod').classList.add('show')};
+document.getElementById('mcls').onclick=function(){document.getElementById('mod').classList.remove('show')};
+document.getElementById('len').onclick=function(){ru=false;localStorage.setItem('lang','en');ul();};
+document.getElementById('lru').onclick=function(){ru=true;localStorage.setItem('lang','ru');ul();};
+function pb(n){n=Math.max(0,Math.min(100,n|0));vb.textContent=n;sb.value=n;R.style.setProperty('--b',n);document.body.classList.toggle('off',n===0)}
+function pc(n){n=Math.max(0,Math.min(100,n|0));vc.textContent=n;sc.value=n;}
+function pco(n){n=Math.max(20,Math.min(150,n|0));vco.textContent=n;sco.value=n;}
+function psp(n){n=Math.max(0,Math.min(255,n|0));vsp.textContent=n;ssp.value=n;}
+function pull(){fetch('/state').then(r=>r.json()).then(x=>{pb(x.b);pc(x.c);pco(x.co);psp(x.sp);if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);}).catch(()=>{})}
+sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){fetch('/setb?v='+sb.value)},120)});
+sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){fetch('/setc?v='+sc.value)},120)});
+sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){fetch('/setco?v='+sco.value)},120)});
+ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){fetch('/setsp?v='+ssp.value)},120)});
+document.getElementById('rst').onclick=function(){fetch('/reset').then(pull)};
+pull();setInterval(function(){if(!document.hidden)pull()},4000);
 </script></body></html>)HTML";
 
 // =============================================================================
@@ -272,17 +366,84 @@ pull('/state');setInterval(function(){if(!document.hidden)pull('/state')},4000);
 //  for a moment, fire keeps running, reconnect retries in the background.
 // =============================================================================
 
-void sendVal()      { server.send(200, "text/plain", String((int)uiBright)); }
+void sendVal() { 
+    String json = "{\"b\":";
+    json += uiBright;
+    json += ",\"c\":";
+    json += uiContrast;
+    json += ",\"co\":";
+    json += uiCooling;
+    json += ",\"sp\":";
+    json += uiSparking;
+    json += ",\"w\":";
+    json += String(currentPowerW, 1);
+    json += "}";
+    server.send(200, "application/json", json); 
+}
 void handleRoot()   { server.send_P(200, "text/html", PAGE); }
-void handleUp()     { setBright(uiBright + BRIGHT_STEP); sendVal(); }
-void handleDown()   { setBright(uiBright - BRIGHT_STEP); sendVal(); }
-void handleSet()    { if (server.hasArg("v")) setBright(server.arg("v").toInt());
-                      sendVal(); }
+void handleSetB()   { 
+    if (server.hasArg("v")) {
+        setBright(server.arg("v").toInt()); 
+        updatePowerCalc();
+    }
+    sendVal(); 
+}
+void handleSetC()   { 
+    if (server.hasArg("v")) {
+        int val = server.arg("v").toInt();
+        if (val < 0) val = 0;
+        if (val > 100) val = 100;
+        if (uiContrast != val) {
+            uiContrast = val;
+            buildHeatPalette();
+            prefsDirty = true;
+            prefsTouch = millis();
+        }
+        updatePowerCalc();
+    }
+    sendVal(); 
+}
+void handleSetCo() {
+    if (server.hasArg("v")) {
+        int val = server.arg("v").toInt();
+        if (val < 20) val = 20;
+        if (val > 150) val = 150;
+        uiCooling = val;
+        recalcCooling();
+        updatePowerCalc();
+    }
+    sendVal();
+}
+void handleSetSp() {
+    if (server.hasArg("v")) {
+        int val = server.arg("v").toInt();
+        if (val < 0) val = 0;
+        if (val > 255) val = 255;
+        uiSparking = val;
+        updatePowerCalc();
+    }
+    sendVal();
+}
+void handleReset() {
+    uiBright = BRIGHT_DEFAULT;
+    uiContrast = 50;
+    uiCooling = 45;
+    uiSparking = 36;
+    applyBrightness();
+    buildHeatPalette();
+    recalcCooling();
+    prefsDirty = true;
+    prefsTouch = millis();
+    updatePowerCalc();
+    sendVal();
+}
 
 void startNetwork() {
     prefs.begin("lamp", false);
     uiBright = prefs.getUChar("bright2", BRIGHT_DEFAULT);
+    uiContrast = prefs.getUChar("contrast", 50);
     applyBrightness();
+    buildHeatPalette();
 
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);                     // modem sleep -> periodic LED timing hitch
@@ -300,9 +461,11 @@ void startNetwork() {
 
     server.on("/",      handleRoot);
     server.on("/state", []() { sendVal(); });
-    server.on("/set",   handleSet);
-    server.on("/up",    handleUp);
-    server.on("/down",  handleDown);
+    server.on("/setb",  handleSetB);
+    server.on("/setc",  handleSetC);
+    server.on("/setco", handleSetCo);
+    server.on("/setsp", handleSetSp);
+    server.on("/reset", handleReset);
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
     server.begin();
 }
@@ -311,10 +474,11 @@ void serviceNetwork() {
     server.handleClient();
 
     // Deferred persistence: commit only after value stable ~2.5 s, so
-    // holding -/+ doesn't burn flash endurance.
-    if (brightDirty && millis() - brightTouch > NVS_COMMIT_DELAY_MS) {
+    // dragging the slider doesn't burn flash endurance.
+    if (prefsDirty && millis() - prefsTouch > NVS_COMMIT_DELAY_MS) {
         prefs.putUChar("bright2", uiBright);
-        brightDirty = false;
+        prefs.putUChar("contrast", uiContrast);
+        prefsDirty = false;
     }
 
     // Non-blocking reconnect.
@@ -333,7 +497,7 @@ void setup() {
     Serial.begin(115200);
 
     FastLED.addLeds<WS2812B, LED_PIN, LED_COLOR_ORDER>(leds, NUM_LEDS);
-    FastLED.setMaxPowerInVoltsAndMilliamps(PSU_VOLTS, MAX_PSU_MA);
+    FastLED.setMaxPowerInVoltsAndMilliamps(PSU_VOLTS, 20000);
     FastLED.clear(true);
 
 #if COLOR_TEST
@@ -350,9 +514,8 @@ void setup() {
     for (int y = 0; y < ROWS; y++) {
         windDir[y]    = 0.0f;
         windTarget[y] = 0.0f;
-        uint8_t cf    = random8(COOLING - 10, COOLING + 10);
-        coolMax[y]    = (uint8_t)((cf * 10) / ROWS + 2);
     }
+    recalcCooling();
 
     startNetwork();                            // loads brightness, joins WiFi, starts UI
 
