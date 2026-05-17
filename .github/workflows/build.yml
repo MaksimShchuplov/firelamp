@@ -72,7 +72,8 @@ jobs:
           fi
 
           # Write to file so the release action can read it (avoids shell escaping issues)
-          printf "Built from commit %s\n\n%s\n" "$GIT_SHA" "$CHANGELOG" > changelog.txt
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${GITHUB_SHA}"
+          printf "Built from commit [%s](%s)\n\n%s\n" "$GIT_SHA" "$COMMIT_URL" "$CHANGELOG" > changelog.txt
           echo "--- Changelog ---"
           cat changelog.txt
 
