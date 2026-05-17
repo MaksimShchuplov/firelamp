@@ -476,30 +476,35 @@ void safeBootCheck() {
     esp_reset_reason_t reason = esp_reset_reason();
     // Only count hard crashes (panics, watchdogs). Normal power-ons or OTA restarts are ignored.
     if (reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT || reason == ESP_RST_TASK_WDT || reason == ESP_RST_WDT) {
-        prefs.begin("lamp", false);
-        uint32_t crashes = prefs.getUInt("crashes", 0);
+        Preferences p;
+        p.begin("lamp", false);
+        uint32_t crashes = p.getUInt("crashes", 0);
         crashes++;
         if (crashes >= 3) {
             Serial.println("CRITICAL: Boot loop detected! Rolling back to previous firmware...");
-            prefs.putUInt("crashes", 0);
-            prefs.end();
+            p.putUInt("crashes", 0);
+            p.end();
             if (Update.canRollBack()) {
                 Update.rollBack();
                 ESP.restart();
+            } else {
+                Serial.println("WARNING: canRollBack() = false, no previous firmware available.");
             }
         } else {
             Serial.printf("Warning: Crash detected. Count: %d/3\n", crashes);
-            prefs.putUInt("crashes", crashes);
-            prefs.end();
+            p.putUInt("crashes", crashes);
+            p.end();
         }
     }
 }
 
 void markBootSuccess() {
-    prefs.begin("lamp", false);
-    prefs.putUInt("crashes", 0); // Clear crash counter if we survived boot
-    prefs.end();
-    esp_ota_mark_app_valid_cancel_rollback(); // Tell ESP-IDF this firmware is good
+    Preferences p;
+    p.begin("lamp", false);
+    p.putUInt("crashes", 0); // Clear crash counter
+    p.end();
+    esp_ota_mark_app_valid_cancel_rollback(); // Tell ESP-IDF bootloader this firmware is confirmed good
+    Serial.println("Boot verified: firmware marked as valid.");
 }
 
 void startNetwork() {
