@@ -66,7 +66,7 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=wrap>
 <div class=kick>Fire Lamp</div>
 <h1 id=lb>Brightness</h1><div class=val id=vb>--</div>
-<input class=bar id=sb type=range min=0 max=100 value=50>
+<input class=bar id=sb type=range min=0 max=100 value=100>
 <div class=desc id=db>Controls the overall light output of the lamp.</div>
 <h1 id=lc>Contrast</h1><div class=val id=vc>--</div>
 <input class=bar id=sc type=range min=0 max=100 value=50>

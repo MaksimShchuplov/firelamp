@@ -12,12 +12,10 @@
 // =============================================================================
 
 void sendVal() {
-    String j = "{\"b\":";  j += (int)uiBright;
-    j += ",\"c\":";        j += (int)uiContrast;
-    j += ",\"co\":";       j += (int)uiCooling;
-    j += ",\"sp\":";       j += (int)uiSparking;
-    j += ",\"w\":";        j += String((float)currentPowerW, 1);
-    j += "}";
+    char j[64];
+    snprintf(j, sizeof(j), "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f}",
+             (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
+             (float)currentPowerW);
     server.send(200, "application/json", j);
 }
 

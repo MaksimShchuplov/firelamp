@@ -105,9 +105,10 @@ void fireEffect() {
 
     // 3. Ignite sparks at the base
     for (int x = 0; x < COLUMNS; x++) {
-        if (random8() < uiSparking)
-            heat[random8(3)][x] = qadd8(heat[random8(3)][x],
-                                        random8(SPARK_INTENSITY - 40, SPARK_INTENSITY));
+        if (random8() < uiSparking) {
+            uint8_t y = random8(3);
+            heat[y][x] = qadd8(heat[y][x], random8(SPARK_INTENSITY - 40, SPARK_INTENSITY));
+        }
     }
 
     // 4. Render with temporal blend.

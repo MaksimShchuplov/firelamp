@@ -45,7 +45,7 @@ void setup() {
     safeBootCheck();
 
     FastLED.addLeds<WS2812B, LED_PIN, LED_COLOR_ORDER>(leds, NUM_LEDS);
-    FastLED.setMaxPowerInVoltsAndMilliamps(PSU_VOLTS, 20000);
+    FastLED.setMaxPowerInVoltsAndMilliamps(PSU_VOLTS, PSU_MAX_MA);
     FastLED.clear(true);
 
 #if COLOR_TEST

@@ -19,7 +19,7 @@
 
 // ---- Power -----------------------------------------------------------------
 #define PSU_VOLTS           5
-// MAX_PSU_MA hardcoded to 20 000 mA in setup() to account for voltage drop
+#define PSU_MAX_MA          20000   // above PSU rating: voltage drop limits real draw
 
 // ---- Brightness ------------------------------------------------------------
 #define BRIGHT_DEFAULT      100     // 0..100, until UI / NVS overrides
