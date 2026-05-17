@@ -60,6 +60,12 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 .tbtn[data-t="1"].act{background:#200803;border-color:#602010;color:#e08060}
 .tbtn[data-t="2"].act{background:#2a0840;border-color:#8830c0;color:#d898ff}
 .tbtn[data-t="3"].act{background:#04152a;border-color:#2060a0;color:#80c8ff}
+.presets{display:flex;gap:8px;margin:8px 0 24px}
+.prbtn{flex:1;background:none;border:1px dashed #4a2010;color:#5a3018;border-radius:8px;cursor:pointer;font-size:10px;text-transform:uppercase;letter-spacing:.05em;transition:all .2s;min-height:44px;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation}
+.prbtn.filled{border-style:solid;border-color:#7a3f16;color:#c8743a}
+.prbtn.act{background:#3a1a06;border-color:#d6510c;color:#ffd8a0}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.shk{animation:shake .25s ease}
 </style></head><body><div class=amb></div>
 <button id=ibtn class=ibtn>?</button>
 <div id=mod class=mod>
@@ -74,6 +80,7 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=mt id=mt8>Power</div><div class=md id=md8></div>
 <div class=mt id=mt9>Blend</div><div class=md id=md9></div>
 <div class=mt id=mt10>Theme</div><div class=md id=md10></div>
+<div class=mt id=mt11>Presets</div><div class=md id=md11></div>
 </div>
 <div class=lang><button id=len class="lbtn act">EN</button><button id=lru class=lbtn>RU</button></div>
 <div class=wrap>
@@ -95,6 +102,8 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=desc id=dbl>Smoothness of flame transitions.</div>
 <h1 id=lth>Theme</h1>
 <div class=themes><button class="tbtn act" id=tb0 data-t=0>Fire</button><button class=tbtn id=tb1 data-t=1>Ember</button><button class=tbtn id=tb2 data-t=2>Plasma</button><button class=tbtn id=tb3 data-t=3>Ice</button></div>
+<h1 id=lpr>Presets</h1>
+<div class=presets><button class=prbtn id=pr0 data-slot=0>+</button><button class=prbtn id=pr1 data-slot=1>+</button><button class=prbtn id=pr2 data-slot=2>+</button><button class=prbtn id=pr3 data-slot=3>+</button></div>
 <button class=reset id=rst>Reset to Default</button>
 <button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
 <div id=vinfo style="font-size:11px;color:#888;margin-top:6px;text-align:center"></div>
@@ -126,6 +135,7 @@ function ul(){
  document.getElementById('lbl').textContent=ru?'Плавность':'Blend';
  document.getElementById('dbl').textContent=ru?'Плавность смены кадров пламени. Меньше = резкое мерцание, больше = медленное мягкое свечение.':'Temporal smoothing per frame. Lower = sharp flicker, higher = slow soft glow.';
  document.getElementById('lth').textContent=ru?'Тема':'Theme';
+ document.getElementById('lpr').textContent=ru?'Пресеты':'Presets';
  document.getElementById('tb0').textContent=ru?'Огонь':'Fire';
  document.getElementById('tb1').textContent=ru?'Тление':'Ember';
  document.getElementById('tb2').textContent=ru?'Плазма':'Plasma';
@@ -151,6 +161,8 @@ function ul(){
  document.getElementById('md9').textContent=ru?'Временное сглаживание кадров. 0 = резкое мерцание, 255 = медленное мягкое свечение. Оптимальный диапазон 30–80.':'Temporal blend per frame. 0 = sharp flicker, 255 = slow soft glow. Sweet spot 30–80.';
  document.getElementById('mt10').textContent=ru?'Тема цвета':'Color Theme';
  document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (глубокий тёмно-красный), Плазма (пурпурно-белый), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
+ document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
+ document.getElementById('md11').textContent=ru?'До 4 наборов параметров. Нажмите + чтобы сохранить текущие настройки. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы переименовать или перезаписать.':'Up to 4 parameter sets. Tap + to save current settings. Tap a filled slot to load. Long-press to rename or overwrite.';
 }
 ul();
 document.getElementById('ibtn').onclick=function(){document.getElementById('mod').classList.add('show')};
@@ -164,13 +176,30 @@ function psp(n){n=Math.max(0,Math.min(255,n|0));vsp.textContent=n;ssp.value=n;}
 function pbl(n){n=Math.max(0,Math.min(255,n|0));vbl.textContent=n;sbl.value=n;}
 function pth(n){[0,1,2,3].forEach(function(i){document.getElementById('tb'+i).classList.toggle('act',i===n);});}
 function pull(){fetch('/state').then(r=>r.json()).then(x=>{pb(x.b);pc(x.c);pco(x.co);psp(x.sp);if(x.bl!==undefined)pbl(x.bl);if(x.th!==undefined)pth(x.th);if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}}).catch(()=>{})}
-sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){xf('/setb?v='+sb.value)},120)});
-sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){xf('/setc?v='+sc.value)},120)});
-sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){xf('/setco?v='+sco.value)},120)});
-ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){xf('/setsp?v='+ssp.value)},120)});
-sbl.addEventListener('input',function(){pbl(+sbl.value);clearTimeout(t6);t6=setTimeout(function(){xf('/setbl?v='+sbl.value)},120)});
-[0,1,2,3].forEach(function(t){document.getElementById('tb'+t).onclick=function(){xf('/settheme?v='+t).then(pull);};});
-document.getElementById('rst').onclick=function(){xf('/reset').then(pull)};
+sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){xf('/setb?v='+sb.value)},120);clearActive();});
+sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){xf('/setc?v='+sc.value)},120);clearActive();});
+sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){xf('/setco?v='+sco.value)},120);clearActive();});
+ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){xf('/setsp?v='+ssp.value)},120);clearActive();});
+sbl.addEventListener('input',function(){pbl(+sbl.value);clearTimeout(t6);t6=setTimeout(function(){xf('/setbl?v='+sbl.value)},120);clearActive();});
+[0,1,2,3].forEach(function(t){document.getElementById('tb'+t).onclick=function(){xf('/settheme?v='+t).then(pull);clearActive();};});
+document.getElementById('rst').onclick=function(){xf('/reset').then(pull);clearActive();};
+var presets=[{},{},{},{}],activePreset=-1;
+function updPresetBtns(){presets.forEach(function(pr,i){var b=document.getElementById('pr'+i);if(pr.name){b.textContent=pr.name;b.classList.add('filled');}else{b.textContent='+';b.classList.remove('filled');}b.classList.toggle('act',i===activePreset);});}
+function clearActive(){activePreset=-1;updPresetBtns();}
+function fetchPresets(){fetch('/getpresets').then(r=>r.json()).then(function(d){presets=d;updPresetBtns();}).catch(function(){});}
+function saveSlot(s){var cur=presets[s]&&presets[s].name?presets[s].name:(ru?'Пресет ':'Preset ')+(s+1);var nm=prompt(ru?'Название:':'Name:',cur);if(nm===null||!nm.trim())return;xf('/savepreset?slot='+s+'&name='+encodeURIComponent(nm.trim())).then(function(){activePreset=s;fetchPresets();}).catch(function(){});}
+[0,1,2,3].forEach(function(s){
+  var b=document.getElementById('pr'+s),pt=null;
+  function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(function(){pt=null;b.classList.add('shk');setTimeout(function(){b.classList.remove('shk');},250);saveSlot(s);},600);}
+  function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(r=>r.json()).then(function(x){pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);activePreset=s;updPresetBtns();}).catch(function(){});}else saveSlot(s);}}
+  b.addEventListener('touchstart',onStart,{passive:false});
+  b.addEventListener('touchend',onEnd,{passive:false});
+  b.addEventListener('touchmove',function(){if(pt){clearTimeout(pt);pt=null;}},{passive:true});
+  b.addEventListener('mousedown',onStart);
+  b.addEventListener('mouseup',onEnd);
+  b.addEventListener('mouseleave',function(){if(pt){clearTimeout(pt);pt=null;}});
+});
+fetchPresets();
 document.getElementById('rwifi').onclick=function(){
   if(confirm(ru?'Сбросить настройки Wi-Fi?\nЛампа перезагрузится в режим настройки.\nПодключитесь к сети "FireLamp-Setup" и откройте 192.168.4.1':'Reset WiFi credentials?\nThe lamp will reboot into setup mode.\nConnect to "FireLamp-Setup" and open 192.168.4.1'))
     {var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;xf('/resetwifi').catch(function(){});}

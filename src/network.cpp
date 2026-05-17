@@ -112,6 +112,82 @@ static void handleSetSp() {
     sendVal();
 }
 
+static void handleGetPresets() {
+    Preferences p;
+    p.begin("presets", true);
+    String out = "[";
+    for (int i = 0; i < 4; i++) {
+        char k[6];
+        snprintf(k, 6, "p%dn", i);
+        String name = p.getString(k, "");
+        if (i > 0) out += ",";
+        out += "{\"slot\":" + String(i) + ",\"name\":\"" + name + "\"";
+        if (name.length() > 0) {
+            snprintf(k, 6, "p%db",  i); out += ",\"b\":"  + String(p.getUChar(k, BRIGHT_DEFAULT));
+            snprintf(k, 6, "p%dc",  i); out += ",\"c\":"  + String(p.getUChar(k, CONTRAST_DEFAULT));
+            snprintf(k, 6, "p%dco", i); out += ",\"co\":" + String(p.getUChar(k, COOLING_DEFAULT));
+            snprintf(k, 6, "p%dsp", i); out += ",\"sp\":" + String(p.getUChar(k, SPARKING_DEFAULT));
+            snprintf(k, 6, "p%dbl", i); out += ",\"bl\":" + String(p.getUChar(k, BLEND_DEFAULT));
+            snprintf(k, 6, "p%dth", i); out += ",\"th\":" + String(p.getUChar(k, THEME_DEFAULT));
+        }
+        out += "}";
+    }
+    p.end();
+    out += "]";
+    server.send(200, "application/json", out);
+}
+
+static void handleSavePreset() {
+    if (!isWebRequest()) return;
+    if (!server.hasArg("slot") || !server.hasArg("name")) {
+        server.send(400, "application/json", "{\"error\":\"missing params\"}"); return;
+    }
+    int slot = constrain(server.arg("slot").toInt(), 0, 3);
+    String name = server.arg("name");
+    name.trim();
+    if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
+    if (name.length() > 15) name = name.substring(0, 15);
+    name.replace("\"", "'");
+    Preferences p;
+    p.begin("presets", false);
+    char k[6];
+    snprintf(k, 6, "p%dn",  slot); p.putString(k, name);
+    snprintf(k, 6, "p%db",  slot); p.putUChar(k, uiBright);
+    snprintf(k, 6, "p%dc",  slot); p.putUChar(k, uiContrast);
+    snprintf(k, 6, "p%dco", slot); p.putUChar(k, uiCooling);
+    snprintf(k, 6, "p%dsp", slot); p.putUChar(k, uiSparking);
+    snprintf(k, 6, "p%dbl", slot); p.putUChar(k, uiBlend);
+    snprintf(k, 6, "p%dth", slot); p.putUChar(k, uiTheme);
+    p.end();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handleLoadPreset() {
+    if (!isWebRequest()) return;
+    if (!server.hasArg("slot")) {
+        server.send(400, "application/json", "{\"error\":\"missing slot\"}"); return;
+    }
+    int slot = constrain(server.arg("slot").toInt(), 0, 3);
+    Preferences p;
+    p.begin("presets", true);
+    char k[6];
+    snprintf(k, 6, "p%dn", slot);
+    String name = p.getString(k, "");
+    if (name.length() == 0) {
+        p.end(); server.send(404, "application/json", "{\"error\":\"empty slot\"}"); return;
+    }
+    snprintf(k, 6, "p%db",  slot); uiBright   = p.getUChar(k, BRIGHT_DEFAULT);
+    snprintf(k, 6, "p%dc",  slot); uiContrast = p.getUChar(k, CONTRAST_DEFAULT);
+    snprintf(k, 6, "p%dco", slot); uiCooling  = p.getUChar(k, COOLING_DEFAULT);
+    snprintf(k, 6, "p%dsp", slot); uiSparking = p.getUChar(k, SPARKING_DEFAULT);
+    snprintf(k, 6, "p%dbl", slot); uiBlend    = p.getUChar(k, BLEND_DEFAULT);
+    snprintf(k, 6, "p%dth", slot); uiTheme    = p.getUChar(k, THEME_DEFAULT);
+    p.end();
+    applyBrightness(); buildHeatPalette(); recalcCooling(); updatePowerCalc();
+    prefsDirty = true; prefsTouch = millis();
+    sendVal();
+}
+
 static void handleSetBl() {
     if (server.hasArg("v")) {
         uiBlend = (uint8_t)constrain(server.arg("v").toInt(), 0, 255);
@@ -235,8 +311,11 @@ void startNetwork() {
     server.on("/setc",        handleSetC);
     server.on("/setco",       handleSetCo);
     server.on("/setsp",       handleSetSp);
-    server.on("/setbl",       handleSetBl);
-    server.on("/settheme",    handleSetTheme);
+    server.on("/setbl",        handleSetBl);
+    server.on("/settheme",     handleSetTheme);
+    server.on("/getpresets",   handleGetPresets);
+    server.on("/savepreset",   handleSavePreset);
+    server.on("/loadpreset",   handleLoadPreset);
     server.on("/reset",       handleReset);
     server.on("/checkupdate", handleCheckUpdate);
     server.on("/update",      handleUpdate);
