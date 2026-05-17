@@ -12,8 +12,16 @@
 //             physics. Parallel segments are the only way past it.
 //  Power:     Mean Well 60W (5V 12A) PSU. Due to physical voltage drop along
 //             the 800-LED strip, real-world current is lower than theoretical.
-//             FastLED's safety limiter is hardcoded to 20A (100W) to allow maximum
-//             brightness without tripping the PSU's over-current protection.
+//             FastLED's safety limiter is hardcoded to 20A (100W) to allow
+//             maximum brightness without tripping the PSU's over-current
+//             protection.
+//
+//  Concurrency: LED rendering runs on Core 0 (xTaskCreatePinnedToCore).
+//               Web server runs on Core 1 (loop). Shared UI params are
+//               declared volatile (uint8_t writes are atomic on LX7; volatile
+//               prevents compiler register-caching across the task switch).
+//               heatPalette uses a double-buffer + atomic index so rebuilds
+//               never race with the render loop.
 // =============================================================================
 
 #include <FastLED.h>
@@ -39,9 +47,8 @@
 #define COLOR_TEST              0             // 1 = solid-red boot test for 1 s
 
 // ---- Fire algorithm --------------------------------------------------------
-// Cooling & Sparking are now dynamically controlled via the Web UI variables
+// Cooling & Sparking are dynamically controlled via the Web UI variables
 #define SPARK_INTENSITY         240           // per-spark heat add range upper bound
-                                              // (was 180; lower = smaller per-frame jumps)
 #define WIND_CHANGE_INTERVAL    2000
 #define WIND_MAX_STRENGTH       3
 #define WIND_PULSE_PROBABILITY  50
@@ -62,13 +69,18 @@
 #define BRIGHT_DITHER_ON        16            // enable BINARY_DITHER above this raw
 
 // ---- Network ---------------------------------------------------------------
-// NOTE: credentials are compiled into flash as clear text. Fine for a home
-// lamp; don't treat the .bin as a secret.
-#define WIFI_SSID               "WIFI_SSID_REMOVED"
-#define WIFI_PASS               "WIFI_PASS_REMOVED"
+// WIFI_SSID and WIFI_PASS are injected as build-time defines by get_version.py.
+// Local: add credentials to secrets.ini (see secrets.ini.example).
+// CI:    set WIFI_SSID and WIFI_PASS as GitHub Actions secrets.
+#ifndef WIFI_SSID
+  #error "WIFI_SSID not defined — copy secrets.ini.example to secrets.ini and fill in your credentials"
+#endif
+#ifndef WIFI_PASS
+  #error "WIFI_PASS not defined — copy secrets.ini.example to secrets.ini and fill in your credentials"
+#endif
 #define WIFI_CONNECT_MS         10000         // setup() stops blocking after this
 #define WIFI_RETRY_MS           15000         // background reconnect interval
-#define NVS_COMMIT_DELAY_MS     2500          // defer brightness writes to spare flash
+#define NVS_COMMIT_DELAY_MS     2500          // defer NVS writes to spare flash endurance
 #define FIRMWARE_URL            "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"
 #define VERSION_URL             "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/version.json"
 #ifndef FIRMWARE_VERSION
@@ -82,7 +94,12 @@
 
 CRGB     leds[NUM_LEDS];
 uint8_t  heat[ROWS][COLUMNS];
-CRGB     heatPalette[256];
+
+// Double-buffered heat palette: buildHeatPalette() writes into the inactive
+// buffer, then flips activePal. fireEffect() snapshots activePal once per
+// frame so a mid-frame flip cannot cause split-palette rendering.
+static CRGB            heatPalette[2][256];
+static volatile uint8_t activePal = 0;
 
 float    windDir[ROWS];
 float    windTarget[ROWS];
@@ -91,34 +108,42 @@ uint32_t lastWindChange = 0;
 
 WebServer   server(80);
 Preferences prefs;
-uint8_t  uiBright    = BRIGHT_DEFAULT;        // 0..100, user-facing
-uint8_t  uiContrast  = 50;                    // 0..100, user-facing
-uint8_t  uiCooling   = 45;                    // Tuned for IKEA Vidja 138cm
-uint8_t  uiSparking  = 36;                    // Tuned for solid hot core
-uint8_t  appliedRaw  = 0;                     // last 0..255 sent to FastLED
+
+// volatile: written from Core 1 (web handlers), read from Core 0 (LED task).
+// Single-byte writes are atomic on LX7; volatile prevents the compiler from
+// caching values in registers across the FreeRTOS task switch boundary.
+volatile uint8_t  uiBright    = BRIGHT_DEFAULT;
+volatile uint8_t  uiContrast  = 50;
+volatile uint8_t  uiCooling   = 45;           // Tuned for IKEA Vidja 138cm
+volatile uint8_t  uiSparking  = 36;           // Tuned for solid hot core
+volatile uint8_t  appliedRaw  = 0;            // last 0..255 sent to FastLED
+volatile float    currentPowerW = 0.0f;       // Estimated power, display-only
+
 bool     prefsDirty  = false;                 // pending NVS commit
 uint32_t prefsTouch  = 0;                     // millis of last setting change
 uint32_t wifiRetryAt = 0;
-float    currentPowerW = 0.0f;                // Estimated power in Watts
-uint32_t lastPowerCalc = 0;                   // millis of last power calc
+uint32_t lastPowerCalc = 0;
 
 // =============================================================================
-//  PALETTE — heat LUT (red -> orange -> white-hot), built once at boot
+//  PALETTE — heat LUT (red -> orange -> white-hot)
+//  Written into the inactive double-buffer; activePal flipped atomically.
 // =============================================================================
 
 void buildHeatPalette() {
-    float power = 1.0f + ((uiContrast - 50.0f) / 50.0f); // 50 -> 1.0, 100 -> 2.0 (more aggressive reds/oranges)
+    const uint8_t next = 1 - activePal;       // write into the inactive buffer
+    const float power = 1.0f + ((uiContrast - 50.0f) / 50.0f);
     for (int i = 0; i < 256; i++) {
         float normalized = (float)i / 255.0f;
-        float adjusted = powf(normalized, power);
-        uint16_t mapped = (uint16_t)(adjusted * 255.0f);
-        
+        float adjusted   = powf(normalized, power);
+        uint16_t mapped  = (uint16_t)(adjusted * 255.0f);
+
         uint8_t t192 = (uint8_t)((mapped * 191) / 255);
         uint8_t ramp = (uint8_t)((t192 & 0x3F) << 2);
-        if      (t192 > 0x80) heatPalette[i] = CRGB(255, 255, ramp);  // white-hot
-        else if (t192 > 0x40) heatPalette[i] = CRGB(255, ramp, 0);    // orange
-        else                  heatPalette[i] = CRGB(ramp, 0, 0);      // red
+        if      (t192 > 0x80) heatPalette[next][i] = CRGB(255, 255, ramp);
+        else if (t192 > 0x40) heatPalette[next][i] = CRGB(255, ramp, 0);
+        else                  heatPalette[next][i] = CRGB(ramp, 0, 0);
     }
+    activePal = next;                         // atomic single-byte flip
 }
 
 // =============================================================================
@@ -127,8 +152,7 @@ void buildHeatPalette() {
 //  uiBright (0..100) is the user-facing value. applyBrightness maps it with
 //  a perceptual gamma curve, clamps to the minimum stable WS2812B PWM, and
 //  conditionally disables temporal dither (which causes visible flicker
-//  below ~raw 16 at ~40 FPS). The brightness-aware palette is also rebuilt.
-//  The MAX_PSU_MA cap continues to govern real current draw on top of this.
+//  below ~raw 16 at ~40 FPS).
 // =============================================================================
 
 void applyBrightness() {
@@ -177,7 +201,8 @@ void updateWind() {
 
 void recalcCooling() {
     for (int y = 0; y < ROWS; y++) {
-        uint8_t cf = random8(uiCooling - 10, uiCooling + 10);
+        const uint8_t lo = (uiCooling > 10) ? uiCooling - 10 : 0;  // guard underflow
+        uint8_t cf = random8(lo, uiCooling + 10);
         coolMax[y] = (uint8_t)((cf * 10) / ROWS + 2);
     }
 }
@@ -208,7 +233,7 @@ void fireEffect() {
             int nx = x + wind;
             if (nx >= COLUMNS) nx -= COLUMNS;
             else if (nx < 0) nx += COLUMNS;
-            // Fast approximation of * 3/5 and * 2/5 avoiding hardware division inside inner loop
+            // Fast approximation of *3/5 and *2/5 avoiding division inside inner loop
             heat[y][x] = (uint8_t)(((uint16_t)heat[y1][nx] * 153 + (uint16_t)heat[y2][nx] * 102) >> 8);
         }
     }
@@ -222,15 +247,14 @@ void fireEffect() {
         }
     }
 
-    // 4. Render with temporal blend: leds[i] walks toward the target heat
-    //    color at FIRE_BLEND/255 per frame instead of jumping. Without this
-    //    the spark step shows up as a hard flash at the base on every
-    //    rebirth (visible mostly below ~80% brightness, which is exactly
-    //    what the user was reporting).
+    // 4. Render with temporal blend.
+    //    Snapshot activePal once so a mid-frame palette flip cannot cause
+    //    split-palette rendering (first N pixels old palette, rest new).
+    const CRGB *pal = heatPalette[activePal];
     for (int y = 0; y < ROWS; y++) {
         const uint16_t base = (uint16_t)(ROWS - 1 - y) * COLUMNS;
         for (int x = 0; x < COLUMNS; x++) {
-            nblend(leds[base + x], heatPalette[heat[y][x]], FIRE_BLEND);
+            nblend(leds[base + x], pal[heat[y][x]], FIRE_BLEND);
         }
     }
 
@@ -303,19 +327,19 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=wrap>
 <div class=kick>Fire Lamp</div>
 <h1 id=lb>Brightness</h1>
-<div class=val id=vb>60</div>
-<input class=bar id=sb type=range min=0 max=100 value=60>
+<div class=val id=vb>--</div>
+<input class=bar id=sb type=range min=0 max=100 value=50>
 <div class=desc id=db>Controls the overall light output of the lamp.</div>
 <h1 id=lc>Contrast</h1>
-<div class=val id=vc>50</div>
+<div class=val id=vc>--</div>
 <input class=bar id=sc type=range min=0 max=100 value=50>
 <div class=desc id=dc>Adjusts the intensity of reds and oranges.</div>
 <h1 id=lco>Cooling</h1>
-<div class=val id=vco>70</div>
+<div class=val id=vco>--</div>
 <input class=bar id=sco type=range min=20 max=150 value=70>
 <div class=desc id=dco>Lower = taller flames.</div>
 <h1 id=lsp>Sparking</h1>
-<div class=val id=vsp>95</div>
+<div class=val id=vsp>--</div>
 <input class=bar id=ssp type=range min=0 max=255 value=95>
 <div class=desc id=dsp>Higher = hotter base.</div>
 <button class=reset id=rst>Reset to Default</button>
@@ -391,7 +415,6 @@ document.getElementById('chk').onclick=function(){
   }).catch(()=>{btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;});
 };
 pull();setInterval(function(){if(!document.hidden)pull()},4000);
-
 </script></body></html>)HTML";
 
 // =============================================================================
@@ -404,68 +427,89 @@ pull();setInterval(function(){if(!document.hidden)pull()},4000);
 //  for a moment, fire keeps running, reconnect retries in the background.
 // =============================================================================
 
-void sendVal() { 
+void sendVal() {
     String json = "{\"b\":";
-    json += uiBright;
+    json += (int)uiBright;
     json += ",\"c\":";
-    json += uiContrast;
+    json += (int)uiContrast;
     json += ",\"co\":";
-    json += uiCooling;
+    json += (int)uiCooling;
     json += ",\"sp\":";
-    json += uiSparking;
+    json += (int)uiSparking;
     json += ",\"w\":";
-    json += String(currentPowerW, 1);
+    json += String((float)currentPowerW, 1);
     json += "}";
-    server.send(200, "application/json", json); 
+    server.send(200, "application/json", json);
 }
-void handleRoot()   { server.send_P(200, "text/html", PAGE); }
-void handleSetB()   { 
+
+// Serve the page with actual current values injected so sliders show
+// correct state immediately — no flash-of-stale-defaults before pull() fires.
+void handleRoot() {
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", "");
+    server.sendContent_P(PAGE);
+    char init[96];
+    snprintf(init, sizeof(init), "<script>pb(%d);pc(%d);pco(%d);psp(%d);</script>",
+             (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking);
+    server.sendContent(init);
+    server.sendContent("");
+}
+
+void handleSetB() {
     if (server.hasArg("v")) {
-        setBright(server.arg("v").toInt()); 
+        setBright(server.arg("v").toInt());
         updatePowerCalc();
     }
-    sendVal(); 
+    sendVal();
 }
-void handleSetC()   { 
+
+void handleSetC() {
     if (server.hasArg("v")) {
         int val = server.arg("v").toInt();
-        if (val < 0) val = 0;
+        if (val < 0)   val = 0;
         if (val > 100) val = 100;
-        if (uiContrast != val) {
-            uiContrast = val;
+        if (uiContrast != (uint8_t)val) {
+            uiContrast  = (uint8_t)val;
             buildHeatPalette();
-            prefsDirty = true;
-            prefsTouch = millis();
+            prefsDirty  = true;
+            prefsTouch  = millis();
         }
         updatePowerCalc();
     }
-    sendVal(); 
+    sendVal();
 }
+
 void handleSetCo() {
     if (server.hasArg("v")) {
         int val = server.arg("v").toInt();
-        if (val < 20) val = 20;
+        if (val < 20)  val = 20;
         if (val > 150) val = 150;
-        uiCooling = val;
+        uiCooling  = (uint8_t)val;
+        prefsDirty = true;
+        prefsTouch = millis();
         recalcCooling();
         updatePowerCalc();
     }
     sendVal();
 }
+
 void handleSetSp() {
     if (server.hasArg("v")) {
         int val = server.arg("v").toInt();
-        if (val < 0) val = 0;
+        if (val < 0)   val = 0;
         if (val > 255) val = 255;
-        uiSparking = val;
+        uiSparking = (uint8_t)val;
+        prefsDirty = true;
+        prefsTouch = millis();
         updatePowerCalc();
     }
     sendVal();
 }
+
 void handleReset() {
-    uiBright = BRIGHT_DEFAULT;
+    uiBright   = BRIGHT_DEFAULT;
     uiContrast = 50;
-    uiCooling = 45;
+    uiCooling  = 45;
     uiSparking = 36;
     applyBrightness();
     buildHeatPalette();
@@ -480,6 +524,10 @@ void handleReset() {
 // Returns false if fetch failed. out_version and out_md5 are filled on success.
 bool fetchVersionInfo(String &out_version, String &out_md5) {
     WiFiClientSecure client;
+    // NOTE: certificate verification is disabled here. For a home network the
+    // practical MITM risk is low, and the MD5 check in handleUpdate() provides
+    // integrity verification against accidental corruption. Pinning the GitHub
+    // CDN root CA is the proper fix but requires tracking cert rotations.
     client.setInsecure();
     HTTPClient http;
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
@@ -527,7 +575,7 @@ void handleUpdate() {
     String latestVer, latestMd5;
     bool haveMd5 = fetchVersionInfo(latestVer, latestMd5);
     if (haveMd5 && latestMd5.length() == 32) {
-        Update.setMD5(latestMd5.c_str()); // verified against downloaded binary
+        Update.setMD5(latestMd5.c_str());
         Serial.printf("OTA: MD5 pre-set to %s\n", latestMd5.c_str());
     } else {
         Serial.println("OTA: no MD5 available, proceeding without integrity check");
@@ -535,7 +583,7 @@ void handleUpdate() {
 
     // Step 2: respond NOW — browser will disconnect after reboot anyway
     server.send(200, "text/plain", "Update starting...");
-    server.client().stop(); // flush + close before blocking OTA
+    server.client().stop();           // flush + close before blocking OTA
 
     WiFiClientSecure client;
     client.setInsecure();
@@ -587,18 +635,21 @@ void safeBootCheck() {
 void markBootSuccess() {
     Preferences p;
     p.begin("lamp", false);
-    p.putUInt("crashes", 0); // Clear crash counter
+    p.putUInt("crashes", 0);
     p.end();
-    esp_ota_mark_app_valid_cancel_rollback(); // Tell ESP-IDF bootloader this firmware is confirmed good
+    esp_ota_mark_app_valid_cancel_rollback();
     Serial.println("Boot verified: firmware marked as valid.");
 }
 
 void startNetwork() {
     prefs.begin("lamp", false);
-    uiBright = prefs.getUChar("bright2", BRIGHT_DEFAULT);
+    uiBright   = prefs.getUChar("bright2",  BRIGHT_DEFAULT);
     uiContrast = prefs.getUChar("contrast", 50);
+    uiCooling  = prefs.getUChar("cooling",  45);
+    uiSparking = prefs.getUChar("sparking", 36);
     applyBrightness();
     buildHeatPalette();
+    recalcCooling();
 
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);                     // modem sleep -> periodic LED timing hitch
@@ -615,14 +666,14 @@ void startNetwork() {
         Serial.println("WiFi down - fire runs anyway, UI retries in bg");
     }
 
-    server.on("/",      handleRoot);
-    server.on("/state", []() { sendVal(); });
-    server.on("/setb",  handleSetB);
-    server.on("/setc",  handleSetC);
-    server.on("/setco", handleSetCo);
-    server.on("/setsp", handleSetSp);
-    server.on("/reset", handleReset);
-    server.on("/update", handleUpdate);
+    server.on("/",            handleRoot);
+    server.on("/state",       []() { sendVal(); });
+    server.on("/setb",        handleSetB);
+    server.on("/setc",        handleSetC);
+    server.on("/setco",       handleSetCo);
+    server.on("/setsp",       handleSetSp);
+    server.on("/reset",       handleReset);
+    server.on("/update",      handleUpdate);
     server.on("/checkupdate", handleCheckUpdate);
     server.on("/info", []() {
         String j = "{\"flash_mb\":";
@@ -635,7 +686,6 @@ void startNetwork() {
     });
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
 
-
     server.begin();
 }
 
@@ -645,8 +695,10 @@ void serviceNetwork() {
     // Deferred persistence: commit only after value stable ~2.5 s, so
     // dragging the slider doesn't burn flash endurance.
     if (prefsDirty && millis() - prefsTouch > NVS_COMMIT_DELAY_MS) {
-        prefs.putUChar("bright2", uiBright);
+        prefs.putUChar("bright2",  uiBright);
         prefs.putUChar("contrast", uiContrast);
+        prefs.putUChar("cooling",  uiCooling);
+        prefs.putUChar("sparking", uiSparking);
         prefsDirty = false;
     }
 
@@ -679,24 +731,20 @@ void setup() {
     FastLED.clear(true);
 #endif
 
-    buildHeatPalette();
-
     for (int y = 0; y < ROWS; y++) {
         windDir[y]    = 0.0f;
         windTarget[y] = 0.0f;
     }
-    recalcCooling();
 
-    startNetwork();                            // loads brightness, joins WiFi, starts UI
+    startNetwork();                            // loads NVS, builds palette, joins WiFi
 
-    // Isolate LED rendering to Core 0 (Hardware optimization for ESP32 dual-core)
     xTaskCreatePinnedToCore(
-        [](void *pvParameters) {
+        [](void *) {
             for (;;) {
                 updateWind();
                 fireEffect();
                 FastLED.show();
-                vTaskDelay(pdMS_TO_TICKS(1)); // small yield to feed Core 0 watchdog/WiFi
+                vTaskDelay(pdMS_TO_TICKS(1)); // yield to feed Core 0 watchdog/WiFi
             }
         },
         "LEDTask", 4096, NULL, 1, NULL, 0
@@ -705,5 +753,5 @@ void setup() {
 
 void loop() {
     serviceNetwork();
-    vTaskDelay(pdMS_TO_TICKS(10)); // Yield Core 1
+    vTaskDelay(pdMS_TO_TICKS(10));             // yield Core 1
 }
