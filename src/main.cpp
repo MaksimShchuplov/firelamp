@@ -25,9 +25,9 @@ WiFiManager wm;
 Preferences prefs;
 
 volatile uint8_t uiBright     = BRIGHT_DEFAULT;
-volatile uint8_t uiContrast   = 50;
-volatile uint8_t uiCooling    = 45;
-volatile uint8_t uiSparking   = 36;
+volatile uint8_t uiContrast   = CONTRAST_DEFAULT;
+volatile uint8_t uiCooling    = COOLING_DEFAULT;
+volatile uint8_t uiSparking   = SPARKING_DEFAULT;
 volatile uint8_t appliedRaw   = 0;
 volatile float   currentPowerW = 0.0f;
 

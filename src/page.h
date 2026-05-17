@@ -77,10 +77,10 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <input class=bar id=sc type=range min=0 max=100 value=50>
 <div class=desc id=dc>Adjusts the intensity of reds and oranges.</div>
 <h1 id=lco>Cooling</h1><div class=val id=vco>--</div>
-<input class=bar id=sco type=range min=20 max=150 value=70>
+<input class=bar id=sco type=range min=20 max=150 value=45>
 <div class=desc id=dco>Lower = taller flames.</div>
 <h1 id=lsp>Sparking</h1><div class=val id=vsp>--</div>
-<input class=bar id=ssp type=range min=0 max=255 value=95>
+<input class=bar id=ssp type=range min=0 max=255 value=36>
 <div class=desc id=dsp>Higher = hotter base.</div>
 <button class=reset id=rst>Reset to Default</button>
 <button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
@@ -107,7 +107,7 @@ function ul(){
  document.getElementById('lsp').textContent=ru?'Искры':'Sparking';
  document.getElementById('dsp').textContent=ru?'Больше = горячее основание.':'Higher = hotter base.';
  document.getElementById('rst').textContent=ru?'По умолчанию':'Reset to Default';
- document.getElementById('chk').textContent=ru?'Проверить обновления':'Check for Update';
+ var ck=document.getElementById('chk');if(!ck.disabled){ck.textContent=ru?'Проверить обновления':'Check for Update';ck.style.borderColor='#1e3a8a';ck.style.color='#60a5fa';}
  document.getElementById('rwifi').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
  document.getElementById('lw').textContent=ru?'Потребление:':'Power:';
  document.getElementById('mt1').textContent=ru?'Яркость (Масштаб)':'Brightness (Scale)';
@@ -147,33 +147,34 @@ document.getElementById('rwifi').onclick=function(){
     {var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;xf('/resetwifi').catch(function(){});}
 };
 function startOTA(){
-  ['sb','sc','sco','ssp','rst','chk','rwifi'].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
+  clearInterval(pollTid);
+  ['sb','sc','sco','ssp','rst','chk','rwifi','len','lru'].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
   var btn=document.getElementById('chk'),info=document.getElementById('vinfo');
   btn.textContent=ru?'Прошивка...':'Flashing...';
   btn.style.borderColor='#f59e0b';btn.style.color='#fbbf24';
-  var pb=document.createElement('div');
-  pb.style.cssText='margin-top:8px;height:4px;border-radius:2px;background:#1a1a1a;overflow:hidden';
-  var pf=document.createElement('div');
-  pf.style.cssText='height:100%;width:0%;background:#fbbf24;border-radius:2px;transition:width 35s linear';
-  pb.appendChild(pf);info.insertAdjacentElement('afterend',pb);
+  var pbar=document.createElement('div');
+  pbar.style.cssText='margin-top:8px;height:4px;border-radius:2px;background:#1a1a1a;overflow:hidden';
+  var pfil=document.createElement('div');
+  pfil.style.cssText='height:100%;width:0%;background:#fbbf24;border-radius:2px;transition:width 35s linear';
+  pbar.appendChild(pfil);info.insertAdjacentElement('afterend',pbar);
   info.textContent=ru?'Скачивание... Не закрывайте страницу.':'Downloading... Do not close this page.';
-  setTimeout(function(){pf.style.width='88%';},50);
+  setTimeout(function(){pfil.style.width='88%';},50);
   function pollReboot(){
     var n=0,tid=setInterval(function(){n++;
       fetch('/info',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
         clearInterval(tid);
-        pf.style.transition='width .4s';pf.style.width='100%';pf.style.background='#4ade80';
+        pfil.style.transition='width .4s';pfil.style.width='100%';pfil.style.background='#4ade80';
         btn.textContent=ru?'Готово! ✓':'Done! ✓';btn.style.borderColor='#4ade80';btn.style.color='#4ade80';
         info.textContent=(ru?'Обновлено до ':'Updated to ')+d.version;
         setTimeout(function(){location.reload();},2000);
-      }).catch(function(){if(n>20){clearInterval(tid);pf.style.background='#ef4444';
+      }).catch(function(){if(n>20){clearInterval(tid);pfil.style.background='#ef4444';
         info.textContent=ru?'Лампа не отвечает. Обновите страницу вручную.':'Lamp not responding. Refresh manually.';
         btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.disabled=false;
         btn.onclick=function(){location.reload();};}});
     },3000);
   }
   var doAfter=function(){
-    pf.style.transition='width 2s';pf.style.width='95%';
+    pfil.style.transition='width 2s';pfil.style.width='95%';
     btn.textContent=ru?'Перезагрузка...':'Rebooting...';
     info.textContent=ru?'Лампа перезагружается...':'Lamp rebooting...';
     setTimeout(pollReboot,5000);
@@ -196,5 +197,5 @@ document.getElementById('chk').onclick=function(){
     }
   }).catch(function(){btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;});
 };
-pull();setInterval(function(){if(!document.hidden)pull()},4000);
+pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},4000);
 </script></body></html>)HTML";
