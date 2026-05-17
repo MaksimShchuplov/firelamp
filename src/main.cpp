@@ -20,9 +20,11 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
-#include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include <WiFiClientSecure.h>
+#include <Update.h>
+#include <esp_system.h>
+#include <esp_ota_ops.h>
 
 // =============================================================================
 //  CONFIG
@@ -470,6 +472,36 @@ void handleUpdate() {
     }
 }
 
+void safeBootCheck() {
+    esp_reset_reason_t reason = esp_reset_reason();
+    // Only count hard crashes (panics, watchdogs). Normal power-ons or OTA restarts are ignored.
+    if (reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT || reason == ESP_RST_TASK_WDT || reason == ESP_RST_WDT) {
+        prefs.begin("lamp", false);
+        uint32_t crashes = prefs.getUInt("crashes", 0);
+        crashes++;
+        if (crashes >= 3) {
+            Serial.println("CRITICAL: Boot loop detected! Rolling back to previous firmware...");
+            prefs.putUInt("crashes", 0);
+            prefs.end();
+            if (Update.canRollBack()) {
+                Update.rollBack();
+                ESP.restart();
+            }
+        } else {
+            Serial.printf("Warning: Crash detected. Count: %d/3\n", crashes);
+            prefs.putUInt("crashes", crashes);
+            prefs.end();
+        }
+    }
+}
+
+void markBootSuccess() {
+    prefs.begin("lamp", false);
+    prefs.putUInt("crashes", 0); // Clear crash counter if we survived boot
+    prefs.end();
+    esp_ota_mark_app_valid_cancel_rollback(); // Tell ESP-IDF this firmware is good
+}
+
 void startNetwork() {
     prefs.begin("lamp", false);
     uiBright = prefs.getUChar("bright2", BRIGHT_DEFAULT);
@@ -487,6 +519,7 @@ void startNetwork() {
     if (WiFi.status() == WL_CONNECTED) {
         Serial.print("UI ready: http://");
         Serial.println(WiFi.localIP());
+        markBootSuccess();
     } else {
         Serial.println("WiFi down - fire runs anyway, UI retries in bg");
     }
@@ -528,6 +561,7 @@ void serviceNetwork() {
 
 void setup() {
     Serial.begin(115200);
+    safeBootCheck();
 
     FastLED.addLeds<WS2812B, LED_PIN, LED_COLOR_ORDER>(leds, NUM_LEDS);
     FastLED.setMaxPowerInVoltsAndMilliamps(PSU_VOLTS, 20000);
