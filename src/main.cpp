@@ -16,6 +16,14 @@
 //             maximum brightness without tripping the PSU's over-current
 //             protection.
 //
+//  WiFi:      Credentials are NOT compiled into the binary. On first boot the
+//             lamp starts an AP "FireLamp-Setup"; open 192.168.4.1, pick your
+//             network, enter password. Credentials are stored in NVS (separate
+//             flash partition, never touched by OTA) and survive all updates.
+//             To re-configure: use the "Reset WiFi" button in the web UI.
+//
+//  Network:   Accessible as http://firelamp.local (mDNS) or by IP.
+//
 //  Concurrency: LED rendering runs on Core 0 (xTaskCreatePinnedToCore).
 //               Web server runs on Core 1 (loop). Shared UI params are
 //               declared volatile (uint8_t writes are atomic on LX7; volatile
@@ -26,6 +34,8 @@
 
 #include <FastLED.h>
 #include <WiFi.h>
+#include <WiFiManager.h>
+#include <ESPmDNS.h>
 #include <WebServer.h>
 #include <Preferences.h>
 #include <HTTPUpdate.h>
@@ -47,40 +57,28 @@
 #define COLOR_TEST              0             // 1 = solid-red boot test for 1 s
 
 // ---- Fire algorithm --------------------------------------------------------
-// Cooling & Sparking are dynamically controlled via the Web UI variables
-#define SPARK_INTENSITY         240           // per-spark heat add range upper bound
+#define SPARK_INTENSITY         240
 #define WIND_CHANGE_INTERVAL    2000
 #define WIND_MAX_STRENGTH       3
 #define WIND_PULSE_PROBABILITY  50
 // Temporal blend on render: 0..255, lower = smoother glow-up.
-// At 50, a fresh spark needs ~10 frames (~250 ms at 40 FPS) to reach
-// 90% of its target color — reads as an ember catching, not a flash.
 #define FIRE_BLEND              50
 
 // ---- Power -----------------------------------------------------------------
 #define PSU_VOLTS               5
-// MAX_PSU_MA is hardcoded to 20000mA (20A) in setup() to account for voltage drop
 
 // ---- Brightness ------------------------------------------------------------
-#define BRIGHT_DEFAULT          100           // 0..100, until UI / NVS overrides
-#define BRIGHT_STEP             5             // -/+ button increment
-#define BRIGHT_GAMMA            2.2f          // perceptual curve on the slider
-#define BRIGHT_FLOOR            4             // min stable raw PWM on WS2812B
-#define BRIGHT_DITHER_ON        16            // enable BINARY_DITHER above this raw
+#define BRIGHT_DEFAULT          100
+#define BRIGHT_GAMMA            2.2f
+#define BRIGHT_FLOOR            4
+#define BRIGHT_DITHER_ON        16
 
 // ---- Network ---------------------------------------------------------------
-// WIFI_SSID and WIFI_PASS are injected as build-time defines by get_version.py.
-// Local: add credentials to secrets.ini (see secrets.ini.example).
-// CI:    set WIFI_SSID and WIFI_PASS as GitHub Actions secrets.
-#ifndef WIFI_SSID
-  #error "WIFI_SSID not defined — copy secrets.ini.example to secrets.ini and fill in your credentials"
-#endif
-#ifndef WIFI_PASS
-  #error "WIFI_PASS not defined — copy secrets.ini.example to secrets.ini and fill in your credentials"
-#endif
-#define WIFI_CONNECT_MS         10000         // setup() stops blocking after this
-#define WIFI_RETRY_MS           15000         // background reconnect interval
-#define NVS_COMMIT_DELAY_MS     2500          // defer NVS writes to spare flash endurance
+#define WIFI_PORTAL_SSID        "FireLamp-Setup"
+#define WIFI_PORTAL_TIMEOUT_S   120           // portal auto-closes; fire still runs
+#define WIFI_RETRY_MS           15000
+#define MDNS_NAME               "firelamp"    // → http://firelamp.local
+#define NVS_COMMIT_DELAY_MS     2500
 #define FIRMWARE_URL            "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"
 #define VERSION_URL             "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/version.json"
 #ifndef FIRMWARE_VERSION
@@ -98,61 +96,53 @@ uint8_t  heat[ROWS][COLUMNS];
 // Double-buffered heat palette: buildHeatPalette() writes into the inactive
 // buffer, then flips activePal. fireEffect() snapshots activePal once per
 // frame so a mid-frame flip cannot cause split-palette rendering.
-static CRGB            heatPalette[2][256];
+static CRGB             heatPalette[2][256];
 static volatile uint8_t activePal = 0;
 
 float    windDir[ROWS];
 float    windTarget[ROWS];
-uint8_t  coolMax[ROWS];                       // per-row cooling cap (updated via UI)
+uint8_t  coolMax[ROWS];
 uint32_t lastWindChange = 0;
 
-WebServer   server(80);
-Preferences prefs;
+WebServer    server(80);
+WiFiManager  wm;
+Preferences  prefs;
 
 // volatile: written from Core 1 (web handlers), read from Core 0 (LED task).
-// Single-byte writes are atomic on LX7; volatile prevents the compiler from
-// caching values in registers across the FreeRTOS task switch boundary.
 volatile uint8_t  uiBright    = BRIGHT_DEFAULT;
 volatile uint8_t  uiContrast  = 50;
-volatile uint8_t  uiCooling   = 45;           // Tuned for IKEA Vidja 138cm
-volatile uint8_t  uiSparking  = 36;           // Tuned for solid hot core
-volatile uint8_t  appliedRaw  = 0;            // last 0..255 sent to FastLED
-volatile float    currentPowerW = 0.0f;       // Estimated power, display-only
+volatile uint8_t  uiCooling   = 45;
+volatile uint8_t  uiSparking  = 36;
+volatile uint8_t  appliedRaw  = 0;
+volatile float    currentPowerW = 0.0f;
 
-bool     prefsDirty  = false;                 // pending NVS commit
-uint32_t prefsTouch  = 0;                     // millis of last setting change
+bool     prefsDirty  = false;
+uint32_t prefsTouch  = 0;
 uint32_t wifiRetryAt = 0;
 uint32_t lastPowerCalc = 0;
 
 // =============================================================================
-//  PALETTE — heat LUT (red -> orange -> white-hot)
-//  Written into the inactive double-buffer; activePal flipped atomically.
+//  PALETTE
 // =============================================================================
 
 void buildHeatPalette() {
-    const uint8_t next = 1 - activePal;       // write into the inactive buffer
-    const float power = 1.0f + ((uiContrast - 50.0f) / 50.0f);
+    const uint8_t next  = 1 - activePal;
+    const float   power = 1.0f + ((uiContrast - 50.0f) / 50.0f);
     for (int i = 0; i < 256; i++) {
-        float normalized = (float)i / 255.0f;
-        float adjusted   = powf(normalized, power);
-        uint16_t mapped  = (uint16_t)(adjusted * 255.0f);
-
-        uint8_t t192 = (uint8_t)((mapped * 191) / 255);
-        uint8_t ramp = (uint8_t)((t192 & 0x3F) << 2);
+        float    normalized = (float)i / 255.0f;
+        float    adjusted   = powf(normalized, power);
+        uint16_t mapped     = (uint16_t)(adjusted * 255.0f);
+        uint8_t  t192       = (uint8_t)((mapped * 191) / 255);
+        uint8_t  ramp       = (uint8_t)((t192 & 0x3F) << 2);
         if      (t192 > 0x80) heatPalette[next][i] = CRGB(255, 255, ramp);
         else if (t192 > 0x40) heatPalette[next][i] = CRGB(255, ramp, 0);
         else                  heatPalette[next][i] = CRGB(ramp, 0, 0);
     }
-    activePal = next;                         // atomic single-byte flip
+    activePal = next;
 }
 
 // =============================================================================
 //  BRIGHTNESS
-// -----------------------------------------------------------------------------
-//  uiBright (0..100) is the user-facing value. applyBrightness maps it with
-//  a perceptual gamma curve, clamps to the minimum stable WS2812B PWM, and
-//  conditionally disables temporal dither (which causes visible flicker
-//  below ~raw 16 at ~40 FPS).
 // =============================================================================
 
 void applyBrightness() {
@@ -161,7 +151,7 @@ void applyBrightness() {
         raw = 0;
     } else {
         float n = (float)uiBright / 100.0f;
-        int v = (int)(powf(n, BRIGHT_GAMMA) * 255.0f + 0.5f);
+        int   v = (int)(powf(n, BRIGHT_GAMMA) * 255.0f + 0.5f);
         if (v < BRIGHT_FLOOR) v = BRIGHT_FLOOR;
         raw = (uint8_t)v;
     }
@@ -175,9 +165,9 @@ void applyBrightness() {
 void setBright(int v) {
     if (v < 0) v = 0; else if (v > 100) v = 100;
     if ((uint8_t)v != uiBright) {
-        uiBright    = (uint8_t)v;
-        prefsDirty  = true;
-        prefsTouch  = millis();
+        uiBright   = (uint8_t)v;
+        prefsDirty = true;
+        prefsTouch = millis();
         applyBrightness();
     }
 }
@@ -201,7 +191,7 @@ void updateWind() {
 
 void recalcCooling() {
     for (int y = 0; y < ROWS; y++) {
-        const uint8_t lo = (uiCooling > 10) ? uiCooling - 10 : 0;  // guard underflow
+        const uint8_t lo = (uiCooling > 10) ? uiCooling - 10 : 0;
         uint8_t cf = random8(lo, uiCooling + 10);
         coolMax[y] = (uint8_t)((cf * 10) / ROWS + 2);
     }
@@ -215,56 +205,45 @@ void updatePowerCalc() {
 }
 
 void fireEffect() {
-    // 1. Cooling — saturating subtract, no per-pixel mul/div, fast PRNG
     for (int y = 0; y < ROWS; y++) {
         const uint8_t cmax = coolMax[y];
         for (int x = 0; x < COLUMNS; x++)
             heat[y][x] = qsub8(heat[y][x], random8(cmax));
     }
 
-    // 2. Upward propagation with wind. round() per-row, not per-pixel.
-    //    Iterating y high->low means rows y-1/y-2 are still last frame's
-    //    values when read (intended; that's how heat rises).
     for (int y = ROWS - 1; y > 0; y--) {
         const int wind = (int)lroundf(windDir[y]);
-        const int y1 = y - 1;
-        const int y2 = (y >= 2) ? (y - 2) : 0;
+        const int y1   = y - 1;
+        const int y2   = (y >= 2) ? (y - 2) : 0;
         for (int x = 0; x < COLUMNS; x++) {
             int nx = x + wind;
             if (nx >= COLUMNS) nx -= COLUMNS;
-            else if (nx < 0) nx += COLUMNS;
-            // Fast approximation of *3/5 and *2/5 avoiding division inside inner loop
+            else if (nx < 0)   nx += COLUMNS;
             heat[y][x] = (uint8_t)(((uint16_t)heat[y1][nx] * 153 + (uint16_t)heat[y2][nx] * 102) >> 8);
         }
     }
 
-    // 3. Ignite new sparks at the base
     for (int x = 0; x < COLUMNS; x++) {
         if (random8() < uiSparking) {
             int y = random8(3);
-            heat[y][x] = qadd8(heat[y][x],
-                               random8(SPARK_INTENSITY - 40, SPARK_INTENSITY));
+            heat[y][x] = qadd8(heat[y][x], random8(SPARK_INTENSITY - 40, SPARK_INTENSITY));
         }
     }
 
-    // 4. Render with temporal blend.
-    //    Snapshot activePal once so a mid-frame palette flip cannot cause
-    //    split-palette rendering (first N pixels old palette, rest new).
+    // Snapshot activePal once so a mid-frame palette flip can't split rendering.
     const CRGB *pal = heatPalette[activePal];
     for (int y = 0; y < ROWS; y++) {
         const uint16_t base = (uint16_t)(ROWS - 1 - y) * COLUMNS;
-        for (int x = 0; x < COLUMNS; x++) {
+        for (int x = 0; x < COLUMNS; x++)
             nblend(leds[base + x], pal[heat[y][x]], FIRE_BLEND);
-        }
     }
 
-    if (millis() - lastPowerCalc > 3000) {
+    if (millis() - lastPowerCalc > 3000)
         updatePowerCalc();
-    }
 }
 
 // =============================================================================
-//  EMBEDDED CONTROL UI  —  ember theme, self-contained, served from PROGMEM
+//  EMBEDDED CONTROL UI
 // =============================================================================
 
 static const char PAGE[] PROGMEM = R"HTML(<!doctype html><html lang=en><head>
@@ -345,6 +324,7 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <button class=reset id=rst>Reset to Default</button>
 <button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
 <div id=vinfo style="font-size:11px;color:#888;margin-top:6px;text-align:center"></div>
+<button class=reset id=rwifi style="margin-top:10px;border-color:#7a1616;color:#f87171">Reset WiFi</button>
 <div class=stat><span id=lw>Power:</span> <span id=vw>0.0</span> W</div>
 </div><script>
 var vb=document.getElementById('vb'),sb=document.getElementById('sb');
@@ -353,7 +333,7 @@ var vco=document.getElementById('vco'),sco=document.getElementById('sco');
 var vsp=document.getElementById('vsp'),ssp=document.getElementById('ssp');
 var R=document.documentElement,t1,t2,t4,t5;
 var ru=(localStorage.getItem('lang')==='ru')||(!localStorage.getItem('lang')&&navigator.language.startsWith('ru'));
-function ul() {
+function ul(){
  document.getElementById('len').classList.toggle('act',!ru);
  document.getElementById('lru').classList.toggle('act',ru);
  document.getElementById('lb').textContent=ru?'Яркость':'Brightness';
@@ -366,6 +346,7 @@ function ul() {
  document.getElementById('dsp').textContent=ru?'Больше = горячее основание.':'Higher = hotter base.';
  document.getElementById('rst').textContent=ru?'По умолчанию':'Reset to Default';
  document.getElementById('chk').textContent=ru?'Проверить обновления':'Check for Update';
+ document.getElementById('rwifi').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
  document.getElementById('lw').textContent=ru?'Потребление:':'Power:';
  document.getElementById('mt1').textContent=ru?'Яркость (Масштаб)':'Brightness (Scale)';
  document.getElementById('md1').textContent=ru?'Линейно масштабирует общую мощность свечения лампы. Не меняет физику пламени.':'Linearly scales the overall light output of the lamp. Does not change the flame physics.';
@@ -391,6 +372,10 @@ sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTime
 sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){fetch('/setco?v='+sco.value)},120)});
 ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){fetch('/setsp?v='+ssp.value)},120)});
 document.getElementById('rst').onclick=function(){fetch('/reset').then(pull)};
+document.getElementById('rwifi').onclick=function(){
+  if(confirm(ru?'Сбросить настройки Wi-Fi?\nЛампа перезагрузится в режим настройки.\nПодключитесь к сети "FireLamp-Setup" и откройте 192.168.4.1':'Reset WiFi credentials?\nThe lamp will reboot into setup mode.\nConnect to "FireLamp-Setup" and open 192.168.4.1'))
+    {fetch('/resetwifi');}
+};
 var latestVer=null;
 document.getElementById('chk').onclick=function(){
   var btn=document.getElementById('chk');
@@ -399,7 +384,7 @@ document.getElementById('chk').onclick=function(){
   fetch('/checkupdate').then(r=>r.json()).then(x=>{
     latestVer=x.latest;
     var vi=document.getElementById('vinfo');
-    vi.textContent=(ru?'Текущая: ':'Current: ')+x.current+(ru?' → GitHub: ':' → GitHub: ')+x.latest;
+    vi.textContent=(ru?'Текущая: ':'Current: ')+x.current+' → GitHub: '+x.latest;
     if(x.update_available){
       btn.textContent=ru?'Установить обновление ↑':'Install Update ↑';
       btn.style.borderColor='#16a34a';btn.style.color='#4ade80';
@@ -418,13 +403,7 @@ pull();setInterval(function(){if(!document.hidden)pull()},4000);
 </script></body></html>)HTML";
 
 // =============================================================================
-//  NETWORK  —  WiFi + sync WebServer + deferred NVS persistence
-// -----------------------------------------------------------------------------
-//  WebServer is the built-in synchronous one, polled once per frame from
-//  loop(). When idle that costs microseconds; serving the page is a few ms
-//  = one slightly long frame, imperceptible in a fire effect. Never blocks
-//  on WiFi after setup(): a downed network just means the UI is unreachable
-//  for a moment, fire keeps running, reconnect retries in the background.
+//  NETWORK
 // =============================================================================
 
 void sendVal() {
@@ -442,8 +421,6 @@ void sendVal() {
     server.send(200, "application/json", json);
 }
 
-// Serve the page with actual current values injected so sliders show
-// correct state immediately — no flash-of-stale-defaults before pull() fires.
 void handleRoot() {
     server.setContentLength(CONTENT_LENGTH_UNKNOWN);
     server.send(200, "text/html", "");
@@ -456,23 +433,18 @@ void handleRoot() {
 }
 
 void handleSetB() {
-    if (server.hasArg("v")) {
-        setBright(server.arg("v").toInt());
-        updatePowerCalc();
-    }
+    if (server.hasArg("v")) { setBright(server.arg("v").toInt()); updatePowerCalc(); }
     sendVal();
 }
 
 void handleSetC() {
     if (server.hasArg("v")) {
-        int val = server.arg("v").toInt();
-        if (val < 0)   val = 0;
-        if (val > 100) val = 100;
+        int val = constrain(server.arg("v").toInt(), 0, 100);
         if (uiContrast != (uint8_t)val) {
-            uiContrast  = (uint8_t)val;
+            uiContrast = (uint8_t)val;
             buildHeatPalette();
-            prefsDirty  = true;
-            prefsTouch  = millis();
+            prefsDirty = true;
+            prefsTouch = millis();
         }
         updatePowerCalc();
     }
@@ -481,10 +453,7 @@ void handleSetC() {
 
 void handleSetCo() {
     if (server.hasArg("v")) {
-        int val = server.arg("v").toInt();
-        if (val < 20)  val = 20;
-        if (val > 150) val = 150;
-        uiCooling  = (uint8_t)val;
+        uiCooling  = (uint8_t)constrain(server.arg("v").toInt(), 20, 150);
         prefsDirty = true;
         prefsTouch = millis();
         recalcCooling();
@@ -495,10 +464,7 @@ void handleSetCo() {
 
 void handleSetSp() {
     if (server.hasArg("v")) {
-        int val = server.arg("v").toInt();
-        if (val < 0)   val = 0;
-        if (val > 255) val = 255;
-        uiSparking = (uint8_t)val;
+        uiSparking = (uint8_t)constrain(server.arg("v").toInt(), 0, 255);
         prefsDirty = true;
         prefsTouch = millis();
         updatePowerCalc();
@@ -520,28 +486,17 @@ void handleReset() {
     sendVal();
 }
 
-// Fetches version.json from GitHub and returns parsed fields.
-// Returns false if fetch failed. out_version and out_md5 are filled on success.
 bool fetchVersionInfo(String &out_version, String &out_md5) {
     WiFiClientSecure client;
-    // NOTE: certificate verification is disabled here. For a home network the
-    // practical MITM risk is low, and the MD5 check in handleUpdate() provides
-    // integrity verification against accidental corruption. Pinning the GitHub
-    // CDN root CA is the proper fix but requires tracking cert rotations.
     client.setInsecure();
     HTTPClient http;
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.begin(client, VERSION_URL);
     int code = http.GET();
-    if (code != 200) {
-        Serial.printf("fetchVersionInfo: HTTP %d\n", code);
-        http.end();
-        return false;
-    }
+    if (code != 200) { http.end(); return false; }
     String body = http.getString();
     http.end();
 
-    // Minimal JSON parse — no external lib needed for two known keys
     auto extract = [&](const char *key) -> String {
         String search = String("\"") + key + "\":\"";
         int idx = body.indexOf(search);
@@ -561,71 +516,46 @@ void handleCheckUpdate() {
         server.send(503, "application/json", "{\"error\":\"fetch_failed\"}");
         return;
     }
-    String current  = FIRMWARE_VERSION;
-    bool available  = (latestVer != current);
-    String j = "{\"current\":\"" + current +
-               "\",\"latest\":\"" + latestVer +
+    bool available = (latestVer != String(FIRMWARE_VERSION));
+    String j = "{\"current\":\"" FIRMWARE_VERSION "\",\"latest\":\"" + latestVer +
                "\",\"update_available\":" + (available ? "true" : "false") +
-               ",\"date\":\"" + __DATE__ " " __TIME__ "\"}";
+               ",\"date\":\"" __DATE__ " " __TIME__ "\"}";
     server.send(200, "application/json", j);
 }
 
 void handleUpdate() {
-    // Step 1: fetch version.json for MD5 integrity check
     String latestVer, latestMd5;
-    bool haveMd5 = fetchVersionInfo(latestVer, latestMd5);
-    if (haveMd5 && latestMd5.length() == 32) {
+    if (fetchVersionInfo(latestVer, latestMd5) && latestMd5.length() == 32) {
         Update.setMD5(latestMd5.c_str());
         Serial.printf("OTA: MD5 pre-set to %s\n", latestMd5.c_str());
-    } else {
-        Serial.println("OTA: no MD5 available, proceeding without integrity check");
     }
-
-    // Step 2: respond NOW — browser will disconnect after reboot anyway
     server.send(200, "text/plain", "Update starting...");
-    server.client().stop();           // flush + close before blocking OTA
+    server.client().stop();
 
     WiFiClientSecure client;
     client.setInsecure();
     httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-
-    Serial.printf("Starting OTA from GitHub Releases (target: %s)...\n", latestVer.c_str());
+    Serial.printf("OTA from GitHub (target: %s)...\n", latestVer.c_str());
     t_httpUpdate_return ret = httpUpdate.update(client, FIRMWARE_URL);
-
-    switch (ret) {
-        case HTTP_UPDATE_FAILED:
-            Serial.printf("OTA Failed (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-            break;
-        case HTTP_UPDATE_NO_UPDATES:
-            Serial.println("OTA: server says no update");
-            break;
-        case HTTP_UPDATE_OK:
-            Serial.println("OTA Success — rebooting");
-            break;
-    }
+    if (ret == HTTP_UPDATE_FAILED)
+        Serial.printf("OTA Failed (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
 }
-
 
 void safeBootCheck() {
     esp_reset_reason_t reason = esp_reset_reason();
-    // Only count hard crashes (panics, watchdogs). Normal power-ons or OTA restarts are ignored.
-    if (reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT || reason == ESP_RST_TASK_WDT || reason == ESP_RST_WDT) {
+    if (reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT ||
+        reason == ESP_RST_TASK_WDT || reason == ESP_RST_WDT) {
         Preferences p;
         p.begin("lamp", false);
-        uint32_t crashes = p.getUInt("crashes", 0);
-        crashes++;
+        uint32_t crashes = p.getUInt("crashes", 0) + 1;
         if (crashes >= 3) {
-            Serial.println("CRITICAL: Boot loop detected! Rolling back to previous firmware...");
+            Serial.println("CRITICAL: Boot loop — rolling back firmware");
             p.putUInt("crashes", 0);
             p.end();
-            if (Update.canRollBack()) {
-                Update.rollBack();
-                ESP.restart();
-            } else {
-                Serial.println("WARNING: canRollBack() = false, no previous firmware available.");
-            }
+            if (Update.canRollBack()) { Update.rollBack(); ESP.restart(); }
+            else Serial.println("WARNING: canRollBack() = false");
         } else {
-            Serial.printf("Warning: Crash detected. Count: %d/3\n", crashes);
+            Serial.printf("Warning: crash %lu/3\n", crashes);
             p.putUInt("crashes", crashes);
             p.end();
         }
@@ -651,19 +581,27 @@ void startNetwork() {
     buildHeatPalette();
     recalcCooling();
 
-    WiFi.mode(WIFI_STA);
-    WiFi.setSleep(false);                     // modem sleep -> periodic LED timing hitch
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    uint32_t t0 = millis();                   // blocks only here; fire not running yet
-    while (WiFi.status() != WL_CONNECTED && millis() - t0 < WIFI_CONNECT_MS)
-        delay(150);
+    WiFi.setHostname(MDNS_NAME);              // shows as "firelamp" in router DHCP table
+    WiFi.setSleep(false);
 
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.print("UI ready: http://");
-        Serial.println(WiFi.localIP());
+    wm.setConnectTimeout(10);                 // try stored creds for 10s before portal
+    wm.setConfigPortalTimeout(WIFI_PORTAL_TIMEOUT_S);
+    wm.setConnectRetries(2);
+
+    Serial.println("Connecting to WiFi (stored credentials)...");
+    bool connected = wm.autoConnect(WIFI_PORTAL_SSID);
+
+    if (connected) {
+        Serial.printf("UI ready: http://%s.local  or  http://%s\n",
+                      MDNS_NAME, WiFi.localIP().toString().c_str());
+        if (MDNS.begin(MDNS_NAME)) {
+            MDNS.addService("http", "tcp", 80);
+            Serial.printf("mDNS: http://%s.local\n", MDNS_NAME);
+        }
         markBootSuccess();
     } else {
-        Serial.println("WiFi down - fire runs anyway, UI retries in bg");
+        Serial.println("WiFi not configured — fire runs, UI unavailable");
+        Serial.printf("To configure: connect to \"%s\" and open 192.168.4.1\n", WIFI_PORTAL_SSID);
     }
 
     server.on("/",            handleRoot);
@@ -675,12 +613,21 @@ void startNetwork() {
     server.on("/reset",       handleReset);
     server.on("/update",      handleUpdate);
     server.on("/checkupdate", handleCheckUpdate);
+    server.on("/resetwifi", []() {
+        server.send(200, "text/plain", "WiFi cleared — rebooting into setup mode...");
+        server.client().stop();
+        delay(200);
+        wm.resetSettings();
+        ESP.restart();
+    });
     server.on("/info", []() {
         String j = "{\"flash_mb\":";
         j += ESP.getFlashChipSize() / (1024 * 1024);
         j += ",\"free_heap\":";
         j += ESP.getFreeHeap();
-        j += ",\"version\":\"" FIRMWARE_VERSION "\"";
+        j += ",\"ip\":\"";
+        j += WiFi.localIP().toString();
+        j += "\",\"version\":\"" FIRMWARE_VERSION "\"";
         j += ",\"build\":\"" __DATE__ " " __TIME__ "\"}";
         server.send(200, "application/json", j);
     });
@@ -692,8 +639,6 @@ void startNetwork() {
 void serviceNetwork() {
     server.handleClient();
 
-    // Deferred persistence: commit only after value stable ~2.5 s, so
-    // dragging the slider doesn't burn flash endurance.
     if (prefsDirty && millis() - prefsTouch > NVS_COMMIT_DELAY_MS) {
         prefs.putUChar("bright2",  uiBright);
         prefs.putUChar("contrast", uiContrast);
@@ -702,11 +647,9 @@ void serviceNetwork() {
         prefsDirty = false;
     }
 
-    // Non-blocking reconnect.
     if (WiFi.status() != WL_CONNECTED && millis() - wifiRetryAt > WIFI_RETRY_MS) {
         wifiRetryAt = millis();
-        WiFi.disconnect();
-        WiFi.begin(WIFI_SSID, WIFI_PASS);
+        WiFi.reconnect();
     }
 }
 
@@ -723,8 +666,6 @@ void setup() {
     FastLED.clear(true);
 
 #if COLOR_TEST
-    // Whole strip MUST be solid RED for 1 s. Green/blue instead means
-    // LED_COLOR_ORDER is wrong — change above (RGB is the usual fix).
     fill_solid(leds, NUM_LEDS, CRGB(255, 0, 0));
     FastLED.show();
     delay(1000);
@@ -736,7 +677,7 @@ void setup() {
         windTarget[y] = 0.0f;
     }
 
-    startNetwork();                            // loads NVS, builds palette, joins WiFi
+    startNetwork();
 
     xTaskCreatePinnedToCore(
         [](void *) {
@@ -744,7 +685,7 @@ void setup() {
                 updateWind();
                 fireEffect();
                 FastLED.show();
-                vTaskDelay(pdMS_TO_TICKS(1)); // yield to feed Core 0 watchdog/WiFi
+                vTaskDelay(pdMS_TO_TICKS(1));
             }
         },
         "LEDTask", 4096, NULL, 1, NULL, 0
@@ -753,5 +694,5 @@ void setup() {
 
 void loop() {
     serviceNetwork();
-    vTaskDelay(pdMS_TO_TICKS(10));             // yield Core 1
+    vTaskDelay(pdMS_TO_TICKS(10));
 }

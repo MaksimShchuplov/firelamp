@@ -44,9 +44,6 @@ jobs:
           pip install --upgrade platformio
 
       - name: Build Firmware
-        env:
-          WIFI_SSID: ${{ secrets.WIFI_SSID }}
-          WIFI_PASS: ${{ secrets.WIFI_PASS }}
         run: pio run -e esp32s3
 
       - name: Generate version.json
