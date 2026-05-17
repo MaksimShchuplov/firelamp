@@ -46,6 +46,16 @@ static bool fetchVersionInfo(String &ver, String &md5) {
 //  HTTP HANDLERS
 // =============================================================================
 
+// Rejects requests without our custom header — blocks cross-origin CSRF attempts.
+// Browser CORS pre-flight fails on unknown origins before the request reaches us.
+static bool isWebRequest() {
+    if (server.header("X-Requested-With") != "firelamp") {
+        server.send(403, "text/plain", "Forbidden");
+        return false;
+    }
+    return true;
+}
+
 static void handleRoot() {
     server.setContentLength(CONTENT_LENGTH_UNKNOWN);
     server.send(200, "text/html", "");
@@ -94,7 +104,8 @@ static void handleSetSp() {
 }
 
 static void handleReset() {
-    uiBright = BRIGHT_DEFAULT; uiContrast = 50; uiCooling = 45; uiSparking = 36;
+    if (!isWebRequest()) return;
+    uiBright = BRIGHT_DEFAULT; uiContrast = CONTRAST_DEFAULT; uiCooling = COOLING_DEFAULT; uiSparking = SPARKING_DEFAULT;
     applyBrightness(); buildHeatPalette(); recalcCooling();
     prefsDirty = true; prefsTouch = millis();
     updatePowerCalc(); sendVal();
@@ -113,6 +124,7 @@ static void handleCheckUpdate() {
 }
 
 static void handleUpdate() {
+    if (!isWebRequest()) return;
     String ver, md5;
     if (!fetchVersionInfo(ver, md5) || md5.length() != 32) {
         server.send(503, "application/json", "{\"error\":\"fetch_failed\"}");
@@ -131,14 +143,18 @@ static void handleUpdate() {
 }
 
 static void handleInfo() {
-    String j = "{\"flash_mb\":"; j += ESP.getFlashChipSize() / (1024*1024);
-    j += ",\"free_heap\":";      j += ESP.getFreeHeap();
-    j += ",\"ip\":\"";           j += WiFi.localIP().toString();
-    j += "\",\"version\":\"" FIRMWARE_VERSION "\",\"build\":\"" __DATE__ " " __TIME__ "\"}";
+    char j[192];
+    String ip = WiFi.localIP().toString();
+    snprintf(j, sizeof(j),
+             "{\"flash_mb\":%u,\"free_heap\":%u,\"ip\":\"%s\","
+             "\"version\":\"" FIRMWARE_VERSION "\",\"build\":\"" __DATE__ " " __TIME__ "\"}",
+             (unsigned)(ESP.getFlashChipSize() / (1024*1024)),
+             (unsigned)ESP.getFreeHeap(), ip.c_str());
     server.send(200, "application/json", j);
 }
 
 static void handleResetWifi() {
+    if (!isWebRequest()) return;
     server.send(200, "text/plain", "WiFi cleared — rebooting into setup mode...");
     server.client().stop();
     delay(200);
@@ -153,9 +169,9 @@ static void handleResetWifi() {
 void startNetwork() {
     prefs.begin("lamp", false);
     uiBright   = prefs.getUChar("bright2",  BRIGHT_DEFAULT);
-    uiContrast = prefs.getUChar("contrast", 50);
-    uiCooling  = prefs.getUChar("cooling",  45);
-    uiSparking = prefs.getUChar("sparking", 36);
+    uiContrast = prefs.getUChar("contrast", CONTRAST_DEFAULT);
+    uiCooling  = prefs.getUChar("cooling",  COOLING_DEFAULT);
+    uiSparking = prefs.getUChar("sparking", SPARKING_DEFAULT);
     applyBrightness();
     buildHeatPalette();
     recalcCooling();
@@ -187,6 +203,8 @@ void startNetwork() {
     server.on("/info",        handleInfo);
     server.on("/resetwifi",   handleResetWifi);
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
+    static const char *hdrs[] = {"X-Requested-With"};
+    server.collectHeaders(hdrs, 1);
     server.begin();
 }
 

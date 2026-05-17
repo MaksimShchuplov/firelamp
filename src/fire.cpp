@@ -67,10 +67,10 @@ void updateWind() {
 }
 
 void recalcCooling() {
-    for (int y = 0; y < ROWS; y++) {
-        const uint8_t lo = (uiCooling > 10) ? uiCooling - 10 : 0;
-        coolMax[y] = (uint8_t)((random8(lo, uiCooling + 10) * 10) / ROWS + 2);
-    }
+    const uint8_t cooling = uiCooling;   // snapshot volatile once — prevents lo/hi split if Core 1 updates mid-loop
+    const uint8_t lo = (cooling > 10) ? cooling - 10 : 0;
+    for (int y = 0; y < ROWS; y++)
+        coolMax[y] = (uint8_t)((random8(lo, cooling + 10) * 10) / ROWS + 2);
 }
 
 void updatePowerCalc() {

@@ -88,6 +88,7 @@ var vc=document.getElementById('vc'),sc=document.getElementById('sc');
 var vco=document.getElementById('vco'),sco=document.getElementById('sco');
 var vsp=document.getElementById('vsp'),ssp=document.getElementById('ssp');
 var R=document.documentElement,t1,t2,t4,t5;
+var xf=function(u){return fetch(u,{headers:{'X-Requested-With':'firelamp'}});};
 var ru=(localStorage.getItem('lang')==='ru')||(!localStorage.getItem('lang')&&navigator.language.startsWith('ru'));
 function ul(){
  document.getElementById('len').classList.toggle('act',!ru);
@@ -123,14 +124,14 @@ function pc(n){n=Math.max(0,Math.min(100,n|0));vc.textContent=n;sc.value=n;}
 function pco(n){n=Math.max(20,Math.min(150,n|0));vco.textContent=n;sco.value=n;}
 function psp(n){n=Math.max(0,Math.min(255,n|0));vsp.textContent=n;ssp.value=n;}
 function pull(){fetch('/state').then(r=>r.json()).then(x=>{pb(x.b);pc(x.c);pco(x.co);psp(x.sp);if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);}).catch(()=>{})}
-sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){fetch('/setb?v='+sb.value)},120)});
-sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){fetch('/setc?v='+sc.value)},120)});
-sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){fetch('/setco?v='+sco.value)},120)});
-ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){fetch('/setsp?v='+ssp.value)},120)});
-document.getElementById('rst').onclick=function(){fetch('/reset').then(pull)};
+sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){xf('/setb?v='+sb.value)},120)});
+sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){xf('/setc?v='+sc.value)},120)});
+sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){xf('/setco?v='+sco.value)},120)});
+ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){xf('/setsp?v='+ssp.value)},120)});
+document.getElementById('rst').onclick=function(){xf('/reset').then(pull)};
 document.getElementById('rwifi').onclick=function(){
   if(confirm(ru?'Сбросить настройки Wi-Fi?\nЛампа перезагрузится в режим настройки.\nПодключитесь к сети "FireLamp-Setup" и откройте 192.168.4.1':'Reset WiFi credentials?\nThe lamp will reboot into setup mode.\nConnect to "FireLamp-Setup" and open 192.168.4.1'))
-    {var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;fetch('/resetwifi').catch(function(){});}
+    {var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;xf('/resetwifi').catch(function(){});}
 };
 var latestVer=null;
 document.getElementById('chk').onclick=function(){
@@ -144,7 +145,7 @@ document.getElementById('chk').onclick=function(){
       btn.textContent=ru?'Установить обновление ↑':'Install Update ↑';
       btn.style.borderColor='#16a34a';btn.style.color='#4ade80';btn.disabled=false;
       btn.onclick=function(){
-        if(confirm(ru?'Начать обновление? Лампа перезагрузится.':'Install update? The lamp will reboot.')){fetch('/update').then(()=>alert(ru?'Обновление запущено...':'Update started...'))}
+        if(confirm(ru?'Начать обновление? Лампа перезагрузится.':'Install update? The lamp will reboot.')){xf('/update').then(()=>alert(ru?'Обновление запущено...':'Update started...'))}
       };
     } else {
       btn.textContent=ru?'Версия актуальна ✓':'Up to date ✓';btn.style.color='#4ade80';
