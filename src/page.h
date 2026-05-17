@@ -130,7 +130,7 @@ ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setT
 document.getElementById('rst').onclick=function(){fetch('/reset').then(pull)};
 document.getElementById('rwifi').onclick=function(){
   if(confirm(ru?'Сбросить настройки Wi-Fi?\nЛампа перезагрузится в режим настройки.\nПодключитесь к сети "FireLamp-Setup" и откройте 192.168.4.1':'Reset WiFi credentials?\nThe lamp will reboot into setup mode.\nConnect to "FireLamp-Setup" and open 192.168.4.1'))
-    {fetch('/resetwifi');}
+    {var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;fetch('/resetwifi').catch(function(){});}
 };
 var latestVer=null;
 document.getElementById('chk').onclick=function(){

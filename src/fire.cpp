@@ -76,7 +76,7 @@ void recalcCooling() {
 void updatePowerCalc() {
     float req = (float)calculate_unscaled_power_mW(leds, NUM_LEDS)
                 * ((float)appliedRaw / 255.0f) / 1000.0f;
-    float cap = (float)(PSU_VOLTS * 20000) / 1000.0f;
+    float cap = (float)(PSU_VOLTS * PSU_MAX_MA) / 1000.0f;
     currentPowerW = (req > cap) ? cap : req;
     lastPowerCalc = millis();
 }

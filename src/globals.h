@@ -16,10 +16,10 @@ extern CRGB             heatPalette[2][256];
 extern volatile uint8_t activePal;
 
 // ---- Wind state ------------------------------------------------------------
-extern float    windDir[ROWS];
-extern float    windTarget[ROWS];
-extern uint8_t  coolMax[ROWS];
-extern uint32_t lastWindChange;
+extern float             windDir[ROWS];
+extern float             windTarget[ROWS];
+extern volatile uint8_t  coolMax[ROWS];   // written Core 1 (recalcCooling), read Core 0
+extern uint32_t          lastWindChange;
 
 // ---- Shared singletons -----------------------------------------------------
 extern WebServer   server;

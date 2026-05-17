@@ -114,13 +114,16 @@ static void handleCheckUpdate() {
 
 static void handleUpdate() {
     String ver, md5;
-    if (fetchVersionInfo(ver, md5) && md5.length() == 32)
-        Update.setMD5(md5.c_str());
+    if (!fetchVersionInfo(ver, md5) || md5.length() != 32) {
+        server.send(503, "application/json", "{\"error\":\"fetch_failed\"}");
+        return;
+    }
+    Update.setMD5(md5.c_str());
     server.send(200, "text/plain", "Update starting...");
     server.client().stop();
     WiFiClientSecure client; client.setInsecure();
     httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    Serial.printf("OTA → %s\n", ver.c_str());
+    Serial.printf("OTA → %s  md5: %s\n", ver.c_str(), md5.c_str());
     t_httpUpdate_return r = httpUpdate.update(client, FIRMWARE_URL);
     if (r == HTTP_UPDATE_FAILED)
         Serial.printf("OTA failed (%d): %s\n",

@@ -13,7 +13,7 @@ void safeBootCheck() {
         r != ESP_RST_TASK_WDT && r != ESP_RST_WDT) return;
 
     Preferences p;
-    p.begin("lamp", false);
+    p.begin("boot", false);
     uint32_t crashes = p.getUInt("crashes", 0) + 1;
     if (crashes >= 3) {
         Serial.println("CRITICAL: boot loop — rolling back firmware");
@@ -31,7 +31,7 @@ void safeBootCheck() {
 // Call once WiFi is up and the device is considered stable.
 void markBootSuccess() {
     Preferences p;
-    p.begin("lamp", false);
+    p.begin("boot", false);
     p.putUInt("crashes", 0);
     p.end();
     esp_ota_mark_app_valid_cancel_rollback();

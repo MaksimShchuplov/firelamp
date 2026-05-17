@@ -15,10 +15,10 @@ uint8_t  heat[ROWS][COLUMNS];
 CRGB             heatPalette[2][256];
 volatile uint8_t activePal = 0;
 
-float    windDir[ROWS];
-float    windTarget[ROWS];
-uint8_t  coolMax[ROWS];
-uint32_t lastWindChange = 0;
+float             windDir[ROWS];
+float             windTarget[ROWS];
+volatile uint8_t  coolMax[ROWS];
+uint32_t          lastWindChange = 0;
 
 WebServer   server(80);
 WiFiManager wm;
@@ -58,7 +58,7 @@ void setup() {
 
     startNetwork();   // loads NVS → builds palette → joins WiFi → starts web server
 
-    xTaskCreatePinnedToCore(
+    BaseType_t ok = xTaskCreatePinnedToCore(
         [](void *) {
             for (;;) {
                 updateWind();
@@ -69,6 +69,7 @@ void setup() {
         },
         "LEDTask", 4096, NULL, 1, NULL, 0       // pinned to Core 0
     );
+    if (ok != pdPASS) Serial.println("FATAL: LEDTask creation failed — no fire");
 }
 
 void loop() {
