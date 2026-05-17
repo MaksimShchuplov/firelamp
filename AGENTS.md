@@ -37,7 +37,7 @@ get_version.py           — PlatformIO pre-build script (injects git SHA as ver
 - **Core 1** — Arduino `loop()`: `serviceNetwork()` polls the web server and deferred NVS writes.
 
 ### Shared-state concurrency
-UI parameters (`uiBright`, `uiContrast`, `uiCooling`, `uiSparking`, `appliedRaw`, `currentPowerW`) and `coolMax[ROWS]` are `volatile` — written from Core 1 (web handlers / `recalcCooling`), read from Core 0. Single-byte writes are atomic on Xtensa LX7; `volatile` prevents compiler register-caching across the task boundary.
+UI parameters (`uiBright`, `uiContrast`, `uiCooling`, `uiSparking`, `uiBlend`, `uiTheme`, `appliedRaw`, `currentPowerW`, `updatePending`) and `coolMax[ROWS]` are `volatile` — written from Core 1 (web handlers / `recalcCooling`), read from Core 0. Single-byte writes are atomic on Xtensa LX7; `volatile` prevents compiler register-caching across the task boundary.
 
 `heatPalette` uses a **double-buffer + atomic index flip**: `buildHeatPalette()` writes into `heatPalette[1 - activePal]`, then sets `activePal` in a single byte write. `fireEffect()` snapshots `activePal` once at the start of each frame so a mid-frame flip cannot split palette reads.
 
@@ -47,12 +47,13 @@ Credentials are **never compiled into the binary**. On first boot the lamp start
 The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in the router DHCP table.
 
 ### OTA update flow
-1. Browser calls `/checkupdate` → ESP fetches `version.json` from GitHub Releases over HTTPS and compares SHA against `FIRMWARE_VERSION`.
-2. Browser calls `/update` → ESP sets MD5 from `version.json`, sends HTTP 200, closes the connection, then calls `httpUpdate.update()` synchronously. After success the ESP reboots automatically.
-3. `boot.cpp` counts consecutive hard crashes (panic/watchdog). On the third consecutive crash it calls `Update.rollBack()` + restart, reverting to the previous OTA slot.
+1. On WiFi connect, `autoUpdateCheck` task fires after 8 s, fetches `version.json`, sets `updatePending` flag. Browser sees `"upd":1` in `/state` and shows a silent badge.
+2. Browser calls `/checkupdate` → ESP fetches `version.json` (cached 60 s) and compares SHA against `FIRMWARE_VERSION`.
+3. Browser calls `/update` (with `X-Requested-With: firelamp` CSRF header) → ESP sets MD5 from `version.json`, sends HTTP 200, closes the connection, then calls `httpUpdate.update()` synchronously. After success the ESP reboots automatically. UI polls `/info` every 3 s until lamp responds, then auto-reloads.
+4. `boot.cpp` counts consecutive hard crashes (panic/watchdog). On the third consecutive crash it calls `Update.rollBack()` + restart, reverting to the previous OTA slot.
 
 ### NVS persistence
-UI parameters (`bright2`, `contrast`, `cooling`, `sparking`) are written to the `lamp` NVS namespace after 2.5 s of inactivity (`NVS_COMMIT_DELAY_MS`) to avoid flash wear from slider dragging.
+UI parameters (`bright2`, `contrast`, `cooling`, `sparking`, `blend`, `theme`) are written to the `lamp` NVS namespace after 2.5 s of inactivity (`NVS_COMMIT_DELAY_MS`) to avoid flash wear from slider dragging.
 
 The boot-loop crash counter uses a separate `boot` NVS namespace so it never shares an open `Preferences` handle with the UI params.
 
@@ -70,12 +71,32 @@ Every push to `main` builds the firmware, generates `version.json` (git short-SH
 ## Key Constants (src/config.h)
 
 - `COLUMNS 20`, `ROWS 40`, `NUM_LEDS 800`
-- `FIRE_BLEND 50` — temporal smoothing per frame (0 = freeze, 255 = instant)
+- `BLEND_DEFAULT 50` — default temporal smoothing; runtime value is `uiBlend` (0 = freeze, 255 = instant)
+- `THEME_DEFAULT 0` — default color theme; 0=Fire 1=Ember 2=Plasma 3=Ice; runtime value is `uiTheme`
 - `SPARK_INTENSITY 240` — max heat added per spark
 - `BRIGHT_GAMMA 2.2` — perceptual brightness curve
 - `PSU_VOLTS 5`, `PSU_MAX_MA 20000` — FastLED power limiter (intentionally above PSU rating)
 - `WIFI_PORTAL_TIMEOUT_S 120` — if not configured in 2 min, fire runs without WiFi
 - `MDNS_NAME "firelamp"`
+
+## HTTP API (src/network.cpp)
+
+All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
+
+| Endpoint | Params | Notes |
+|----------|--------|-------|
+| `GET /state` | — | JSON: `b,c,co,sp,w,bl,th,upd` |
+| `GET /setb` | `v=0..100` | brightness |
+| `GET /setc` | `v=0..100` | contrast |
+| `GET /setco` | `v=20..150` | cooling |
+| `GET /setsp` | `v=0..255` | sparking |
+| `GET /setbl` | `v=0..255` | blend |
+| `GET /settheme` | `v=0..3` | color theme; calls `buildHeatPalette()` |
+| `GET /reset` | — | restore all defaults |
+| `GET /checkupdate` | — | compare version (60 s cache) |
+| `GET /update` | — | start OTA; ESP reboots on success |
+| `GET /info` | — | flash_mb, free_heap, ip, version, build |
+| `GET /resetwifi` | — | clear credentials + reboot |
 
 ## Hardware Notes
 
