@@ -7,18 +7,37 @@
 // =============================================================================
 
 void buildHeatPalette() {
-    const uint8_t next  = 1 - activePal;     // write into the inactive buffer
+    const uint8_t next  = 1 - activePal;
     const float   power = 1.0f + ((uiContrast - 50.0f) / 50.0f);
+    const uint8_t theme = uiTheme;            // snapshot volatile once
     for (int i = 0; i < 256; i++) {
         float    n    = powf((float)i / 255.0f, power);
         uint16_t m    = (uint16_t)(n * 255.0f);
         uint8_t  t192 = (uint8_t)((m * 191) / 255);
         uint8_t  ramp = (uint8_t)((t192 & 0x3F) << 2);
-        if      (t192 > 0x80) heatPalette[next][i] = CRGB(255, 255, ramp);
-        else if (t192 > 0x40) heatPalette[next][i] = CRGB(255, ramp, 0);
-        else                  heatPalette[next][i] = CRGB(ramp, 0, 0);
+        switch (theme) {
+            case 1: // Ember — deep reds, no white-hot
+                if      (t192 > 0x80) heatPalette[next][i] = CRGB(255, ramp >> 1, 0);
+                else if (t192 > 0x40) heatPalette[next][i] = CRGB(ramp, 0, 0);
+                else                  heatPalette[next][i] = CRGB(ramp >> 2, 0, 0);
+                break;
+            case 2: // Plasma — purple → magenta → white
+                if      (t192 > 0x80) heatPalette[next][i] = CRGB(255, ramp, 255);
+                else if (t192 > 0x40) heatPalette[next][i] = CRGB(ramp, 0, 255);
+                else                  heatPalette[next][i] = CRGB(ramp >> 2, 0, ramp);
+                break;
+            case 3: // Ice — dark blue → cyan → white
+                if      (t192 > 0x80) heatPalette[next][i] = CRGB(ramp, 255, 255);
+                else if (t192 > 0x40) heatPalette[next][i] = CRGB(0, ramp, 255);
+                else                  heatPalette[next][i] = CRGB(0, ramp >> 2, ramp);
+                break;
+            default: // Fire — classic red → orange → yellow → white
+                if      (t192 > 0x80) heatPalette[next][i] = CRGB(255, 255, ramp);
+                else if (t192 > 0x40) heatPalette[next][i] = CRGB(255, ramp, 0);
+                else                  heatPalette[next][i] = CRGB(ramp, 0, 0);
+        }
     }
-    activePal = next;                         // atomic single-byte flip
+    activePal = next;
 }
 
 // =============================================================================
@@ -117,7 +136,7 @@ void fireEffect() {
     for (int y = 0; y < ROWS; y++) {
         const uint16_t base = (uint16_t)(ROWS - 1 - y) * COLUMNS;
         for (int x = 0; x < COLUMNS; x++)
-            nblend(leds[base + x], pal[heat[y][x]], FIRE_BLEND);
+            nblend(leds[base + x], pal[heat[y][x]], uiBlend);
     }
 
     if (millis() - lastPowerCalc > 3000)

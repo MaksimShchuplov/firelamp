@@ -12,15 +12,21 @@
 // =============================================================================
 
 void sendVal() {
-    char j[64];
-    snprintf(j, sizeof(j), "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f}",
+    char j[96];
+    snprintf(j, sizeof(j),
+             "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f,\"bl\":%d,\"th\":%d,\"upd\":%d}",
              (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
-             (float)currentPowerW);
+             (float)currentPowerW, (int)uiBlend, (int)uiTheme, updatePending ? 1 : 0);
     server.send(200, "application/json", j);
 }
 
-// Fetches version.json from GitHub. Returns false on network error.
+// Fetches version.json from GitHub. Caches result for 60 s. Returns false on network error.
 static bool fetchVersionInfo(String &ver, String &md5) {
+    static String  s_ver, s_md5;
+    static uint32_t s_at = 0;
+    if (s_ver.length() > 0 && millis() - s_at < 60000) {
+        ver = s_ver; md5 = s_md5; return true;
+    }
     WiFiClientSecure client;
     client.setInsecure();           // see note in config.h about CA pinning
     HTTPClient http;
@@ -39,7 +45,9 @@ static bool fetchVersionInfo(String &ver, String &md5) {
     };
     ver = extract("version");
     md5 = extract("md5");
-    return ver.length() > 0;
+    if (ver.length() == 0) return false;
+    s_ver = ver; s_md5 = md5; s_at = millis();
+    return true;
 }
 
 // =============================================================================
@@ -61,8 +69,9 @@ static void handleRoot() {
     server.send(200, "text/html", "");
     server.sendContent_P(PAGE);
     char init[96];
-    snprintf(init, sizeof(init), "<script>pb(%d);pc(%d);pco(%d);psp(%d);</script>",
-             (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking);
+    snprintf(init, sizeof(init), "<script>pb(%d);pc(%d);pco(%d);psp(%d);pbl(%d);pth(%d);</script>",
+             (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
+             (int)uiBlend, (int)uiTheme);
     server.sendContent(init);
     server.sendContent("");
 }
@@ -103,9 +112,27 @@ static void handleSetSp() {
     sendVal();
 }
 
+static void handleSetBl() {
+    if (server.hasArg("v")) {
+        uiBlend = (uint8_t)constrain(server.arg("v").toInt(), 0, 255);
+        prefsDirty = true; prefsTouch = millis();
+    }
+    sendVal();
+}
+
+static void handleSetTheme() {
+    if (server.hasArg("v")) {
+        uint8_t t = (uint8_t)constrain(server.arg("v").toInt(), 0, 3);
+        if (uiTheme != t) { uiTheme = t; buildHeatPalette(); prefsDirty = true; prefsTouch = millis(); }
+    }
+    sendVal();
+}
+
 static void handleReset() {
     if (!isWebRequest()) return;
-    uiBright = BRIGHT_DEFAULT; uiContrast = CONTRAST_DEFAULT; uiCooling = COOLING_DEFAULT; uiSparking = SPARKING_DEFAULT;
+    uiBright = BRIGHT_DEFAULT; uiContrast = CONTRAST_DEFAULT;
+    uiCooling = COOLING_DEFAULT; uiSparking = SPARKING_DEFAULT;
+    uiBlend = BLEND_DEFAULT; uiTheme = THEME_DEFAULT;
     applyBrightness(); buildHeatPalette(); recalcCooling();
     prefsDirty = true; prefsTouch = millis();
     updatePowerCalc(); sendVal();
@@ -166,12 +193,22 @@ static void handleResetWifi() {
 //  STARTUP / SERVICE
 // =============================================================================
 
+static void autoUpdateCheck(void *) {
+    vTaskDelay(pdMS_TO_TICKS(8000));
+    String ver, md5;
+    if (fetchVersionInfo(ver, md5))
+        updatePending = (ver != String(FIRMWARE_VERSION));
+    vTaskDelete(NULL);
+}
+
 void startNetwork() {
     prefs.begin("lamp", false);
     uiBright   = prefs.getUChar("bright2",  BRIGHT_DEFAULT);
     uiContrast = prefs.getUChar("contrast", CONTRAST_DEFAULT);
     uiCooling  = prefs.getUChar("cooling",  COOLING_DEFAULT);
     uiSparking = prefs.getUChar("sparking", SPARKING_DEFAULT);
+    uiBlend    = prefs.getUChar("blend",    BLEND_DEFAULT);
+    uiTheme    = prefs.getUChar("theme",    THEME_DEFAULT);
     applyBrightness();
     buildHeatPalette();
     recalcCooling();
@@ -187,6 +224,7 @@ void startNetwork() {
                       MDNS_NAME, WiFi.localIP().toString().c_str());
         if (MDNS.begin(MDNS_NAME)) MDNS.addService("http", "tcp", 80);
         markBootSuccess();
+        xTaskCreate(autoUpdateCheck, "UpdChk", 8192, NULL, 1, NULL);
     } else {
         Serial.printf("WiFi not configured — connect to \"%s\"\n", WIFI_PORTAL_SSID);
     }
@@ -197,6 +235,8 @@ void startNetwork() {
     server.on("/setc",        handleSetC);
     server.on("/setco",       handleSetCo);
     server.on("/setsp",       handleSetSp);
+    server.on("/setbl",       handleSetBl);
+    server.on("/settheme",    handleSetTheme);
     server.on("/reset",       handleReset);
     server.on("/checkupdate", handleCheckUpdate);
     server.on("/update",      handleUpdate);
@@ -216,6 +256,8 @@ void serviceNetwork() {
         prefs.putUChar("contrast", uiContrast);
         prefs.putUChar("cooling",  uiCooling);
         prefs.putUChar("sparking", uiSparking);
+        prefs.putUChar("blend",    uiBlend);
+        prefs.putUChar("theme",    uiTheme);
         prefsDirty = false;
     }
 

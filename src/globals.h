@@ -33,8 +33,11 @@ extern volatile uint8_t uiBright;
 extern volatile uint8_t uiContrast;
 extern volatile uint8_t uiCooling;
 extern volatile uint8_t uiSparking;
+extern volatile uint8_t uiBlend;
+extern volatile uint8_t uiTheme;
 extern volatile uint8_t appliedRaw;
 extern volatile float   currentPowerW;
+extern volatile bool    updatePending;
 
 // ---- NVS deferred-write state (Core 1 only) --------------------------------
 extern bool     prefsDirty;

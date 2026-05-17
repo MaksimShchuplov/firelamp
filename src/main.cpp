@@ -28,8 +28,11 @@ volatile uint8_t uiBright     = BRIGHT_DEFAULT;
 volatile uint8_t uiContrast   = CONTRAST_DEFAULT;
 volatile uint8_t uiCooling    = COOLING_DEFAULT;
 volatile uint8_t uiSparking   = SPARKING_DEFAULT;
+volatile uint8_t uiBlend      = BLEND_DEFAULT;
+volatile uint8_t uiTheme      = THEME_DEFAULT;
 volatile uint8_t appliedRaw   = 0;
 volatile float   currentPowerW = 0.0f;
+volatile bool    updatePending = false;
 
 bool     prefsDirty  = false;
 uint32_t prefsTouch  = 0;

@@ -54,6 +54,12 @@ h1{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:600;c
 .mt{font-size:16px;font-weight:bold;color:#ff6a18;margin-top:15px;margin-bottom:5px;letter-spacing:.1em;text-transform:uppercase;}
 .md{margin-bottom:15px;opacity:0.85;}
 body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
+.themes{display:flex;gap:8px;margin:8px 0 24px}
+.tbtn{flex:1;background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:8px;cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:.05em;transition:all .2s;min-height:44px;touch-action:manipulation}
+.tbtn[data-t="0"].act{background:#5a1a03;border-color:#e05020;color:#ffd8a0}
+.tbtn[data-t="1"].act{background:#200803;border-color:#602010;color:#e08060}
+.tbtn[data-t="2"].act{background:#2a0840;border-color:#8830c0;color:#d898ff}
+.tbtn[data-t="3"].act{background:#04152a;border-color:#2060a0;color:#80c8ff}
 </style></head><body><div class=amb></div>
 <button id=ibtn class=ibtn>?</button>
 <div id=mod class=mod>
@@ -66,6 +72,8 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=mt id=mt6>Check for Update</div><div class=md id=md6></div>
 <div class=mt id=mt7>Reset WiFi</div><div class=md id=md7></div>
 <div class=mt id=mt8>Power</div><div class=md id=md8></div>
+<div class=mt id=mt9>Blend</div><div class=md id=md9></div>
+<div class=mt id=mt10>Theme</div><div class=md id=md10></div>
 </div>
 <div class=lang><button id=len class="lbtn act">EN</button><button id=lru class=lbtn>RU</button></div>
 <div class=wrap>
@@ -82,6 +90,11 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <h1 id=lsp>Sparking</h1><div class=val id=vsp>--</div>
 <input class=bar id=ssp type=range min=0 max=255 value=36>
 <div class=desc id=dsp>Higher = hotter base.</div>
+<h1 id=lbl>Blend</h1><div class=val id=vbl>--</div>
+<input class=bar id=sbl type=range min=0 max=255 value=50>
+<div class=desc id=dbl>Smoothness of flame transitions.</div>
+<h1 id=lth>Theme</h1>
+<div class=themes><button class="tbtn act" id=tb0 data-t=0>Fire</button><button class=tbtn id=tb1 data-t=1>Ember</button><button class=tbtn id=tb2 data-t=2>Plasma</button><button class=tbtn id=tb3 data-t=3>Ice</button></div>
 <button class=reset id=rst>Reset to Default</button>
 <button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
 <div id=vinfo style="font-size:11px;color:#888;margin-top:6px;text-align:center"></div>
@@ -92,7 +105,8 @@ var vb=document.getElementById('vb'),sb=document.getElementById('sb');
 var vc=document.getElementById('vc'),sc=document.getElementById('sc');
 var vco=document.getElementById('vco'),sco=document.getElementById('sco');
 var vsp=document.getElementById('vsp'),ssp=document.getElementById('ssp');
-var R=document.documentElement,t1,t2,t4,t5;
+var vbl=document.getElementById('vbl'),sbl=document.getElementById('sbl');
+var R=document.documentElement,t1,t2,t4,t5,t6;
 var xf=function(u){return fetch(u,{headers:{'X-Requested-With':'firelamp'}});};
 var ru=(localStorage.getItem('lang')==='ru')||(!localStorage.getItem('lang')&&navigator.language.startsWith('ru'));
 function ul(){
@@ -109,6 +123,13 @@ function ul(){
  document.getElementById('rst').textContent=ru?'По умолчанию':'Reset to Default';
  var ck=document.getElementById('chk');if(!ck.disabled){ck.textContent=ru?'Проверить обновления':'Check for Update';ck.style.borderColor='#1e3a8a';ck.style.color='#60a5fa';}
  document.getElementById('rwifi').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
+ document.getElementById('lbl').textContent=ru?'Плавность':'Blend';
+ document.getElementById('dbl').textContent=ru?'Плавность смены кадров пламени. Меньше = резкое мерцание, больше = медленное мягкое свечение.':'Temporal smoothing per frame. Lower = sharp flicker, higher = slow soft glow.';
+ document.getElementById('lth').textContent=ru?'Тема':'Theme';
+ document.getElementById('tb0').textContent=ru?'Огонь':'Fire';
+ document.getElementById('tb1').textContent=ru?'Тление':'Ember';
+ document.getElementById('tb2').textContent=ru?'Плазма':'Plasma';
+ document.getElementById('tb3').textContent=ru?'Лёд':'Ice';
  document.getElementById('lw').textContent=ru?'Потребление:':'Power:';
  document.getElementById('mt1').textContent=ru?'Яркость (Масштаб)':'Brightness (Scale)';
  document.getElementById('md1').textContent=ru?'Управляет общей яркостью лампы. Гамма-коррекция 2.2 обеспечивает равномерное восприятие по всей шкале. Не меняет физику пламени.':'Controls the overall light output. A gamma-2.2 curve makes the slider feel perceptually even across its range. Does not change the flame physics.';
@@ -126,6 +147,10 @@ function ul(){
  document.getElementById('md7').textContent=ru?'Удаляет сохранённые данные сети и перезагружает лампу в режим настройки. Подключитесь к точке доступа "FireLamp-Setup" и откройте 192.168.4.1 чтобы выбрать новую сеть.':'Clears saved Wi-Fi credentials and reboots into setup mode. Connect to the "FireLamp-Setup" hotspot and open 192.168.4.1 to choose a new network.';
  document.getElementById('mt8').textContent=ru?'Потребление':'Power';
  document.getElementById('md8').textContent=ru?'Расчётное потребление в ваттах на основе текущего цвета и яркости каждого светодиода. Обновляется каждые 4 секунды.':'Estimated power draw in watts based on the current colour and brightness of each LED. Updates every 4 seconds.';
+ document.getElementById('mt9').textContent=ru?'Плавность':'Blend';
+ document.getElementById('md9').textContent=ru?'Временное сглаживание кадров. 0 = резкое мерцание, 255 = медленное мягкое свечение. Оптимальный диапазон 30–80.':'Temporal blend per frame. 0 = sharp flicker, 255 = slow soft glow. Sweet spot 30–80.';
+ document.getElementById('mt10').textContent=ru?'Тема цвета':'Color Theme';
+ document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (глубокий тёмно-красный), Плазма (пурпурно-белый), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
 }
 ul();
 document.getElementById('ibtn').onclick=function(){document.getElementById('mod').classList.add('show')};
@@ -136,11 +161,15 @@ function pb(n){n=Math.max(0,Math.min(100,n|0));vb.textContent=n;sb.value=n;R.sty
 function pc(n){n=Math.max(0,Math.min(100,n|0));vc.textContent=n;sc.value=n;}
 function pco(n){n=Math.max(20,Math.min(150,n|0));vco.textContent=n;sco.value=n;}
 function psp(n){n=Math.max(0,Math.min(255,n|0));vsp.textContent=n;ssp.value=n;}
-function pull(){fetch('/state').then(r=>r.json()).then(x=>{pb(x.b);pc(x.c);pco(x.co);psp(x.sp);if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);}).catch(()=>{})}
+function pbl(n){n=Math.max(0,Math.min(255,n|0));vbl.textContent=n;sbl.value=n;}
+function pth(n){[0,1,2,3].forEach(function(i){document.getElementById('tb'+i).classList.toggle('act',i===n);});}
+function pull(){fetch('/state').then(r=>r.json()).then(x=>{pb(x.b);pc(x.c);pco(x.co);psp(x.sp);if(x.bl!==undefined)pbl(x.bl);if(x.th!==undefined)pth(x.th);if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}}).catch(()=>{})}
 sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){xf('/setb?v='+sb.value)},120)});
 sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){xf('/setc?v='+sc.value)},120)});
 sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){xf('/setco?v='+sco.value)},120)});
 ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){xf('/setsp?v='+ssp.value)},120)});
+sbl.addEventListener('input',function(){pbl(+sbl.value);clearTimeout(t6);t6=setTimeout(function(){xf('/setbl?v='+sbl.value)},120)});
+[0,1,2,3].forEach(function(t){document.getElementById('tb'+t).onclick=function(){xf('/settheme?v='+t).then(pull);};});
 document.getElementById('rst').onclick=function(){xf('/reset').then(pull)};
 document.getElementById('rwifi').onclick=function(){
   if(confirm(ru?'Сбросить настройки Wi-Fi?\nЛампа перезагрузится в режим настройки.\nПодключитесь к сети "FireLamp-Setup" и откройте 192.168.4.1':'Reset WiFi credentials?\nThe lamp will reboot into setup mode.\nConnect to "FireLamp-Setup" and open 192.168.4.1'))
@@ -148,7 +177,7 @@ document.getElementById('rwifi').onclick=function(){
 };
 function startOTA(){
   clearInterval(pollTid);
-  ['sb','sc','sco','ssp','rst','chk','rwifi','len','lru'].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
+  ['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','rst','chk','rwifi','len','lru'].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
   var btn=document.getElementById('chk'),info=document.getElementById('vinfo');
   btn.textContent=ru?'Прошивка...':'Flashing...';
   btn.style.borderColor='#f59e0b';btn.style.color='#fbbf24';
