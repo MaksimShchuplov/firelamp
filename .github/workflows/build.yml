@@ -72,7 +72,7 @@ jobs:
           fi
 
           # Write to file so the release action can read it (avoids shell escaping issues)
-          echo "$CHANGELOG" > changelog.txt
+          printf "Built from commit %s\n\n%s\n" "$GIT_SHA" "$CHANGELOG" > changelog.txt
           echo "--- Changelog ---"
           cat changelog.txt
 
