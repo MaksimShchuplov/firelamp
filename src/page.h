@@ -66,6 +66,12 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 .prbtn.act{background:#3a1a06;border-color:#d6510c;color:#ffd8a0}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .shk{animation:shake .25s ease}
+.prein{overflow:hidden;max-height:0;transition:max-height .25s ease;display:flex;gap:8px;align-items:center;margin-bottom:0}
+.prein.show{max-height:52px;margin-bottom:16px}
+.prein input{flex:1;background:rgba(120,40,10,.15);border:1px solid #7a3f16;border-radius:8px;color:#f6d9b0;padding:0 12px;height:44px;font-size:13px;font-family:inherit;-webkit-appearance:none}
+.prein input:focus{outline:none;border-color:#d6510c}
+.pric{background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:8px;cursor:pointer;min-width:44px;height:44px;font-size:16px;transition:all .2s;flex-shrink:0;touch-action:manipulation}
+.pric:active{background:#7a3f16;color:#fff2dd}
 </style></head><body><div class=amb></div>
 <button id=ibtn class=ibtn>?</button>
 <div id=mod class=mod>
@@ -104,6 +110,7 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=themes><button class="tbtn act" id=tb0 data-t=0>Fire</button><button class=tbtn id=tb1 data-t=1>Ember</button><button class=tbtn id=tb2 data-t=2>Plasma</button><button class=tbtn id=tb3 data-t=3>Ice</button></div>
 <h1 id=lpr>Presets</h1>
 <div class=presets><button class=prbtn id=pr0 data-slot=0>+</button><button class=prbtn id=pr1 data-slot=1>+</button><button class=prbtn id=pr2 data-slot=2>+</button><button class=prbtn id=pr3 data-slot=3>+</button></div>
+<div class=prein id=prein><input id=prename type=text maxlength=15 autocomplete=off spellcheck=false><button class=pric id=presave>✓</button><button class=pric id=precancel>✗</button></div>
 <button class=reset id=rst>Reset to Default</button>
 <button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
 <div id=vinfo style="font-size:11px;color:#888;margin-top:6px;text-align:center"></div>
@@ -187,10 +194,28 @@ var presets=[{},{},{},{}],activePreset=-1;
 function updPresetBtns(){presets.forEach(function(pr,i){var b=document.getElementById('pr'+i);if(pr.name){b.textContent=pr.name;b.classList.add('filled');}else{b.textContent='+';b.classList.remove('filled');}b.classList.toggle('act',i===activePreset);});}
 function clearActive(){activePreset=-1;updPresetBtns();}
 function fetchPresets(){fetch('/getpresets').then(r=>r.json()).then(function(d){presets=d;updPresetBtns();}).catch(function(){});}
-function saveSlot(s){var cur=presets[s]&&presets[s].name?presets[s].name:(ru?'Пресет ':'Preset ')+(s+1);var nm=prompt(ru?'Название:':'Name:',cur);if(nm===null||!nm.trim())return;xf('/savepreset?slot='+s+'&name='+encodeURIComponent(nm.trim())).then(function(){activePreset=s;fetchPresets();}).catch(function(){});}
+var pendingSlot=-1;
+function saveSlot(s){
+  pendingSlot=s;
+  var inp=document.getElementById('prename');
+  inp.value=presets[s]&&presets[s].name?presets[s].name:(ru?'Пресет ':'Preset ')+(s+1);
+  inp.placeholder=ru?'Название...':'Name...';
+  document.getElementById('prein').classList.add('show');
+  setTimeout(function(){inp.focus();inp.select();},200);
+}
+function doSave(){
+  var nm=document.getElementById('prename').value.trim();
+  if(!nm){document.getElementById('prename').focus();return;}
+  document.getElementById('prein').classList.remove('show');
+  xf('/savepreset?slot='+pendingSlot+'&name='+encodeURIComponent(nm)).then(function(){activePreset=pendingSlot;pendingSlot=-1;fetchPresets();}).catch(function(){pendingSlot=-1;});
+}
+function cancelSave(){pendingSlot=-1;document.getElementById('prein').classList.remove('show');}
+document.getElementById('presave').onclick=doSave;
+document.getElementById('precancel').onclick=cancelSave;
+document.getElementById('prename').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSave();}if(e.key==='Escape')cancelSave();});
 [0,1,2,3].forEach(function(s){
   var b=document.getElementById('pr'+s),pt=null;
-  function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(function(){pt=null;b.classList.add('shk');setTimeout(function(){b.classList.remove('shk');},250);saveSlot(s);},600);}
+  function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(function(){pt=null;if(navigator.vibrate)navigator.vibrate(40);b.classList.add('shk');setTimeout(function(){b.classList.remove('shk');},250);saveSlot(s);},600);}
   function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(r=>r.json()).then(function(x){pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);activePreset=s;updPresetBtns();}).catch(function(){});}else saveSlot(s);}}
   b.addEventListener('touchstart',onStart,{passive:false});
   b.addEventListener('touchend',onEnd,{passive:false});
