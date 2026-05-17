@@ -537,7 +537,16 @@ void startNetwork() {
     server.on("/setsp", handleSetSp);
     server.on("/reset", handleReset);
     server.on("/update", handleUpdate);
+    server.on("/info", []() {
+        String j = "{\"flash_mb\":";
+        j += ESP.getFlashChipSize() / (1024 * 1024);
+        j += ",\"free_heap\":";
+        j += ESP.getFreeHeap();
+        j += ",\"build\":\"" __DATE__ " " __TIME__ "\"}";
+        server.send(200, "application/json", j);
+    });
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
+
     server.begin();
 }
 
