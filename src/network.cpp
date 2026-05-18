@@ -572,12 +572,12 @@ void startNetwork() {
     uiTheme    = prefs.getUChar("theme",    THEME_DEFAULT);
     // Sanity-clamp in case NVS held out-of-range bytes from a corrupt write
     // or a downgrade from a future firmware with wider parameter ranges.
-    uiBright   = constrain(uiBright,   0,   100);
-    uiContrast = constrain(uiContrast, 0,   100);
-    uiCooling  = constrain(uiCooling,  20,  150);
-    uiSparking = constrain(uiSparking, 0,   255);
-    uiBlend    = constrain(uiBlend,    0,   255);
-    uiTheme    = constrain(uiTheme,    0,   THEME_COUNT - 1);
+    uiBright   = (uint8_t)constrain((int)uiBright,   0,   100);
+    uiContrast = (uint8_t)constrain((int)uiContrast, 0,   100);
+    uiCooling  = (uint8_t)constrain((int)uiCooling,  20,  150);
+    uiSparking = (uint8_t)constrain((int)uiSparking, 0,   255);
+    uiBlend    = (uint8_t)constrain((int)uiBlend,    0,   255);
+    uiTheme    = (uint8_t)constrain((int)uiTheme,    0,   THEME_COUNT - 1);
     applyBrightness();
     buildHeatPalette();
     recalcCooling();
