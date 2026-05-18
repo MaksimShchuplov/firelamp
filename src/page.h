@@ -387,7 +387,7 @@ function askAI(){
   var ctrl=new AbortController(),tid=setTimeout(function(){ctrl.abort();},15000);
   fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(key),{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:pr}]}],generationConfig:{temperature:1.3,maxOutputTokens:80}}),
+    body:JSON.stringify({contents:[{parts:[{text:pr}]}],generationConfig:{temperature:1.3,maxOutputTokens:300,thinkingConfig:{thinkingBudget:0}}}),
     signal:ctrl.signal
   }).then(function(r){clearTimeout(tid);return r.json();}).then(function(resp){
     if(resp.error){var code=resp.error.code||0;if(code===429)throw new Error('rate_limit');if(code===401||code===403)throw new Error('bad_key');throw new Error(resp.error.message||'api error');}
