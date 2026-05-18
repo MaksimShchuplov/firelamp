@@ -469,12 +469,22 @@ static void handleSurprise() {
     String resp = http.getString();
     http.end();
 
-    // Extract text field from Gemini JSON, unescaping \" → " to recover our inner JSON object.
-    int ti = resp.indexOf("\"text\":\"");
+    // Find the "text":"..." field whose value starts with '{' — our JSON output.
+    // Gemini 2.5 Flash may prepend an empty thinking part {"text":"","thought":true}
+    // which would otherwise be found first and cause parse failure.
+    int ti = -1;
+    for (int p = 0; ; ) {
+        p = resp.indexOf("\"text\":\"", p);
+        if (p < 0) break;
+        int s = p + 8;
+        // skip over any non-{ non-" chars (shouldn't exist, but be safe)
+        while (s < (int)resp.length() && resp[s] != '{' && resp[s] != '"') s++;
+        if (s < (int)resp.length() && resp[s] == '{') { ti = s; break; }
+        p++;   // this text field is empty or non-JSON — try the next one
+    }
     if (ti < 0) {
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
-    ti += 8;
     String inner;
     inner.reserve(128);
     {
