@@ -483,7 +483,10 @@ static void handleSurprise() {
         p++;   // this text field is empty or non-JSON — try the next one
     }
     if (ti < 0) {
-        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
+        String peek = jsonEscape(resp.substring(0, min(120, (int)resp.length())));
+        String e = String("{\"error\":\"parse_failed\",\"stage\":\"no_text_brace\",\"len\":") +
+                   resp.length() + ",\"peek\":\"" + peek + "\"}";
+        server.send(503, "application/json", e); return;
     }
     String inner;
     inner.reserve(128);
@@ -508,7 +511,10 @@ static void handleSurprise() {
         }
     }
     if (inner.length() < 10) {
-        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
+        String peek = jsonEscape(resp.substring(0, min(120, (int)resp.length())));
+        String e = String("{\"error\":\"parse_failed\",\"stage\":\"empty_inner\",\"len\":") +
+                   resp.length() + ",\"peek\":\"" + peek + "\"}";
+        server.send(503, "application/json", e); return;
     }
 
     auto exStr = [&](const char *fld) -> String {
@@ -531,7 +537,10 @@ static void handleSurprise() {
     int b  = exNum("b"),  cv = exNum("c"),  co = exNum("co");
     int sp = exNum("sp"), bl = exNum("bl"), th = exNum("th");
     if (name.length() == 0 || b < 0) {
-        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
+        String e = String("{\"error\":\"parse_failed\",\"stage\":\"missing_fields\",\"name\":\"") +
+                   name + "\",\"b\":" + b + ",\"inner\":\"" +
+                   jsonEscape(inner.substring(0, min(80, (int)inner.length()))) + "\"}";
+        server.send(503, "application/json", e); return;
     }
 
     if (b  >= 0) setBright(constrain(b,  0, 100));
