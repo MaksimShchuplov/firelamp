@@ -31,7 +31,7 @@ volatile uint8_t uiSparking   = SPARKING_DEFAULT;
 volatile uint8_t uiBlend      = BLEND_DEFAULT;
 volatile uint8_t uiTheme      = THEME_DEFAULT;
 volatile uint8_t appliedRaw   = 0;
-volatile float   currentPowerW = 0.0f;
+volatile uint32_t currentPowerMw = 0;
 volatile bool    updatePending = false;
 
 bool     prefsDirty  = false;
@@ -72,7 +72,11 @@ void setup() {
         },
         "LEDTask", 4096, NULL, 1, NULL, 0       // pinned to Core 0
     );
-    if (ok != pdPASS) Serial.println("FATAL: LEDTask creation failed — no fire");
+    if (ok != pdPASS) {
+        Serial.println("FATAL: LEDTask creation failed — rebooting");
+        ESP.restart();
+    }
+    markBootSuccess();  // firmware initialised without crashing — cancel OTA rollback
 }
 
 void loop() {

@@ -16,7 +16,7 @@ void sendVal() {
     snprintf(j, sizeof(j),
              "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f,\"bl\":%d,\"th\":%d,\"upd\":%d}",
              (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
-             (float)currentPowerW, (int)uiBlend, (int)uiTheme, updatePending ? 1 : 0);
+             (float)currentPowerMw / 1000.0f, (int)uiBlend, (int)uiTheme, updatePending ? 1 : 0);
     server.send(200, "application/json", j);
 }
 
@@ -30,6 +30,7 @@ static bool fetchVersionInfo(String &ver, String &md5) {
     WiFiClientSecure client;
     client.setInsecure();           // see note in config.h about CA pinning
     HTTPClient http;
+    http.setTimeout(8000);
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.begin(client, VERSION_URL);
     int code = http.GET();
@@ -65,6 +66,8 @@ static bool isWebRequest() {
 }
 
 static void handleRoot() {
+    server.sendHeader("X-Content-Type-Options", "nosniff");
+    server.sendHeader("X-Frame-Options", "SAMEORIGIN");
     server.setContentLength(CONTENT_LENGTH_UNKNOWN);
     server.send(200, "text/html", "");
     server.sendContent_P(PAGE);
@@ -129,6 +132,9 @@ static void handleGetPresets() {
         if (i > 0) buf[len++] = ',';
         snprintf(k, sizeof k, "p%dn", i);
         String nm = p.getString(k, "");
+        // Escape for JSON — names may contain backslashes or quotes from old firmware
+        nm.replace("\\", "\\\\");
+        nm.replace("\"", "\\\"");
         len += snprintf(buf + len, sizeof(buf) - len,
                         "{\"slot\":%d,\"name\":\"%s\"", i, nm.c_str());
         if (nm.length() > 0) {
@@ -155,8 +161,9 @@ static void handleSavePreset() {
     String name = server.arg("name");
     name.trim();
     if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
+    name.replace("\\", "");    // strip backslashes so stored names are always JSON-safe
+    name.replace("\"", "'");   // replace double-quotes before truncating to avoid split surrogates
     if (name.length() > 15) name = name.substring(0, 15);
-    name.replace("\"", "'");
     volatile uint8_t * const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
     Preferences p;
     p.begin("presets", false);
@@ -323,7 +330,6 @@ void startNetwork() {
         Serial.printf("UI: http://%s.local  |  http://%s\n",
                       MDNS_NAME, WiFi.localIP().toString().c_str());
         if (MDNS.begin(MDNS_NAME)) MDNS.addService("http", "tcp", 80);
-        markBootSuccess();
         xTaskCreate(autoUpdateCheck, "UpdChk", 8192, NULL, 1, NULL);
     } else {
         Serial.printf("WiFi not configured — connect to \"%s\"\n", WIFI_PORTAL_SSID);

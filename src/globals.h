@@ -36,7 +36,7 @@ extern volatile uint8_t uiSparking;
 extern volatile uint8_t uiBlend;
 extern volatile uint8_t uiTheme;
 extern volatile uint8_t appliedRaw;
-extern volatile float   currentPowerW;
+extern volatile uint32_t currentPowerMw;  // milliwatts; uint32 writes are atomic on LX7, float is not
 extern volatile bool    updatePending;
 
 // ---- NVS deferred-write state (Core 1 only) --------------------------------

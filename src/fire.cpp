@@ -37,6 +37,10 @@ void buildHeatPalette() {
                 else                  heatPalette[next][i] = CRGB(ramp, 0, 0);
         }
     }
+    // Compiler barrier: ensure all palette stores are visible before the index flip.
+    // Core 0 snapshots activePal once per frame; the barrier prevents the compiler
+    // from moving any heatPalette[] write past this point.
+    __asm__ __volatile__("" : : : "memory");
     activePal = next;
 }
 
@@ -95,8 +99,9 @@ void recalcCooling() {
 void updatePowerCalc() {
     float req = (float)calculate_unscaled_power_mW(leds, NUM_LEDS)
                 * ((float)appliedRaw / 255.0f) / 1000.0f;
-    float cap = (float)(PSU_VOLTS * PSU_MAX_MA) / 1000.0f;
-    currentPowerW = (req > cap) ? cap : req;
+    float cap = ((float)PSU_VOLTS * (float)PSU_MAX_MA) / 1000.0f;
+    float w   = (req > cap) ? cap : req;
+    currentPowerMw = (uint32_t)(w * 1000.0f);  // atomic uint32 write; avoids torn float read on Core 1
     lastPowerCalc = millis();
 }
 
@@ -132,7 +137,7 @@ void fireEffect() {
 
     // 4. Render with temporal blend.
     // Snapshot activePal once — a mid-frame flip must not split palette reads.
-    const CRGB *pal = heatPalette[activePal];
+    const CRGB *pal = heatPalette[activePal & 1];  // & 1 guards against memory corruption setting it > 1
     for (int y = 0; y < ROWS; y++) {
         const uint16_t base = (uint16_t)(ROWS - 1 - y) * COLUMNS;
         for (int x = 0; x < COLUMNS; x++)

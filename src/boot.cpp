@@ -20,7 +20,10 @@ void safeBootCheck() {
         p.putUInt("crashes", 0);
         p.end();
         if (Update.canRollBack()) { Update.rollBack(); ESP.restart(); }
-        Serial.println("WARNING: canRollBack() = false, no previous firmware");
+        // No previous firmware to roll back to. Halt rather than looping forever
+        // in a crash/reboot cycle — user must reflash via USB.
+        Serial.println("FATAL: canRollBack() = false — halting. Reflash via USB.");
+        esp_deep_sleep_start();
     } else {
         Serial.printf("Warning: crash %lu/3\n", crashes);
         p.putUInt("crashes", crashes);
