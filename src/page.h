@@ -390,7 +390,7 @@ function askAI(){
     if(x.error)throw new Error(x.error);
     pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);
     if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
-    lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';clearActive();
+    clearActive();lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
