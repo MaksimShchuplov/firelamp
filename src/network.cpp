@@ -119,7 +119,7 @@ static void handleRoot() {
     server.sendHeader("X-Content-Type-Options", "nosniff");
     server.sendHeader("X-Frame-Options", "SAMEORIGIN");
     server.sendHeader("Content-Security-Policy",
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'");
+        "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'");
     server.setContentLength(CONTENT_LENGTH_UNKNOWN);
     server.send(200, "text/html", "");
     server.sendContent_P(PAGE);
