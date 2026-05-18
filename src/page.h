@@ -92,6 +92,14 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 .shbtn.danger:active{background:#4a1010}
 .shbtn.primary{border-color:#16a34a;color:#4ade80}
 .shbtn.primary:active{background:#0d2a18}
+.surprise{margin-top:10px;padding:14px 24px;background:none;border:1px solid #7a5f00;color:#fbbf24;border-radius:24px;cursor:pointer;font-size:13px;text-transform:uppercase;letter-spacing:.1em;transition:all .2s;width:100%}
+.surprise:active{background:#3a2f00;color:#fff2a0}
+.surprise:disabled{opacity:.5;cursor:default}
+.ainame{font-size:11px;color:#fbbf24;margin-top:6px;text-align:center;min-height:16px;opacity:.85;letter-spacing:.05em}
+.aikey{width:100%;background:rgba(120,40,10,.15);border:1px solid #7a3f16;border-radius:8px;color:#f6d9b0;padding:0 12px;height:44px;font-size:13px;font-family:inherit;-webkit-appearance:none;margin-top:8px;box-sizing:border-box}
+.aikey:focus{outline:none;border-color:#d6510c}
+.aiksave{background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:8px;cursor:pointer;padding:0 16px;height:36px;font-size:13px;transition:all .2s;margin-top:8px;touch-action:manipulation}
+.aiksave:active{background:#7a3f16;color:#fff2dd}
 </style></head><body>
 <div id=offb class=offb></div>
 <div id=shdim class=shdim></div>
@@ -111,6 +119,9 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=mt id=mt9>Blend</div><div class=md id=md9></div>
 <div class=mt id=mt10>Theme</div><div class=md id=md10></div>
 <div class=mt id=mt11>Presets</div><div class=md id=md11></div>
+<div class=mt id=mt12>✨ Surprise Me (AI)</div><div class=md id=md12></div>
+<input class=aikey id=aikey type=text placeholder="Gemini API key" autocomplete=off spellcheck=false>
+<button class=aiksave id=aiksave>Save key</button>
 </div>
 <div class=lang><button id=len class="lbtn act">EN</button><button id=lru class=lbtn>RU</button></div>
 <div class=wrap>
@@ -139,6 +150,8 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
 <div id=vinfo style="font-size:11px;color:#888;margin-top:6px;text-align:center"></div>
 <button class=reset id=rwifi style="margin-top:10px;border-color:#7a1616;color:#f87171">Reset WiFi</button>
+<button class=surprise id=surprise>✨ Surprise Me</button>
+<div class=ainame id=ainame></div>
 <div class=stat><span id=lw>Power:</span> <span id=vw>0.0</span> W</div>
 </div><script>
 var DD={
@@ -222,6 +235,10 @@ function ul(){
  document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (тёмно-красный), Плазма (пурпурный), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
  document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
  document.getElementById('md11').textContent=ru?'До 8 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы сохранить в слот или удалить.':'Up to 8 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to save or delete.';
+ document.getElementById('mt12').textContent=ru?'✨ Удиви меня (ИИ)':'✨ Surprise Me (AI)';
+ document.getElementById('md12').textContent=ru?'Gemini AI придумает уникальный эффект пламени. Вставьте API-ключ Gemini ниже — он хранится только в вашем браузере и никогда не отправляется на лампу.':'Gemini AI designs a unique flame effect each time. Paste your Gemini API key below — it is stored only in your browser, never sent to the lamp.';
+ document.getElementById('aiksave').textContent=ru?'Сохранить ключ':'Save key';
+ var sp2=document.getElementById('surprise');if(sp2&&!sp2.disabled)sp2.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';
  dynAll();
 }
@@ -302,7 +319,7 @@ document.getElementById('rwifi').onclick=function(){
 };
 function startOTA(){
   clearInterval(pollTid);
-  ['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','rst','chk','rwifi','len','lru'].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
+  ['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','rst','chk','rwifi','surprise','len','lru'].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
   var btn=document.getElementById('chk'),info=document.getElementById('vinfo');
   btn.textContent=ru?'Прошивка...':'Flashing...';
   btn.style.borderColor='#f59e0b';btn.style.color='#fbbf24';
@@ -353,5 +370,43 @@ document.getElementById('chk').onclick=function(){
     }
   }).catch(function(){btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;});
 };
+document.getElementById('aikey').value=localStorage.getItem('gemini_key')||'';
+document.getElementById('aiksave').onclick=function(){
+  var v=document.getElementById('aikey').value.trim();
+  if(v)localStorage.setItem('gemini_key',v);else localStorage.removeItem('gemini_key');
+  var b=document.getElementById('aiksave');b.textContent='✓';
+  setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);
+};
+function askAI(){
+  var key=localStorage.getItem('gemini_key')||'';
+  if(!key){document.getElementById('mod').classList.add('show');setTimeout(function(){document.getElementById('aikey').focus();},100);return;}
+  var btn=document.getElementById('surprise'),nm=document.getElementById('ainame');
+  btn.disabled=true;btn.textContent=ru?'✨ Думаю...':'✨ Thinking...';nm.style.color='#fbbf24';nm.textContent='';
+  var pr='You design fire effects for an 800-LED cylinder lamp (20 col × 40 rows, WS2812B). Pick creative unusual values: b=brightness 0-100, c=contrast 0-100, co=cooling 20-150, sp=sparking 0-255, bl=blend 0-255, th=theme 0-3 (0=Fire 1=Ember 2=Plasma 3=Ice). Give the effect a short evocative name (max 12 chars). Respond with ONLY valid JSON, no markdown: {"name":"...","b":N,"c":N,"co":N,"sp":N,"bl":N,"th":N}';
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+encodeURIComponent(key),{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:pr}]}],generationConfig:{temperature:1.3,maxOutputTokens:80}})
+  }).then(function(r){return r.json();}).then(function(resp){
+    if(resp.error)throw new Error(resp.error.message||'api error');
+    var txt=((resp.candidates||[])[0]||{}).content&&resp.candidates[0].content.parts&&resp.candidates[0].content.parts[0]&&resp.candidates[0].content.parts[0].text||'';
+    var m=txt.match(/\{[\s\S]*?\}/);if(!m)throw new Error('no json in response');
+    var x=JSON.parse(m[0]);
+    var ps=[];
+    if(x.b!==undefined)ps.push(xf('/setb?v='+Math.max(0,Math.min(100,x.b|0))));
+    if(x.c!==undefined)ps.push(xf('/setc?v='+Math.max(0,Math.min(100,x.c|0))));
+    if(x.co!==undefined)ps.push(xf('/setco?v='+Math.max(20,Math.min(150,x.co|0))));
+    if(x.sp!==undefined)ps.push(xf('/setsp?v='+Math.max(0,Math.min(255,x.sp|0))));
+    if(x.bl!==undefined)ps.push(xf('/setbl?v='+Math.max(0,Math.min(255,x.bl|0))));
+    if(x.th!==undefined)ps.push(xf('/settheme?v='+Math.max(0,Math.min(3,x.th|0))));
+    Promise.all(ps).then(function(){pull();});
+    nm.textContent=(x.name||'AI Effect')+' ✨';clearActive();
+    btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
+  }).catch(function(e){
+    btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
+    nm.style.color='#ef4444';nm.textContent=ru?'⚠ Ошибка — проверьте ключ API':'⚠ Error — check your API key';
+    setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);
+  });
+}
+document.getElementById('surprise').onclick=askAI;
 pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},8000);
 </script></body></html>)HTML";
