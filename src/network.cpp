@@ -458,13 +458,13 @@ static void handleSurprise() {
         "th = theme 0-3 (0=Fire red/orange/white, 1=Ember deep dark red, 2=Plasma purple/magenta/white, 3=Ice blue/cyan/white)\n"
         "Create an unusual, evocative effect inspired by the scene: ";
 
-    String prompt = String(kPromptBase) + scene + ". " + curState + " Name max 12 chars. "
+    String prompt = String(kPromptBase) + scene + ". " + curState + " Short name max 10 chars (fits small button). "
         "Respond ONLY with valid JSON, no markdown: "
         "{\"name\":\"...\",\"b\":N,\"c\":N,\"co\":N,\"sp\":N,\"bl\":N,\"th\":N}";
 
     String body =
         String("{\"contents\":[{\"parts\":[{\"text\":\"") + jsonEscape(prompt) +
-        "\"}]}],\"generationConfig\":{\"temperature\":1.5,\"maxOutputTokens\":300,"
+        "\"}]}],\"generationConfig\":{\"temperature\":1.4,\"maxOutputTokens\":120,"
         "\"thinkingConfig\":{\"thinkingBudget\":0}}}";
 
     WiFiClientSecure client;
@@ -585,7 +585,7 @@ static void handleSurprise() {
     updatePowerCalc();
     prefsDirty = true; prefsTouch = millis();
 
-    if (name.length() > 20) name = name.substring(0, 20);
+    if (name.length() > PRESET_NAME_MAX_LEN) name = name.substring(0, PRESET_NAME_MAX_LEN);
     char j[192];
     snprintf(j, sizeof(j),
              "{\"ok\":true,\"name\":\"%s\",\"b\":%d,\"c\":%d,\"co\":%d,"
