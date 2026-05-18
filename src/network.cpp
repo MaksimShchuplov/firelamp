@@ -222,7 +222,7 @@ static void handleSavePreset() {
     name.replace("\\", "");    // strip backslashes so stored names are always JSON-safe
     name.replace("\"", "'");   // replace double-quotes before truncating to avoid split surrogates
     if (name.length() > PRESET_NAME_MAX_LEN) name = name.substring(0, PRESET_NAME_MAX_LEN);
-    volatile uint8_t * const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
+    std::atomic<uint8_t>* const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
     Preferences p;
     p.begin("presets", false);
     char k[6];
@@ -249,7 +249,7 @@ static void handleLoadPreset() {
     if (name.length() == 0) {
         p.end(); server.send(404, "application/json", "{\"error\":\"empty slot\"}"); return;
     }
-    volatile uint8_t * const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
+    std::atomic<uint8_t>* const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
     for (int j = 0; j < 6; j++) {
         snprintf(k, sizeof k, "p%d%s", slot, kPS[j]);
         *kPPtr[j] = p.getUChar(k, kPDef[j]);

@@ -39,10 +39,10 @@ void buildHeatPalette() {
                 else                  heatPalette[next][i] = CRGB(ramp, 0, 0);
         }
     }
-    // Hardware store barrier: ensures all palette stores drain to L1/L2 before the
-    // index flip is visible to Core 0. `memw` is the Xtensa LX7 instruction for this.
-    __asm__ __volatile__("memw" : : : "memory");
-    activePal = next;
+    // seq_cst store generates a full memory barrier (memw on LX7) automatically,
+    // ensuring all palette stores above are visible to Core 0 before the index
+    // flip. The explicit asm is no longer needed.
+    activePal.store(next, std::memory_order_seq_cst);
 }
 
 // =============================================================================

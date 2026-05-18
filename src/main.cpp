@@ -14,26 +14,26 @@ CRGB     leds[NUM_LEDS];
 uint8_t  heat[ROWS][COLUMNS];
 
 CRGB             heatPalette[2][256];
-volatile uint8_t activePal = 0;
+std::atomic<uint8_t> activePal{0};
 
 float             windDir[ROWS];
 float             windTarget[ROWS];
-volatile uint8_t  coolMax[ROWS];
+std::atomic<uint8_t> coolMax[ROWS];
 uint32_t          lastWindChange = 0;
 
 WebServer   server(80);
 WiFiManager wm;
 Preferences prefs;
 
-volatile uint8_t uiBright     = BRIGHT_DEFAULT;
-volatile uint8_t uiContrast   = CONTRAST_DEFAULT;
-volatile uint8_t uiCooling    = COOLING_DEFAULT;
-volatile uint8_t uiSparking   = SPARKING_DEFAULT;
-volatile uint8_t uiBlend      = BLEND_DEFAULT;
-volatile uint8_t uiTheme      = THEME_DEFAULT;
-volatile uint8_t appliedRaw   = 0;
-volatile uint32_t currentPowerMw = 0;
-volatile bool    updatePending = false;
+std::atomic<uint8_t>  uiBright    {BRIGHT_DEFAULT};
+std::atomic<uint8_t>  uiContrast  {CONTRAST_DEFAULT};
+std::atomic<uint8_t>  uiCooling   {COOLING_DEFAULT};
+std::atomic<uint8_t>  uiSparking  {SPARKING_DEFAULT};
+std::atomic<uint8_t>  uiBlend     {BLEND_DEFAULT};
+std::atomic<uint8_t>  uiTheme     {THEME_DEFAULT};
+std::atomic<uint8_t>  appliedRaw  {0};
+std::atomic<uint32_t> currentPowerMw{0};
+std::atomic<bool>     updatePending{false};
 
 TaskHandle_t ledTaskHandle = NULL;
 

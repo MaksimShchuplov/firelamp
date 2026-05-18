@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <FastLED.h>
 #include <WebServer.h>
 #include <WiFiManager.h>
@@ -10,17 +11,19 @@ extern CRGB    leds[NUM_LEDS];
 extern uint8_t heat[ROWS][COLUMNS];
 
 // Double-buffered palette. buildHeatPalette() writes the inactive buffer then
-// flips activePal (single-byte atomic write). fireEffect() snapshots activePal
-// once per frame so a mid-frame flip cannot cause split-palette rendering.
-extern CRGB             heatPalette[2][256];
-extern volatile uint8_t activePal;
+// flips activePal with a seq_cst atomic store (acts as full memory barrier —
+// ensures all palette stores are visible to Core 0 before the index flip).
+// fireEffect() snapshots activePal once per frame so a mid-frame flip cannot
+// cause split-palette rendering.
+extern CRGB                 heatPalette[2][256];
+extern std::atomic<uint8_t> activePal;
 
 // ---- Wind state ------------------------------------------------------------
 // windDir, windTarget, lastWindChange are accessed exclusively from LEDTask (Core 0).
 // Do NOT read or write them from Core 1 network handlers without a mutex.
 extern float             windDir[ROWS];
 extern float             windTarget[ROWS];
-extern volatile uint8_t  coolMax[ROWS];   // written Core 1 (recalcCooling), read Core 0
+extern std::atomic<uint8_t> coolMax[ROWS];  // written Core 1 (recalcCooling), read Core 0
 extern uint32_t          lastWindChange;  // LEDTask-only
 
 // ---- Shared singletons -----------------------------------------------------
@@ -28,18 +31,19 @@ extern WebServer   server;
 extern WiFiManager wm;
 extern Preferences prefs;
 
-// ---- UI parameters (volatile: written Core 1, read Core 0) ----------------
-// uint8_t single-byte writes are atomic on LX7; volatile prevents the compiler
-// from register-caching values across the FreeRTOS task-switch boundary.
-extern volatile uint8_t uiBright;
-extern volatile uint8_t uiContrast;
-extern volatile uint8_t uiCooling;
-extern volatile uint8_t uiSparking;
-extern volatile uint8_t uiBlend;
-extern volatile uint8_t uiTheme;
-extern volatile uint8_t appliedRaw;
-extern volatile uint32_t currentPowerMw;  // milliwatts; uint32 writes are atomic on LX7, float is not
-extern volatile bool    updatePending;
+// ---- UI parameters (std::atomic: written Core 1, read Core 0) -------------
+// std::atomic<T> makes atomicity a language contract, not an ISA assumption.
+// Changing a parameter's underlying type no longer silently breaks the
+// cross-core contract the way volatile + "trust the ISA" would.
+extern std::atomic<uint8_t>  uiBright;
+extern std::atomic<uint8_t>  uiContrast;
+extern std::atomic<uint8_t>  uiCooling;
+extern std::atomic<uint8_t>  uiSparking;
+extern std::atomic<uint8_t>  uiBlend;
+extern std::atomic<uint8_t>  uiTheme;
+extern std::atomic<uint8_t>  appliedRaw;
+extern std::atomic<uint32_t> currentPowerMw;  // milliwatts
+extern std::atomic<bool>     updatePending;
 
 // ---- NVS deferred-write state (Core 1 only) --------------------------------
 extern bool     prefsDirty;
