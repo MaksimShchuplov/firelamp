@@ -236,7 +236,7 @@ function ul(){
  document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
  document.getElementById('md11').textContent=ru?'До 8 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы сохранить в слот или удалить.':'Up to 8 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to save or delete.';
  document.getElementById('mt12').textContent=ru?'✨ Удиви меня (ИИ)':'✨ Surprise Me (AI)';
- document.getElementById('md12').textContent=ru?'Gemini AI придумает уникальный эффект пламени. Вставьте API-ключ Gemini ниже — он хранится только в вашем браузере и никогда не отправляется на лампу.':'Gemini AI designs a unique flame effect each time. Paste your Gemini API key below — it is stored only in your browser, never sent to the lamp.';
+ document.getElementById('md12').textContent=ru?'Gemini AI придумает уникальный эффект пламени. Вставьте API-ключ Gemini ниже — он сохранится в памяти лампы и будет работать с любого устройства.':'Gemini AI designs a unique flame effect each time. Paste your Gemini API key below — it is stored on the lamp and works from any device.';
  document.getElementById('aiksave').textContent=ru?'Сохранить ключ':'Save key';
  document.getElementById('aikey').placeholder=ru?'Ключ Gemini API':'Gemini API key';
  var sp2=document.getElementById('surprise');if(sp2&&!sp2.disabled)sp2.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
@@ -371,46 +371,34 @@ document.getElementById('chk').onclick=function(){
     }
   }).catch(function(){btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;});
 };
-document.getElementById('aikey').value=localStorage.getItem('gemini_key')||'';
 document.getElementById('aiksave').onclick=function(){
   var v=document.getElementById('aikey').value.trim();
-  if(v)localStorage.setItem('gemini_key',v);else localStorage.removeItem('gemini_key');
-  var b=document.getElementById('aiksave');b.textContent='✓';
-  setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);
+  if(!v)return;
+  var b=document.getElementById('aiksave');
+  xf('/setgeminikey?key='+encodeURIComponent(v)).then(r=>r.json()).then(function(x){
+    b.textContent=x.ok?'✓':'✗';setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);
+  }).catch(function(){b.textContent='✗';setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);});
 };
 function askAI(){
-  var key=localStorage.getItem('gemini_key')||'';
-  if(!key){document.getElementById('mod').classList.add('show');setTimeout(function(){document.getElementById('aikey').focus();},100);return;}
   var btn=document.getElementById('surprise'),nm=document.getElementById('ainame');
   btn.disabled=true;btn.textContent=ru?'✨ Думаю...':'✨ Thinking...';nm.style.color='#fbbf24';nm.textContent='';
-  var pr='You design fire effects for an 800-LED cylinder lamp (20 col × 40 rows, WS2812B). The LED cylinder is 125 mm in diameter and 1260 mm tall, housed inside a frosted glass globe 190 mm wide and 1380 mm tall — like a giant floor lamp. The frosted globe softens and diffuses the light, so subtle colour gradients and slow transitions read beautifully, while sharp high-contrast effects also work well. Pick creative unusual values: b=brightness 0-100, c=contrast 0-100, co=cooling 20-150, sp=sparking 0-255, bl=blend 0-255, th=theme 0-3 (0=Fire 1=Ember 2=Plasma 3=Ice). Give the effect a short evocative name (max 12 chars). Respond with ONLY valid JSON, no markdown: {"name":"...","b":N,"c":N,"co":N,"sp":N,"bl":N,"th":N}';
-  var ctrl=new AbortController(),tid=setTimeout(function(){ctrl.abort();},15000);
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(key),{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:pr}]}],generationConfig:{temperature:1.3,maxOutputTokens:300,thinkingConfig:{thinkingBudget:0}}}),
-    signal:ctrl.signal
-  }).then(function(r){clearTimeout(tid);return r.json();}).then(function(resp){
-    if(resp.error){var code=resp.error.code||0;if(code===429)throw new Error('rate_limit');if(code===401||code===403)throw new Error('bad_key');throw new Error(resp.error.message||'api error');}
-    var txt=((resp.candidates||[])[0]||{}).content&&resp.candidates[0].content.parts&&resp.candidates[0].content.parts[0]&&resp.candidates[0].content.parts[0].text||'';
-    var m=txt.match(/\{[\s\S]*?\}/);if(!m)throw new Error('no json in response');
-    var x=JSON.parse(m[0]);
-    var ps=[];
-    if(x.b!==undefined)ps.push(xf('/setb?v='+Math.max(0,Math.min(100,x.b|0))));
-    if(x.c!==undefined)ps.push(xf('/setc?v='+Math.max(0,Math.min(100,x.c|0))));
-    if(x.co!==undefined)ps.push(xf('/setco?v='+Math.max(20,Math.min(150,x.co|0))));
-    if(x.sp!==undefined)ps.push(xf('/setsp?v='+Math.max(0,Math.min(255,x.sp|0))));
-    if(x.bl!==undefined)ps.push(xf('/setbl?v='+Math.max(0,Math.min(255,x.bl|0))));
-    if(x.th!==undefined)ps.push(xf('/settheme?v='+Math.max(0,Math.min(3,x.th|0))));
-    Promise.all(ps).then(function(){pull();});
+  xf('/surprise').then(function(r){
+    if(r.status===429)throw new Error('rate_limit');
+    if(r.status===403)throw new Error('bad_key');
+    return r.json();
+  }).then(function(x){
+    if(x.error)throw new Error(x.error);
+    pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);
+    if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
     nm.textContent=(x.name||'AI Effect')+' ✨';clearActive();
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){
-    clearTimeout(tid);
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
-    var msg=e.name==='AbortError'?(ru?'⚠ Нет ответа — попробуйте снова':'⚠ No response — try again')
+    var msg=e.message==='no_key'?(ru?'⚠ Укажите ключ в настройках (?)':'⚠ Set API key in settings (?)')
       :e.message==='rate_limit'?(ru?'⚠ Лимит — подождите минуту':'⚠ Rate limit — wait a moment')
       :e.message==='bad_key'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
-      :(ru?'⚠ Ошибка сети':'⚠ Network error');
+      :e.message==='parse_failed'?(ru?'⚠ Ошибка ответа AI':'⚠ AI response error')
+      :(ru?'⚠ Ошибка':'⚠ Error');
     nm.style.color='#ef4444';nm.textContent=msg;
     setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);
   });

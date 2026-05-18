@@ -96,8 +96,11 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 | `GET /checkupdate` | — | compare version (60 s cache) |
 | `GET /update` | — | start OTA; ESP reboots on success |
 | `GET /info` | — | flash_mb, free_heap, ip, version, build |
-| `GET /deletepreset` | `slot=0..3` | clear a preset slot |
+| `GET /deletepreset` | `slot=0..7` | clear a preset slot |
 | `GET /resetwifi` | — | clear credentials + reboot |
+| `GET /setgeminikey` | `key=<str>` | save Gemini API key to NVS (`gemini` namespace) |
+| `GET /geminikey` | — | `{"set":true/false}` — check if key is configured |
+| `GET /surprise` | — | ESP calls Gemini, applies effect, returns `{"ok","name","b","c","co","sp","bl","th","w"}` |
 
 ## Hardware Notes
 

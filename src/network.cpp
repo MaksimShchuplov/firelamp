@@ -398,6 +398,154 @@ static void handleResetWifi() {
     ESP.restart();
 }
 
+static void handleSetGeminiKey() {
+    if (!isWebRequest()) return;
+    const String &k = server.arg("key");
+    if (k.length() == 0 || k.length() > 64) {
+        server.send(400, "application/json", "{\"error\":\"invalid_key\"}"); return;
+    }
+    Preferences p;
+    p.begin("gemini", false);
+    p.putString("key", k);
+    p.end();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handleGeminiKey() {
+    Preferences p;
+    p.begin("gemini", true);
+    bool set = p.isKey("key") && p.getString("key", "").length() > 0;
+    p.end();
+    server.send(200, "application/json", set ? "{\"set\":true}" : "{\"set\":false}");
+}
+
+static void handleSurprise() {
+    if (!isWebRequest()) return;
+    Preferences gp;
+    gp.begin("gemini", true);
+    String apiKey = gp.getString("key", "");
+    gp.end();
+    if (apiKey.length() == 0) {
+        server.send(400, "application/json", "{\"error\":\"no_key\"}"); return;
+    }
+
+    static const char kPrompt[] =
+        "You design fire effects for an 800-LED cylinder lamp (20 col \xc3\x97 40 rows, WS2812B). "
+        "The LED cylinder is 125 mm in diameter and 1260 mm tall, housed inside a frosted glass "
+        "globe 190 mm wide and 1380 mm tall \xe2\x80\x94 like a giant floor lamp. "
+        "The frosted globe softens and diffuses the light, so subtle colour gradients and slow "
+        "transitions read beautifully, while sharp high-contrast effects also work well. "
+        "Pick creative unusual values: b=brightness 0-100, c=contrast 0-100, co=cooling 20-150, "
+        "sp=sparking 0-255, bl=blend 0-255, th=theme 0-3 (0=Fire 1=Ember 2=Plasma 3=Ice). "
+        "Give the effect a short evocative name (max 12 chars). "
+        "Respond with ONLY valid JSON, no markdown: "
+        "{\"name\":\"...\",\"b\":N,\"c\":N,\"co\":N,\"sp\":N,\"bl\":N,\"th\":N}";
+
+    String body =
+        String("{\"contents\":[{\"parts\":[{\"text\":\"") + jsonEscape(String(kPrompt)) +
+        "\"}]}],\"generationConfig\":{\"temperature\":1.3,\"maxOutputTokens\":300,"
+        "\"thinkingConfig\":{\"thinkingBudget\":0}}}";
+
+    WiFiClientSecure client;
+    client.setInsecure();
+    HTTPClient http;
+    http.setTimeout(GEMINI_TIMEOUT_MS);
+    http.begin(client, String("https://generativelanguage.googleapis.com/v1beta/models/"
+                              "gemini-2.5-flash:generateContent?key=") + apiKey);
+    http.addHeader("Content-Type", "application/json");
+    int code = http.POST(body);
+    if (code <= 0) {
+        http.end(); server.send(503, "application/json", "{\"error\":\"fetch_failed\"}"); return;
+    }
+    if (code == 429) {
+        http.end(); server.send(429, "application/json", "{\"error\":\"rate_limit\"}"); return;
+    }
+    if (code == 401 || code == 403) {
+        http.end(); server.send(403, "application/json", "{\"error\":\"bad_key\"}"); return;
+    }
+    if (code != 200) {
+        http.end(); server.send(503, "application/json", "{\"error\":\"fetch_failed\"}"); return;
+    }
+    String resp = http.getString();
+    http.end();
+
+    // Extract text field from Gemini JSON, unescaping \" → " to recover our inner JSON object.
+    int ti = resp.indexOf("\"text\":\"");
+    if (ti < 0) {
+        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
+    }
+    ti += 8;
+    String inner;
+    inner.reserve(128);
+    {
+        bool esc = false, started = false;
+        int depth = 0;
+        for (int i = ti; i < (int)resp.length(); i++) {
+            char c = resp[i];
+            if (esc) {
+                if (started) {
+                    if      (c == '"')  inner += '"';
+                    else if (c == '\\') inner += '\\';
+                    else                inner += c;
+                }
+                esc = false; continue;
+            }
+            if (c == '\\') { esc = true; continue; }
+            if (!started) { if (c == '{') { started = true; depth = 1; inner += c; } continue; }
+            inner += c;
+            if      (c == '{') depth++;
+            else if (c == '}') { if (--depth == 0) break; }
+        }
+    }
+    if (inner.length() < 10) {
+        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
+    }
+
+    auto exStr = [&](const char *fld) -> String {
+        String s = String("\"") + fld + "\":\"";
+        int i = inner.indexOf(s); if (i < 0) return "";
+        i += s.length();
+        int e = inner.indexOf("\"", i);
+        return (e > i) ? inner.substring(i, e) : "";
+    };
+    auto exNum = [&](const char *fld) -> int {
+        String s = String("\"") + fld + "\":";
+        int i = inner.indexOf(s); if (i < 0) return -1;
+        i += s.length();
+        int e = i;
+        while (e < (int)inner.length() && (isdigit((unsigned char)inner[e]) || (e == i && inner[e] == '-'))) e++;
+        return (e > i) ? inner.substring(i, e).toInt() : -1;
+    };
+
+    String name = exStr("name");
+    int b  = exNum("b"),  cv = exNum("c"),  co = exNum("co");
+    int sp = exNum("sp"), bl = exNum("bl"), th = exNum("th");
+    if (name.length() == 0 || b < 0) {
+        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
+    }
+
+    if (b  >= 0) setBright(constrain(b,  0, 100));
+    if (cv >= 0) { uiContrast = (uint8_t)constrain(cv, 0,   100); }
+    if (co >= 0) { uiCooling  = (uint8_t)constrain(co, 20,  150); recalcCooling(); }
+    if (sp >= 0) { uiSparking = (uint8_t)constrain(sp, 0,   255); }
+    if (bl >= 0) { uiBlend    = (uint8_t)constrain(bl, 0,   255); }
+    if (th >= 0) { uiTheme    = (uint8_t)constrain(th, 0,   THEME_COUNT - 1); }
+    buildHeatPalette();
+    updatePowerCalc();
+    prefsDirty = true; prefsTouch = millis();
+
+    if (name.length() > 20) name = name.substring(0, 20);
+    char j[192];
+    snprintf(j, sizeof(j),
+             "{\"ok\":true,\"name\":\"%s\",\"b\":%d,\"c\":%d,\"co\":%d,"
+             "\"sp\":%d,\"bl\":%d,\"th\":%d,\"w\":%.1f}",
+             jsonEscape(name).c_str(),
+             (int)uiBright, (int)uiContrast, (int)uiCooling,
+             (int)uiSparking, (int)uiBlend, (int)uiTheme,
+             (float)currentPowerMw / 1000.0f);
+    server.send(200, "application/json", j);
+}
+
 // =============================================================================
 //  STARTUP / SERVICE
 // =============================================================================
@@ -478,8 +626,11 @@ void startNetwork() {
     server.on("/update",      handleUpdate);
     server.on("/info",        handleInfo);
     server.on("/debug",       handleDebug);
-    server.on("/deletepreset",handleDeletePreset);
-    server.on("/resetwifi",   handleResetWifi);
+    server.on("/deletepreset",  handleDeletePreset);
+    server.on("/resetwifi",     handleResetWifi);
+    server.on("/setgeminikey",  handleSetGeminiKey);
+    server.on("/geminikey",     handleGeminiKey);
+    server.on("/surprise",      handleSurprise);
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
     static const char *hdrs[] = {"X-Requested-With"};
     server.collectHeaders(hdrs, 1);
