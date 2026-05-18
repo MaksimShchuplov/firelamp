@@ -446,8 +446,8 @@ static void handleSurprise() {
 
     String body =
         String("{\"contents\":[{\"parts\":[{\"text\":\"") + jsonEscape(String(kPrompt)) +
-        "\"}]}],\"generationConfig\":{\"temperature\":1.3,\"maxOutputTokens\":300,"
-        "\"thinkingConfig\":{\"thinkingBudget\":0}}}";
+        "\"}]}],\"generationConfig\":{\"temperature\":1.0,\"maxOutputTokens\":300,"
+        "\"thinkingConfig\":{\"thinkingBudget\":0}}}";  // temperature 1.0: creative but format-stable
 
     WiFiClientSecure client;
     client.setInsecure();
@@ -472,19 +472,27 @@ static void handleSurprise() {
     String resp = http.getString();
     http.end();
 
-    // Find the "text":... field whose value starts with '{' — our JSON output.
-    // Gemini returns pretty-printed JSON so the separator may be ": " (with space).
-    // Also skip empty/thinking parts that precede the real response.
+    // Find the last "text" part that contains '{' — the actual model output.
+    // Scanning inside each string value (not just the first char) handles markdown-wrapped
+    // responses like ```json\n{...}```. Taking the last match means thinking parts
+    // (which precede the real answer) are skipped even when they contain '{'.
     int ti = -1;
     for (int p = 0; ; ) {
         p = resp.indexOf("\"text\":", p);
         if (p < 0) break;
         int s = p + 7;
-        while (s < (int)resp.length() && resp[s] == ' ') s++;  // skip optional spaces
-        if (s >= (int)resp.length() || resp[s] != '"') { p++; continue; }  // not a string value
-        s++;  // skip opening "
-        if (s < (int)resp.length() && resp[s] == '{') { ti = s; break; }
-        p++;   // this text field is empty or non-JSON — try the next one
+        while (s < (int)resp.length() && resp[s] == ' ') s++;
+        if (s >= (int)resp.length() || resp[s] != '"') { p++; continue; }
+        s++;  // skip opening quote
+        bool inEsc = false;
+        for (int j = s; j < (int)resp.length(); j++) {
+            char c = resp[j];
+            if (inEsc)     { inEsc = false; continue; }
+            if (c == '\\') { inEsc = true;  continue; }
+            if (c == '"')  break;   // closing quote — no { in this part
+            if (c == '{')  { ti = j; break; }  // record, keep scanning for later parts
+        }
+        p++;
     }
     if (ti < 0) {
         LOG_WARN("Gemini: no \"text\" field found. HTTP %d, body len %d", code, resp.length());
