@@ -235,7 +235,7 @@ function pc(n){n=Math.max(0,Math.min(100,n|0));vc.textContent=n;sc.value=n;dynDe
 function pco(n){n=Math.max(20,Math.min(150,n|0));vco.textContent=n;sco.value=n;dynDesc('sco',n);}
 function psp(n){n=Math.max(0,Math.min(255,n|0));vsp.textContent=n;ssp.value=n;dynDesc('ssp',n);}
 function pbl(n){n=Math.max(0,Math.min(255,n|0));vbl.textContent=n;sbl.value=n;dynDesc('sbl',n);}
-function pth(n){[0,1,2,3].forEach(function(i){document.getElementById('tb'+i).classList.toggle('act',i===n);});}
+function pth(n){for(var i=0;i<4;i++)document.getElementById('tb'+i).classList.toggle('act',i===n);}
 function pull(){fetch('/state').then(r=>r.json()).then(x=>{
   pullFails=0;hideOffline();
   pb(x.b);pc(x.c);pco(x.co);psp(x.sp);

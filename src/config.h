@@ -15,9 +15,9 @@
 #define WIND_PULSE_PROBABILITY  50
 // Temporal blend 0..255: lower = smoother glow-up. At 50 a fresh spark needs
 // ~10 frames (~250 ms at 40 FPS) to reach 90% of target — reads as ember catching.
-#define FIRE_BLEND              50      // kept for reference; runtime value is uiBlend
 #define BLEND_DEFAULT           50
 #define THEME_DEFAULT           0       // 0=Fire 1=Ember 2=Plasma 3=Ice
+#define PRESET_COUNT            8
 
 // ---- Power -----------------------------------------------------------------
 #define PSU_VOLTS           5

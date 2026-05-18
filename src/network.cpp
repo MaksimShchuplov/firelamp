@@ -112,29 +112,38 @@ static void handleSetSp() {
     sendVal();
 }
 
+// Suffixes and defaults for the 6 UI parameters stored per preset slot.
+// Order must match kPDef and kPPtr (declared locally where writes are needed).
+static const char * const kPS[]  = {"b","c","co","sp","bl","th"};
+static const uint8_t      kPDef[]= {BRIGHT_DEFAULT, CONTRAST_DEFAULT, COOLING_DEFAULT,
+                                     SPARKING_DEFAULT, BLEND_DEFAULT, THEME_DEFAULT};
+
 static void handleGetPresets() {
     Preferences p;
     p.begin("presets", true);
-    String out = "[";
-    for (int i = 0; i < 8; i++) {
+    char buf[900];
+    int  len = 0;
+    buf[len++] = '[';
+    for (int i = 0; i < PRESET_COUNT; i++) {
         char k[6];
-        snprintf(k, 6, "p%dn", i);
-        String name = p.getString(k, "");
-        if (i > 0) out += ",";
-        out += "{\"slot\":" + String(i) + ",\"name\":\"" + name + "\"";
-        if (name.length() > 0) {
-            snprintf(k, 6, "p%db",  i); out += ",\"b\":"  + String(p.getUChar(k, BRIGHT_DEFAULT));
-            snprintf(k, 6, "p%dc",  i); out += ",\"c\":"  + String(p.getUChar(k, CONTRAST_DEFAULT));
-            snprintf(k, 6, "p%dco", i); out += ",\"co\":" + String(p.getUChar(k, COOLING_DEFAULT));
-            snprintf(k, 6, "p%dsp", i); out += ",\"sp\":" + String(p.getUChar(k, SPARKING_DEFAULT));
-            snprintf(k, 6, "p%dbl", i); out += ",\"bl\":" + String(p.getUChar(k, BLEND_DEFAULT));
-            snprintf(k, 6, "p%dth", i); out += ",\"th\":" + String(p.getUChar(k, THEME_DEFAULT));
+        if (i > 0) buf[len++] = ',';
+        snprintf(k, sizeof k, "p%dn", i);
+        String nm = p.getString(k, "");
+        len += snprintf(buf + len, sizeof(buf) - len,
+                        "{\"slot\":%d,\"name\":\"%s\"", i, nm.c_str());
+        if (nm.length() > 0) {
+            for (int j = 0; j < 6; j++) {
+                snprintf(k, sizeof k, "p%d%s", i, kPS[j]);
+                len += snprintf(buf + len, sizeof(buf) - len,
+                                ",\"%s\":%d", kPS[j], p.getUChar(k, kPDef[j]));
+            }
         }
-        out += "}";
+        buf[len++] = '}';
     }
     p.end();
-    out += "]";
-    server.send(200, "application/json", out);
+    buf[len++] = ']';
+    buf[len]   = '\0';
+    server.send(200, "application/json", buf);
 }
 
 static void handleSavePreset() {
@@ -142,22 +151,21 @@ static void handleSavePreset() {
     if (!server.hasArg("slot") || !server.hasArg("name")) {
         server.send(400, "application/json", "{\"error\":\"missing params\"}"); return;
     }
-    int slot = constrain(server.arg("slot").toInt(), 0, 7);
+    int slot = constrain(server.arg("slot").toInt(), 0, PRESET_COUNT - 1);
     String name = server.arg("name");
     name.trim();
     if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
     if (name.length() > 15) name = name.substring(0, 15);
     name.replace("\"", "'");
+    volatile uint8_t * const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
     Preferences p;
     p.begin("presets", false);
     char k[6];
-    snprintf(k, 6, "p%dn",  slot); p.putString(k, name);
-    snprintf(k, 6, "p%db",  slot); p.putUChar(k, uiBright);
-    snprintf(k, 6, "p%dc",  slot); p.putUChar(k, uiContrast);
-    snprintf(k, 6, "p%dco", slot); p.putUChar(k, uiCooling);
-    snprintf(k, 6, "p%dsp", slot); p.putUChar(k, uiSparking);
-    snprintf(k, 6, "p%dbl", slot); p.putUChar(k, uiBlend);
-    snprintf(k, 6, "p%dth", slot); p.putUChar(k, uiTheme);
+    snprintf(k, sizeof k, "p%dn", slot); p.putString(k, name);
+    for (int j = 0; j < 6; j++) {
+        snprintf(k, sizeof k, "p%d%s", slot, kPS[j]);
+        p.putUChar(k, *kPPtr[j]);
+    }
     p.end();
     server.send(200, "application/json", "{\"ok\":true}");
 }
@@ -167,21 +175,20 @@ static void handleLoadPreset() {
     if (!server.hasArg("slot")) {
         server.send(400, "application/json", "{\"error\":\"missing slot\"}"); return;
     }
-    int slot = constrain(server.arg("slot").toInt(), 0, 7);
+    int slot = constrain(server.arg("slot").toInt(), 0, PRESET_COUNT - 1);
     Preferences p;
     p.begin("presets", true);
     char k[6];
-    snprintf(k, 6, "p%dn", slot);
+    snprintf(k, sizeof k, "p%dn", slot);
     String name = p.getString(k, "");
     if (name.length() == 0) {
         p.end(); server.send(404, "application/json", "{\"error\":\"empty slot\"}"); return;
     }
-    snprintf(k, 6, "p%db",  slot); uiBright   = p.getUChar(k, BRIGHT_DEFAULT);
-    snprintf(k, 6, "p%dc",  slot); uiContrast = p.getUChar(k, CONTRAST_DEFAULT);
-    snprintf(k, 6, "p%dco", slot); uiCooling  = p.getUChar(k, COOLING_DEFAULT);
-    snprintf(k, 6, "p%dsp", slot); uiSparking = p.getUChar(k, SPARKING_DEFAULT);
-    snprintf(k, 6, "p%dbl", slot); uiBlend    = p.getUChar(k, BLEND_DEFAULT);
-    snprintf(k, 6, "p%dth", slot); uiTheme    = p.getUChar(k, THEME_DEFAULT);
+    volatile uint8_t * const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
+    for (int j = 0; j < 6; j++) {
+        snprintf(k, sizeof k, "p%d%s", slot, kPS[j]);
+        *kPPtr[j] = p.getUChar(k, kPDef[j]);
+    }
     p.end();
     applyBrightness(); buildHeatPalette(); recalcCooling(); updatePowerCalc();
     prefsDirty = true; prefsTouch = millis();
@@ -261,12 +268,14 @@ static void handleDeletePreset() {
     if (!server.hasArg("slot")) {
         server.send(400, "application/json", "{\"error\":\"missing slot\"}"); return;
     }
-    int slot = constrain(server.arg("slot").toInt(), 0, 7);
+    int slot = constrain(server.arg("slot").toInt(), 0, PRESET_COUNT - 1);
     Preferences p;
     p.begin("presets", false);
     char k[6];
-    const char *keys[] = {"p%dn","p%db","p%dc","p%dco","p%dsp","p%dbl","p%dth"};
-    for (int i = 0; i < 7; i++) { snprintf(k, 6, keys[i], slot); p.remove(k); }
+    snprintf(k, sizeof k, "p%dn", slot); p.remove(k);
+    for (int j = 0; j < 6; j++) {
+        snprintf(k, sizeof k, "p%d%s", slot, kPS[j]); p.remove(k);
+    }
     p.end();
     server.send(200, "application/json", "{\"ok\":true}");
 }
