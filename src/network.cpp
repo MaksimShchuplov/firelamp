@@ -487,6 +487,7 @@ static void handleSurprise() {
         p++;   // this text field is empty or non-JSON — try the next one
     }
     if (ti < 0) {
+        LOG_WARN("Gemini: no \"text\" field found. HTTP %d, body len %d", code, resp.length());
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
     String inner;
@@ -512,6 +513,8 @@ static void handleSurprise() {
         }
     }
     if (inner.length() < 10) {
+        LOG_WARN("Gemini: inner JSON too short (%d chars). Partial resp: %.200s",
+                 inner.length(), resp.c_str());
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
 
@@ -541,6 +544,8 @@ static void handleSurprise() {
     int b  = exNum("b"),  cv = exNum("c"),  co = exNum("co");
     int sp = exNum("sp"), bl = exNum("bl"), th = exNum("th");
     if (name.length() == 0 || b < 0) {
+        LOG_WARN("Gemini: missing fields in inner JSON: name=\"%s\" b=%d. inner: %.120s",
+                 name.c_str(), b, inner.c_str());
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
 
