@@ -431,14 +431,17 @@ static void handleSurprise() {
 
     static const char kPrompt[] =
         "You design fire effects for an 800-LED cylinder lamp (20 col \xc3\x97 40 rows, WS2812B). "
-        "The LED cylinder is 125 mm in diameter and 1260 mm tall, housed inside a frosted glass "
-        "globe 190 mm wide and 1380 mm tall \xe2\x80\x94 like a giant floor lamp. "
-        "The frosted globe softens and diffuses the light, so subtle colour gradients and slow "
-        "transitions read beautifully, while sharp high-contrast effects also work well. "
-        "Pick creative unusual values: b=brightness 0-100, c=contrast 0-100, co=cooling 20-150, "
-        "sp=sparking 0-255, bl=blend 0-255, th=theme 0-3 (0=Fire 1=Ember 2=Plasma 3=Ice). "
-        "Give the effect a short evocative name (max 12 chars). "
-        "Respond with ONLY valid JSON, no markdown: "
+        "The LED cylinder is 125 mm diameter 1260 mm tall, inside a frosted glass globe 190 mm wide "
+        "1380 mm tall \xe2\x80\x94 like a giant floor lamp. Frosted glass diffuses light beautifully.\n"
+        "Parameters:\n"
+        "b = brightness 0-100 (0=off, 100=full; gamma 2.2 curve)\n"
+        "c = palette contrast 0-100 (0=yellows+whites, 50=warm balanced, 100=deep reds only)\n"
+        "co = cooling 20-150 (20=very tall flames, 45=tall, 105=medium height, 150=quick embers)\n"
+        "sp = sparking 0-255 (0=calm smoldering, 36=steady flame, 160=active fire, 255=raging inferno)\n"
+        "bl = temporal blend 0-255 (0=sharp flicker, 50=natural fire, 200=slow motion, 255=frozen glow; sweet spot 30-80)\n"
+        "th = theme 0-3 (0=Fire red/orange/white, 1=Ember deep dark red, 2=Plasma purple/magenta/white, 3=Ice blue/cyan/white)\n"
+        "Create unusual, evocative, coherent combinations. Name max 12 chars. "
+        "Respond ONLY with valid JSON, no markdown: "
         "{\"name\":\"...\",\"b\":N,\"c\":N,\"co\":N,\"sp\":N,\"bl\":N,\"th\":N}";
 
     String body =
@@ -484,10 +487,7 @@ static void handleSurprise() {
         p++;   // this text field is empty or non-JSON — try the next one
     }
     if (ti < 0) {
-        String peek = jsonEscape(resp.substring(0, min(120, (int)resp.length())));
-        String e = String("{\"error\":\"parse_failed\",\"stage\":\"no_text_brace\",\"len\":") +
-                   resp.length() + ",\"peek\":\"" + peek + "\"}";
-        server.send(503, "application/json", e); return;
+        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
     String inner;
     inner.reserve(128);
@@ -512,10 +512,7 @@ static void handleSurprise() {
         }
     }
     if (inner.length() < 10) {
-        String peek = jsonEscape(resp.substring(0, min(120, (int)resp.length())));
-        String e = String("{\"error\":\"parse_failed\",\"stage\":\"empty_inner\",\"len\":") +
-                   resp.length() + ",\"peek\":\"" + peek + "\"}";
-        server.send(503, "application/json", e); return;
+        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
 
     auto exStr = [&](const char *fld) -> String {
@@ -538,10 +535,7 @@ static void handleSurprise() {
     int b  = exNum("b"),  cv = exNum("c"),  co = exNum("co");
     int sp = exNum("sp"), bl = exNum("bl"), th = exNum("th");
     if (name.length() == 0 || b < 0) {
-        String e = String("{\"error\":\"parse_failed\",\"stage\":\"missing_fields\",\"name\":\"") +
-                   name + "\",\"b\":" + b + ",\"inner\":\"" +
-                   jsonEscape(inner.substring(0, min(80, (int)inner.length()))) + "\"}";
-        server.send(503, "application/json", e); return;
+        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
 
     if (b  >= 0) setBright(constrain(b,  0, 100));
