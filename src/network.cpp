@@ -62,6 +62,18 @@ static bool fetchVersionInfo(String &ver, String &md5) {
 //  HTTP HANDLERS
 // =============================================================================
 
+static String jsonEscape(const String &s) {
+    String r;
+    r.reserve(s.length() + 4);
+    for (unsigned i = 0; i < s.length(); i++) {
+        char c = s[i];
+        if      (c == '"')  r += "\\\"";
+        else if (c == '\\') r += "\\\\";
+        else                r += c;
+    }
+    return r;
+}
+
 // Rejects requests without our custom header — blocks cross-origin CSRF attempts.
 // Browser CORS pre-flight fails for cross-origin requests that set custom headers,
 // so any request that reaches this check with the header set came from our own page.
@@ -294,7 +306,7 @@ static void handleUpdate() {
 static void handleInfo() {
     char j[384];
     String ip   = WiFi.localIP().toString();
-    String ssid = WiFi.SSID();
+    String ssid = jsonEscape(WiFi.SSID());
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
     snprintf(j, sizeof(j),
              "{\"flash_mb\":%u,\"free_heap\":%u,\"min_heap\":%u,"
@@ -314,7 +326,7 @@ static void handleInfo() {
 static void handleDebug() {
     char j[512];
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
-    String   ssid      = WiFi.SSID();
+    String   ssid      = jsonEscape(WiFi.SSID());
     String   ip        = WiFi.localIP().toString();
     snprintf(j, sizeof(j),
              "{\"uptime_s\":%lu,\"free_heap\":%u,\"min_heap\":%u,"

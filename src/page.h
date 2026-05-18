@@ -238,6 +238,7 @@ function ul(){
  document.getElementById('mt12').textContent=ru?'✨ Удиви меня (ИИ)':'✨ Surprise Me (AI)';
  document.getElementById('md12').textContent=ru?'Gemini AI придумает уникальный эффект пламени. Вставьте API-ключ Gemini ниже — он хранится только в вашем браузере и никогда не отправляется на лампу.':'Gemini AI designs a unique flame effect each time. Paste your Gemini API key below — it is stored only in your browser, never sent to the lamp.';
  document.getElementById('aiksave').textContent=ru?'Сохранить ключ':'Save key';
+ document.getElementById('aikey').placeholder=ru?'Ключ Gemini API':'Gemini API key';
  var sp2=document.getElementById('surprise');if(sp2&&!sp2.disabled)sp2.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';
  dynAll();
@@ -383,11 +384,13 @@ function askAI(){
   var btn=document.getElementById('surprise'),nm=document.getElementById('ainame');
   btn.disabled=true;btn.textContent=ru?'✨ Думаю...':'✨ Thinking...';nm.style.color='#fbbf24';nm.textContent='';
   var pr='You design fire effects for an 800-LED cylinder lamp (20 col × 40 rows, WS2812B). The LED cylinder is 125 mm in diameter and 1260 mm tall, housed inside a frosted glass globe 190 mm wide and 1380 mm tall — like a giant floor lamp. The frosted globe softens and diffuses the light, so subtle colour gradients and slow transitions read beautifully, while sharp high-contrast effects also work well. Pick creative unusual values: b=brightness 0-100, c=contrast 0-100, co=cooling 20-150, sp=sparking 0-255, bl=blend 0-255, th=theme 0-3 (0=Fire 1=Ember 2=Plasma 3=Ice). Give the effect a short evocative name (max 12 chars). Respond with ONLY valid JSON, no markdown: {"name":"...","b":N,"c":N,"co":N,"sp":N,"bl":N,"th":N}';
+  var ctrl=new AbortController(),tid=setTimeout(function(){ctrl.abort();},15000);
   fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+encodeURIComponent(key),{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:pr}]}],generationConfig:{temperature:1.3,maxOutputTokens:80}})
-  }).then(function(r){return r.json();}).then(function(resp){
-    if(resp.error){var code=resp.error.code||0;if(code===429)throw new Error('rate_limit');if(code===400||code===401||code===403)throw new Error('bad_key');throw new Error(resp.error.message||'api error');}
+    body:JSON.stringify({contents:[{parts:[{text:pr}]}],generationConfig:{temperature:1.3,maxOutputTokens:80}}),
+    signal:ctrl.signal
+  }).then(function(r){clearTimeout(tid);return r.json();}).then(function(resp){
+    if(resp.error){var code=resp.error.code||0;if(code===429)throw new Error('rate_limit');if(code===401||code===403)throw new Error('bad_key');throw new Error(resp.error.message||'api error');}
     var txt=((resp.candidates||[])[0]||{}).content&&resp.candidates[0].content.parts&&resp.candidates[0].content.parts[0]&&resp.candidates[0].content.parts[0].text||'';
     var m=txt.match(/\{[\s\S]*?\}/);if(!m)throw new Error('no json in response');
     var x=JSON.parse(m[0]);
@@ -402,8 +405,10 @@ function askAI(){
     nm.textContent=(x.name||'AI Effect')+' ✨';clearActive();
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){
+    clearTimeout(tid);
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
-    var msg=e.message==='rate_limit'?(ru?'⚠ Лимит — подождите минуту':'⚠ Rate limit — wait a moment')
+    var msg=e.name==='AbortError'?(ru?'⚠ Нет ответа — попробуйте снова':'⚠ No response — try again')
+      :e.message==='rate_limit'?(ru?'⚠ Лимит — подождите минуту':'⚠ Rate limit — wait a moment')
       :e.message==='bad_key'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
       :(ru?'⚠ Ошибка сети':'⚠ Network error');
     nm.style.color='#ef4444';nm.textContent=msg;
