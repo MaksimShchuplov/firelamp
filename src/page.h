@@ -66,8 +66,8 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 .tbtn[data-t="1"]:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#8b1a0a;margin-right:5px;vertical-align:middle}
 .tbtn[data-t="2"]:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#9933cc;margin-right:5px;vertical-align:middle}
 .tbtn[data-t="3"]:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#4499dd;margin-right:5px;vertical-align:middle}
-.presets{display:flex;gap:8px;margin:8px 0 24px}
-.prbtn{flex:1;background:none;border:1px dashed #4a2010;color:#5a3018;border-radius:8px;cursor:pointer;font-size:10px;text-transform:uppercase;letter-spacing:.05em;transition:all .2s;min-height:44px;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 24px}
+.prbtn{flex:0 0 calc(25% - 6px);background:none;border:1px dashed #4a2010;color:#5a3018;border-radius:8px;cursor:pointer;font-size:10px;text-transform:uppercase;letter-spacing:.05em;transition:all .2s;min-height:44px;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation}
 .prbtn.filled{border-style:solid;border-color:#7a3f16;color:#c8743a}
 .prbtn.act{background:#3a1a06;border-color:#d6510c;color:#ffd8a0}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
@@ -133,7 +133,7 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <h1 id=lth>Theme</h1>
 <div class=themes><button class="tbtn act" id=tb0 data-t=0>Fire</button><button class=tbtn id=tb1 data-t=1>Ember</button><button class=tbtn id=tb2 data-t=2>Plasma</button><button class=tbtn id=tb3 data-t=3>Ice</button></div>
 <h1 id=lpr>Presets</h1>
-<div class=presets><button class=prbtn id=pr0 data-slot=0>+</button><button class=prbtn id=pr1 data-slot=1>+</button><button class=prbtn id=pr2 data-slot=2>+</button><button class=prbtn id=pr3 data-slot=3>+</button></div>
+<div class=presets><button class=prbtn id=pr0 data-slot=0>+</button><button class=prbtn id=pr1 data-slot=1>+</button><button class=prbtn id=pr2 data-slot=2>+</button><button class=prbtn id=pr3 data-slot=3>+</button><button class=prbtn id=pr4 data-slot=4>+</button><button class=prbtn id=pr5 data-slot=5>+</button><button class=prbtn id=pr6 data-slot=6>+</button><button class=prbtn id=pr7 data-slot=7>+</button></div>
 <div class=prein id=prein><input id=prename type=text maxlength=15 autocomplete=off spellcheck=false><button class=pric id=presave>✓</button><button class=pric id=precancel>✗</button></div>
 <button class=reset id=rst>Reset to Default</button>
 <button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
@@ -251,7 +251,7 @@ ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setT
 sbl.addEventListener('input',function(){pbl(+sbl.value);clearTimeout(t6);t6=setTimeout(function(){xf('/setbl?v='+sbl.value)},120);clearActive();});
 [0,1,2,3].forEach(function(t){document.getElementById('tb'+t).onclick=function(){xf('/settheme?v='+t).then(pull);clearActive();};});
 document.getElementById('rst').onclick=function(){xf('/reset').then(pull);clearActive();};
-var presets=[{},{},{},{}],activePreset=-1;
+var presets=[{},{},{},{},{},{},{},{}],activePreset=-1;
 function updPresetBtns(){presets.forEach(function(pr,i){var b=document.getElementById('pr'+i);if(pr.name){b.textContent=pr.name;b.classList.add('filled');}else{b.textContent='+';b.classList.remove('filled');}b.classList.toggle('act',i===activePreset);});}
 function clearActive(){activePreset=-1;updPresetBtns();}
 function fetchPresets(){fetch('/getpresets').then(r=>r.json()).then(function(d){presets=d;updPresetBtns();}).catch(function(){});}
@@ -275,7 +275,7 @@ function cancelSave(){pendingSlot=-1;document.getElementById('prein').classList.
 document.getElementById('presave').onclick=doSave;
 document.getElementById('precancel').onclick=cancelSave;
 document.getElementById('prename').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSave();}if(e.key==='Escape')cancelSave();});
-[0,1,2,3].forEach(function(s){
+[0,1,2,3,4,5,6,7].forEach(function(s){
   var b=document.getElementById('pr'+s),pt=null;
   function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(function(){pt=null;if(navigator.vibrate)navigator.vibrate(40);b.classList.add('shk');setTimeout(function(){b.classList.remove('shk');},250);
     if(presets[s]&&presets[s].name){

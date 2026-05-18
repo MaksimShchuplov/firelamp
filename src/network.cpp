@@ -116,7 +116,7 @@ static void handleGetPresets() {
     Preferences p;
     p.begin("presets", true);
     String out = "[";
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 8; i++) {
         char k[6];
         snprintf(k, 6, "p%dn", i);
         String name = p.getString(k, "");
@@ -142,7 +142,7 @@ static void handleSavePreset() {
     if (!server.hasArg("slot") || !server.hasArg("name")) {
         server.send(400, "application/json", "{\"error\":\"missing params\"}"); return;
     }
-    int slot = constrain(server.arg("slot").toInt(), 0, 3);
+    int slot = constrain(server.arg("slot").toInt(), 0, 7);
     String name = server.arg("name");
     name.trim();
     if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
@@ -167,7 +167,7 @@ static void handleLoadPreset() {
     if (!server.hasArg("slot")) {
         server.send(400, "application/json", "{\"error\":\"missing slot\"}"); return;
     }
-    int slot = constrain(server.arg("slot").toInt(), 0, 3);
+    int slot = constrain(server.arg("slot").toInt(), 0, 7);
     Preferences p;
     p.begin("presets", true);
     char k[6];
@@ -261,7 +261,7 @@ static void handleDeletePreset() {
     if (!server.hasArg("slot")) {
         server.send(400, "application/json", "{\"error\":\"missing slot\"}"); return;
     }
-    int slot = constrain(server.arg("slot").toInt(), 0, 3);
+    int slot = constrain(server.arg("slot").toInt(), 0, 7);
     Preferences p;
     p.begin("presets", false);
     char k[6];
