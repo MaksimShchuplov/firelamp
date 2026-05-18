@@ -274,11 +274,11 @@ function updPresetBtns(){presets.forEach(function(pr,i){var b=document.getElemen
 function clearActive(){activePreset=-1;updPresetBtns();}
 function fetchPresets(){fetch('/getpresets').then(r=>r.json()).then(function(d){presets=d;updPresetBtns();}).catch(function(){});}
 function deletePreset(s){xf('/deletepreset?slot='+s).then(function(){if(activePreset===s)activePreset=-1;fetchPresets();}).catch(function(){});}
-var pendingSlot=-1;
+var pendingSlot=-1,lastAiName='';
 function saveSlot(s){
   pendingSlot=s;
   var inp=document.getElementById('prename');
-  inp.value=presets[s]&&presets[s].name?presets[s].name:(ru?'Пресет ':'Preset ')+(s+1);
+  inp.value=presets[s]&&presets[s].name?presets[s].name:lastAiName||(ru?'Пресет ':'Preset ')+(s+1);
   inp.placeholder=ru?'Название...':'Name...';
   document.getElementById('prein').classList.add('show');
   setTimeout(function(){inp.focus();inp.select();},200);
@@ -390,7 +390,7 @@ function askAI(){
     if(x.error)throw new Error(x.error);
     pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);
     if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
-    nm.textContent=(x.name||'AI Effect')+' ✨';clearActive();
+    lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';clearActive();
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
