@@ -40,7 +40,7 @@ TaskHandle_t ledTaskHandle = NULL;
 bool     prefsDirty  = false;
 uint32_t prefsTouch  = 0;
 uint32_t wifiRetryAt = 0;
-uint32_t lastPowerCalc = 0;
+std::atomic<uint32_t> lastPowerCalc{0};
 
 // =============================================================================
 //  SETUP / LOOP

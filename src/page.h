@@ -375,7 +375,7 @@ document.getElementById('aiksave').onclick=function(){
   var v=document.getElementById('aikey').value.trim();
   if(!v)return;
   var b=document.getElementById('aiksave');
-  xf('/setgeminikey?key='+encodeURIComponent(v)).then(r=>r.json()).then(function(x){
+  fetch('/setgeminikey',{method:'POST',headers:{'X-Requested-With':'firelamp','Content-Type':'application/x-www-form-urlencoded'},body:'key='+encodeURIComponent(v)}).then(r=>r.json()).then(function(x){
     b.textContent=x.ok?'✓':'✗';setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);
   }).catch(function(){b.textContent='✗';setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);});
 };

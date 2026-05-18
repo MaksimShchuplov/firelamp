@@ -653,7 +653,7 @@ void startNetwork() {
     server.on("/debug",       handleDebug);
     server.on("/deletepreset",  handleDeletePreset);
     server.on("/resetwifi",     handleResetWifi);
-    server.on("/setgeminikey",  handleSetGeminiKey);
+    server.on("/setgeminikey",  HTTP_POST, handleSetGeminiKey);
     server.on("/geminikey",     handleGeminiKey);
     server.on("/surprise",      handleSurprise);
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });

@@ -49,7 +49,7 @@ extern std::atomic<bool>     updatePending;
 extern bool     prefsDirty;
 extern uint32_t prefsTouch;
 extern uint32_t wifiRetryAt;
-extern uint32_t lastPowerCalc;
+extern std::atomic<uint32_t> lastPowerCalc;  // written Core 0 (fireEffect) + Core 1 (handlers)
 
 // ---- Task handles ----------------------------------------------------------
 extern TaskHandle_t ledTaskHandle;   // set in setup(); used for stack watermark queries
