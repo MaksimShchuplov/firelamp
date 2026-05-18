@@ -143,6 +143,6 @@ void fireEffect() {
             nblend(leds[base + x], pal[heat[y][x]], uiBlend);
     }
 
-    if (millis() - lastPowerCalc > 3000)
+    if (millis() - lastPowerCalc > POWER_CALC_INTERVAL_MS)
         updatePowerCalc();
 }

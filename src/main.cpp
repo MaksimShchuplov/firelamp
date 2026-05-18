@@ -3,6 +3,7 @@
 #include <WebServer.h>
 #include <WiFiManager.h>
 #include <Preferences.h>
+#include <esp_task_wdt.h>
 #include "globals.h"
 
 // =============================================================================
@@ -57,23 +58,27 @@ void setup() {
     FastLED.show(); delay(1000); FastLED.clear(true);
 #endif
 
-    for (int y = 0; y < ROWS; y++) windDir[y] = windTarget[y] = 0.0f;
+    memset(windDir,    0, sizeof(windDir));
+    memset(windTarget, 0, sizeof(windTarget));
 
     startNetwork();   // loads NVS → builds palette → joins WiFi → starts web server
 
     BaseType_t ok = xTaskCreatePinnedToCore(
         [](void *) {
+            // Register with task watchdog so the WDT catches a hung LED loop.
+            esp_task_wdt_add(NULL);
             for (;;) {
                 updateWind();
                 fireEffect();
                 FastLED.show();
-                vTaskDelay(pdMS_TO_TICKS(1));   // yield → feed Core 0 watchdog
+                esp_task_wdt_reset();
+                vTaskDelay(pdMS_TO_TICKS(1));
             }
         },
-        "LEDTask", 4096, NULL, 1, NULL, 0       // pinned to Core 0
+        "LEDTask", LEDTASK_STACK_BYTES, NULL, 1, NULL, 0   // pinned to Core 0
     );
     if (ok != pdPASS) {
-        Serial.println("FATAL: LEDTask creation failed — rebooting");
+        LOG_ERROR("LEDTask creation failed — rebooting");
         ESP.restart();
     }
     markBootSuccess();  // firmware initialised without crashing — cancel OTA rollback
@@ -81,5 +86,5 @@ void setup() {
 
 void loop() {
     serviceNetwork();
-    vTaskDelay(pdMS_TO_TICKS(10));              // yield Core 1
+    vTaskDelay(pdMS_TO_TICKS(10));   // yield Core 1
 }

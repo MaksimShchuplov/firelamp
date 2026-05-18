@@ -45,6 +45,13 @@ extern uint32_t prefsTouch;
 extern uint32_t wifiRetryAt;
 extern uint32_t lastPowerCalc;
 
+// ---- Structured logging ----------------------------------------------------
+// All log output includes a millisecond timestamp so serial captures are
+// trivially grep-able for [ERROR] / [WARN] even without an RTC.
+#define LOG_ERROR(fmt, ...) Serial.printf("[ERROR] %7lums " fmt "\n", millis(), ##__VA_ARGS__)
+#define LOG_WARN(fmt, ...)  Serial.printf("[WARN]  %7lums " fmt "\n", millis(), ##__VA_ARGS__)
+#define LOG_INFO(fmt, ...)  Serial.printf("[INFO]  %7lums " fmt "\n", millis(), ##__VA_ARGS__)
+
 // ---- Function declarations (implemented across modules) --------------------
 void buildHeatPalette();
 void applyBrightness();

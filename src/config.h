@@ -32,10 +32,19 @@
 #define BRIGHT_FLOOR        4       // min stable raw PWM on WS2812B
 #define BRIGHT_DITHER_ON    16      // enable BINARY_DITHER above this raw value
 
+// ---- Task / system ---------------------------------------------------------
+#define LEDTASK_STACK_BYTES     8192    // measured watermark ~3.2 KB; 8 KB gives 2× headroom
+#define POWER_CALC_INTERVAL_MS  3000
+
+// ---- Themes / presets ------------------------------------------------------
+#define THEME_COUNT             4       // Fire / Ember / Plasma / Ice
+#define PRESET_NAME_MAX_LEN     15
+
 // ---- Network ---------------------------------------------------------------
 #define WIFI_PORTAL_SSID        "FireLamp-Setup"
 #define WIFI_PORTAL_TIMEOUT_S   120     // portal auto-closes; fire still runs
 #define WIFI_RETRY_MS           15000
+#define HTTP_TIMEOUT_MS         8000    // HTTPS request timeout (version check + OTA)
 #define MDNS_NAME               "firelamp"   // → http://firelamp.local
 #define NVS_COMMIT_DELAY_MS     2500    // defer NVS writes to spare flash endurance
 #define FIRMWARE_URL  "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"

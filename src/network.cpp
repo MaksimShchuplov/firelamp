@@ -21,20 +21,27 @@ void sendVal() {
 }
 
 // Fetches version.json from GitHub. Caches result for 60 s. Returns false on network error.
+// TLS note: setInsecure() skips CA verification; firmware integrity is instead guaranteed
+// by the MD5 hash embedded in version.json (checked by Update.setMD5 before flashing).
+// To enable full TLS verification, replace setInsecure() with setCACert() pointing to
+// GitHub's root CA (DigiCert Global Root CA / G2) stored in a separate header.
 static bool fetchVersionInfo(String &ver, String &md5) {
-    static String  s_ver, s_md5;
+    static String   s_ver, s_md5;
     static uint32_t s_at = 0;
     if (s_ver.length() > 0 && millis() - s_at < 60000) {
         ver = s_ver; md5 = s_md5; return true;
     }
     WiFiClientSecure client;
-    client.setInsecure();           // see note in config.h about CA pinning
+    client.setInsecure();
     HTTPClient http;
-    http.setTimeout(8000);
+    http.setTimeout(HTTP_TIMEOUT_MS);
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.begin(client, VERSION_URL);
     int code = http.GET();
-    if (code != 200) { http.end(); return false; }
+    if (code != 200) {
+        LOG_WARN("version fetch returned HTTP %d", code);
+        http.end(); return false;
+    }
     String body = http.getString();
     http.end();
     auto extract = [&](const char *key) -> String {
@@ -46,7 +53,7 @@ static bool fetchVersionInfo(String &ver, String &md5) {
     };
     ver = extract("version");
     md5 = extract("md5");
-    if (ver.length() == 0) return false;
+    if (ver.length() == 0) { LOG_WARN("version.json parse failed"); return false; }
     s_ver = ver; s_md5 = md5; s_at = millis();
     return true;
 }
@@ -56,12 +63,29 @@ static bool fetchVersionInfo(String &ver, String &md5) {
 // =============================================================================
 
 // Rejects requests without our custom header — blocks cross-origin CSRF attempts.
-// Browser CORS pre-flight fails on unknown origins before the request reaches us.
+// Browser CORS pre-flight fails for cross-origin requests that set custom headers,
+// so any request that reaches this check with the header set came from our own page.
 static bool isWebRequest() {
     if (server.header("X-Requested-With") != "firelamp") {
         server.send(403, "text/plain", "Forbidden");
         return false;
     }
+    return true;
+}
+
+// Parses a bounded integer from a query parameter. Returns false and sends 400
+// if the argument is absent or outside [lo, hi].
+static bool parseIntArg(const char *name, int lo, int hi, int &out) {
+    if (!server.hasArg(name)) return false;
+    const String &s = server.arg(name);
+    // Reject obviously non-numeric strings before toInt() silently returns 0.
+    bool hasDigit = false;
+    for (unsigned i = (s[0] == '-') ? 1 : 0; i < s.length(); i++)
+        if (isdigit(s[i])) { hasDigit = true; break; }
+    if (!hasDigit) return false;
+    long v = s.toInt();
+    if (v < lo || v > hi) return false;
+    out = (int)v;
     return true;
 }
 
@@ -80,13 +104,14 @@ static void handleRoot() {
 }
 
 static void handleSetB() {
-    if (server.hasArg("v")) { setBright(server.arg("v").toInt()); updatePowerCalc(); }
+    int v;
+    if (parseIntArg("v", 0, 100, v)) { setBright(v); updatePowerCalc(); }
     sendVal();
 }
 
 static void handleSetC() {
-    if (server.hasArg("v")) {
-        int v = constrain(server.arg("v").toInt(), 0, 100);
+    int v;
+    if (parseIntArg("v", 0, 100, v)) {
         if (uiContrast != (uint8_t)v) {
             uiContrast = (uint8_t)v;
             buildHeatPalette();
@@ -98,8 +123,9 @@ static void handleSetC() {
 }
 
 static void handleSetCo() {
-    if (server.hasArg("v")) {
-        uiCooling  = (uint8_t)constrain(server.arg("v").toInt(), 20, 150);
+    int v;
+    if (parseIntArg("v", 20, 150, v)) {
+        uiCooling  = (uint8_t)v;
         prefsDirty = true; prefsTouch = millis();
         recalcCooling(); updatePowerCalc();
     }
@@ -107,8 +133,9 @@ static void handleSetCo() {
 }
 
 static void handleSetSp() {
-    if (server.hasArg("v")) {
-        uiSparking = (uint8_t)constrain(server.arg("v").toInt(), 0, 255);
+    int v;
+    if (parseIntArg("v", 0, 255, v)) {
+        uiSparking = (uint8_t)v;
         prefsDirty = true; prefsTouch = millis();
         updatePowerCalc();
     }
@@ -163,7 +190,7 @@ static void handleSavePreset() {
     if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
     name.replace("\\", "");    // strip backslashes so stored names are always JSON-safe
     name.replace("\"", "'");   // replace double-quotes before truncating to avoid split surrogates
-    if (name.length() > 15) name = name.substring(0, 15);
+    if (name.length() > PRESET_NAME_MAX_LEN) name = name.substring(0, PRESET_NAME_MAX_LEN);
     volatile uint8_t * const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
     Preferences p;
     p.begin("presets", false);
@@ -203,17 +230,22 @@ static void handleLoadPreset() {
 }
 
 static void handleSetBl() {
-    if (server.hasArg("v")) {
-        uiBlend = (uint8_t)constrain(server.arg("v").toInt(), 0, 255);
+    int v;
+    if (parseIntArg("v", 0, 255, v)) {
+        uiBlend = (uint8_t)v;
         prefsDirty = true; prefsTouch = millis();
     }
     sendVal();
 }
 
 static void handleSetTheme() {
-    if (server.hasArg("v")) {
-        uint8_t t = (uint8_t)constrain(server.arg("v").toInt(), 0, 3);
-        if (uiTheme != t) { uiTheme = t; buildHeatPalette(); prefsDirty = true; prefsTouch = millis(); }
+    int v;
+    if (parseIntArg("v", 0, THEME_COUNT - 1, v)) {
+        if (uiTheme != (uint8_t)v) {
+            uiTheme = (uint8_t)v;
+            buildHeatPalette();
+            prefsDirty = true; prefsTouch = millis();
+        }
     }
     sendVal();
 }
@@ -252,21 +284,26 @@ static void handleUpdate() {
     server.client().stop();
     WiFiClientSecure client; client.setInsecure();
     httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    Serial.printf("OTA → %s  md5: %s\n", ver.c_str(), md5.c_str());
+    LOG_INFO("OTA → %s  md5: %s", ver.c_str(), md5.c_str());
     t_httpUpdate_return r = httpUpdate.update(client, FIRMWARE_URL);
     if (r == HTTP_UPDATE_FAILED)
-        Serial.printf("OTA failed (%d): %s\n",
-                      httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+        LOG_ERROR("OTA failed (%d): %s",
+                  httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
 }
 
 static void handleInfo() {
-    char j[192];
+    char j[320];
     String ip = WiFi.localIP().toString();
     snprintf(j, sizeof(j),
-             "{\"flash_mb\":%u,\"free_heap\":%u,\"ip\":\"%s\","
+             "{\"flash_mb\":%u,\"free_heap\":%u,\"min_heap\":%u,"
+             "\"rssi_dbm\":%d,\"uptime_s\":%lu,\"ip\":\"%s\","
              "\"version\":\"" FIRMWARE_VERSION "\",\"build\":\"" __DATE__ " " __TIME__ "\"}",
-             (unsigned)(ESP.getFlashChipSize() / (1024*1024)),
-             (unsigned)ESP.getFreeHeap(), ip.c_str());
+             (unsigned)(ESP.getFlashChipSize() / (1024 * 1024)),
+             (unsigned)ESP.getFreeHeap(),
+             (unsigned)ESP.getMinFreeHeap(),
+             (int)WiFi.RSSI(),
+             (unsigned long)(millis() / 1000),
+             ip.c_str());
     server.send(200, "application/json", j);
 }
 
@@ -322,17 +359,29 @@ void startNetwork() {
 
     WiFi.setHostname(MDNS_NAME);
     WiFi.setSleep(false);
+
+    // Immediately reset the retry timer on disconnect so serviceNetwork() picks
+    // it up on the next 10 ms tick instead of waiting up to WIFI_RETRY_MS.
+    WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+        if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+            wifiRetryAt = 0;
+            LOG_WARN("WiFi disconnected (reason %d)", info.wifi_sta_disconnected.reason);
+        } else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+            LOG_INFO("WiFi connected — IP %s  RSSI %d dBm",
+                     WiFi.localIP().toString().c_str(), WiFi.RSSI());
+        }
+    });
+
     wm.setConnectTimeout(10);
     wm.setConfigPortalTimeout(WIFI_PORTAL_TIMEOUT_S);
     wm.setConnectRetries(2);
 
     if (wm.autoConnect(WIFI_PORTAL_SSID)) {
-        Serial.printf("UI: http://%s.local  |  http://%s\n",
-                      MDNS_NAME, WiFi.localIP().toString().c_str());
+        LOG_INFO("UI: http://%s.local  |  http://%s", MDNS_NAME, WiFi.localIP().toString().c_str());
         if (MDNS.begin(MDNS_NAME)) MDNS.addService("http", "tcp", 80);
         xTaskCreate(autoUpdateCheck, "UpdChk", 8192, NULL, 1, NULL);
     } else {
-        Serial.printf("WiFi not configured — connect to \"%s\"\n", WIFI_PORTAL_SSID);
+        LOG_WARN("WiFi not configured — connect to \"%s\"", WIFI_PORTAL_SSID);
     }
 
     server.on("/",            handleRoot);
@@ -341,17 +390,17 @@ void startNetwork() {
     server.on("/setc",        handleSetC);
     server.on("/setco",       handleSetCo);
     server.on("/setsp",       handleSetSp);
-    server.on("/setbl",        handleSetBl);
-    server.on("/settheme",     handleSetTheme);
-    server.on("/getpresets",   handleGetPresets);
-    server.on("/savepreset",   handleSavePreset);
-    server.on("/loadpreset",   handleLoadPreset);
+    server.on("/setbl",       handleSetBl);
+    server.on("/settheme",    handleSetTheme);
+    server.on("/getpresets",  handleGetPresets);
+    server.on("/savepreset",  handleSavePreset);
+    server.on("/loadpreset",  handleLoadPreset);
     server.on("/reset",       handleReset);
     server.on("/checkupdate", handleCheckUpdate);
     server.on("/update",      handleUpdate);
-    server.on("/info",         handleInfo);
-    server.on("/deletepreset", handleDeletePreset);
-    server.on("/resetwifi",    handleResetWifi);
+    server.on("/info",        handleInfo);
+    server.on("/deletepreset",handleDeletePreset);
+    server.on("/resetwifi",   handleResetWifi);
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
     static const char *hdrs[] = {"X-Requested-With"};
     server.collectHeaders(hdrs, 1);
@@ -362,13 +411,18 @@ void serviceNetwork() {
     server.handleClient();
 
     if (prefsDirty && millis() - prefsTouch > NVS_COMMIT_DELAY_MS) {
-        prefs.putUChar("bright2",  uiBright);
-        prefs.putUChar("contrast", uiContrast);
-        prefs.putUChar("cooling",  uiCooling);
-        prefs.putUChar("sparking", uiSparking);
-        prefs.putUChar("blend",    uiBlend);
-        prefs.putUChar("theme",    uiTheme);
-        prefsDirty = false;
+        bool ok = (prefs.putUChar("bright2",  uiBright)  == 1)
+               && (prefs.putUChar("contrast", uiContrast) == 1)
+               && (prefs.putUChar("cooling",  uiCooling)  == 1)
+               && (prefs.putUChar("sparking", uiSparking) == 1)
+               && (prefs.putUChar("blend",    uiBlend)    == 1)
+               && (prefs.putUChar("theme",    uiTheme)    == 1);
+        if (ok) {
+            prefsDirty = false;
+        } else {
+            LOG_ERROR("NVS write failed — will retry in %d ms", NVS_COMMIT_DELAY_MS);
+            prefsTouch = millis();   // push the retry window
+        }
     }
 
     if (WiFi.status() != WL_CONNECTED && millis() - wifiRetryAt > WIFI_RETRY_MS) {
