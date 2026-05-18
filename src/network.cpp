@@ -469,16 +469,17 @@ static void handleSurprise() {
     String resp = http.getString();
     http.end();
 
-    // Find the "text":"..." field whose value starts with '{' — our JSON output.
-    // Gemini 2.5 Flash may prepend an empty thinking part {"text":"","thought":true}
-    // which would otherwise be found first and cause parse failure.
+    // Find the "text":... field whose value starts with '{' — our JSON output.
+    // Gemini returns pretty-printed JSON so the separator may be ": " (with space).
+    // Also skip empty/thinking parts that precede the real response.
     int ti = -1;
     for (int p = 0; ; ) {
-        p = resp.indexOf("\"text\":\"", p);
+        p = resp.indexOf("\"text\":", p);
         if (p < 0) break;
-        int s = p + 8;
-        // skip over any non-{ non-" chars (shouldn't exist, but be safe)
-        while (s < (int)resp.length() && resp[s] != '{' && resp[s] != '"') s++;
+        int s = p + 7;
+        while (s < (int)resp.length() && resp[s] == ' ') s++;  // skip optional spaces
+        if (s >= (int)resp.length() || resp[s] != '"') { p++; continue; }  // not a string value
+        s++;  // skip opening "
         if (s < (int)resp.length() && resp[s] == '{') { ti = s; break; }
         p++;   // this text field is empty or non-JSON — try the next one
     }
