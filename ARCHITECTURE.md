@@ -37,9 +37,11 @@ get_version.py           — PlatformIO pre-build script (injects git SHA as ver
 - **Core 1** — Arduino `loop()`: `serviceNetwork()` polls the web server and deferred NVS writes.
 
 ### Shared-state concurrency
-UI parameters (`uiBright`, `uiContrast`, `uiCooling`, `uiSparking`, `uiBlend`, `uiTheme`, `appliedRaw`, `currentPowerW`, `updatePending`) and `coolMax[ROWS]` are `volatile` — written from Core 1 (web handlers / `recalcCooling`), read from Core 0. Single-byte writes are atomic on Xtensa LX7; `volatile` prevents compiler register-caching across the task boundary.
+All parameters shared between cores use `std::atomic<T>` — this makes atomicity a language contract rather than an ISA assumption, so the cross-core guarantee survives type changes and compiler upgrades.
 
-`heatPalette` uses a **double-buffer + atomic index flip**: `buildHeatPalette()` writes into `heatPalette[1 - activePal]`, then sets `activePal` in a single byte write. `fireEffect()` snapshots `activePal` once at the start of each frame so a mid-frame flip cannot split palette reads.
+UI parameters (`uiBright`, `uiContrast`, `uiCooling`, `uiSparking`, `uiBlend`, `uiTheme`, `appliedRaw`, `currentPowerMw`, `updatePending`, `lastPowerCalc`) and `coolMax[ROWS]` are `std::atomic` — written from Core 1 (web handlers / `recalcCooling`), read from Core 0. `seq_cst` stores generate a full `memw` barrier on Xtensa LX7.
+
+`heatPalette` uses a **double-buffer + atomic index flip**: `buildHeatPalette()` writes into `heatPalette[1 - activePal]`, then flips `activePal` with a `seq_cst` store (acts as full memory barrier — ensures all palette stores are visible to Core 0 before the index flip). `fireEffect()` snapshots `activePal` once per frame so a mid-frame flip cannot split palette reads.
 
 ### WiFi & provisioning
 Credentials are **never compiled into the binary**. On first boot the lamp starts AP `FireLamp-Setup` (no password); the user connects and opens `192.168.4.1` to enter credentials via WiFiManager captive portal. Credentials are stored by the ESP32 WiFi driver in the `nvs` flash partition, which OTA never touches — they survive all firmware updates.
@@ -51,6 +53,18 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 2. Browser calls `/checkupdate` → ESP fetches `version.json` (cached 60 s) and compares SHA against `FIRMWARE_VERSION`.
 3. Browser calls `/update` (with `X-Requested-With: firelamp` CSRF header) → ESP sets MD5 from `version.json`, sends HTTP 200, closes the connection, then calls `httpUpdate.update()` synchronously. After success the ESP reboots automatically. UI polls `/info` every 3 s until lamp responds, then auto-reloads.
 4. `boot.cpp` counts consecutive hard crashes (panic/watchdog). On the third consecutive crash it calls `Update.rollBack()` + restart, reverting to the previous OTA slot.
+
+### Surprise Me — Gemini AI effects
+`/surprise` calls the Gemini 2.5 Flash API synchronously from Core 1 (blocks web server for up to `GEMINI_TIMEOUT_MS` = 15 s).
+
+**Prompt construction** (runtime, `handleSurprise`):
+- A random *scene* is picked from 15 atmospheric moods (e.g. `midnight thunderstorm`, `arctic tundra`, `volcanic eruption`, `bioluminescent cave`) to give each request a creative direction.
+- Current lamp state (`b`, `c`, `co`, `sp`, `bl`, `th`) is injected so Gemini creates something contrasting rather than repeating similar values.
+- `temperature: 1.4`, `maxOutputTokens: 120`, `thinkingBudget: 0` (thinking disabled for speed).
+
+**Response parsing** (`handleSurprise`): Scans all `"text":` fields in the Gemini JSON response, scanning *inside* each string value for `{`. Takes the **last** match — this skips thinking parts (which precede the actual output) and handles markdown-wrapped responses (` ```json\n{...}``` `). The extracted JSON string is unescaped char-by-char and parsed with simple `indexOf` helpers that tolerate spaces after `:`.
+
+**API key** is stored in NVS namespace `gemini`, never compiled into firmware. Sent to ESP via `POST /setgeminikey` (body, not URL) to avoid leaking into logs.
 
 ### NVS persistence
 UI parameters (`bright2`, `contrast`, `cooling`, `sparking`, `blend`, `theme`) are written to the `lamp` NVS namespace after 2.5 s of inactivity (`NVS_COMMIT_DELAY_MS`) to avoid flash wear from slider dragging.
@@ -98,9 +112,9 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 | `GET /info` | — | flash_mb, free_heap, ip, version, build |
 | `GET /deletepreset` | `slot=0..7` | clear a preset slot |
 | `GET /resetwifi` | — | clear credentials + reboot |
-| `GET /setgeminikey` | `key=<str>` | save Gemini API key to NVS (`gemini` namespace) |
+| `POST /setgeminikey` | body: `key=<str>` | save Gemini API key to NVS (`gemini` namespace); POST body keeps key out of URL/logs |
 | `GET /geminikey` | — | `{"set":true/false}` — check if key is configured |
-| `GET /surprise` | — | ESP calls Gemini, applies effect, returns `{"ok","name","b","c","co","sp","bl","th","w"}` |
+| `GET /surprise` | — | ESP calls Gemini 2.5 Flash, applies effect, returns `{"ok","name","b","c","co","sp","bl","th","w"}` |
 
 ## Hardware Notes
 
