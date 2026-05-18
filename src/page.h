@@ -221,7 +221,7 @@ function ul(){
  document.getElementById('mt10').textContent=ru?'Тема цвета':'Color Theme';
  document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (тёмно-красный), Плазма (пурпурный), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
  document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
- document.getElementById('md11').textContent=ru?'До 4 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы переименовать или удалить.':'Up to 4 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to rename or delete.';
+ document.getElementById('md11').textContent=ru?'До 8 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы переименовать или удалить.':'Up to 8 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to rename or delete.';
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';
  dynAll();
 }
