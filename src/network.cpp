@@ -256,6 +256,21 @@ static void handleInfo() {
     server.send(200, "application/json", j);
 }
 
+static void handleDeletePreset() {
+    if (!isWebRequest()) return;
+    if (!server.hasArg("slot")) {
+        server.send(400, "application/json", "{\"error\":\"missing slot\"}"); return;
+    }
+    int slot = constrain(server.arg("slot").toInt(), 0, 3);
+    Preferences p;
+    p.begin("presets", false);
+    char k[6];
+    const char *keys[] = {"p%dn","p%db","p%dc","p%dco","p%dsp","p%dbl","p%dth"};
+    for (int i = 0; i < 7; i++) { snprintf(k, 6, keys[i], slot); p.remove(k); }
+    p.end();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
 static void handleResetWifi() {
     if (!isWebRequest()) return;
     server.send(200, "text/plain", "WiFi cleared — rebooting into setup mode...");
@@ -319,8 +334,9 @@ void startNetwork() {
     server.on("/reset",       handleReset);
     server.on("/checkupdate", handleCheckUpdate);
     server.on("/update",      handleUpdate);
-    server.on("/info",        handleInfo);
-    server.on("/resetwifi",   handleResetWifi);
+    server.on("/info",         handleInfo);
+    server.on("/deletepreset", handleDeletePreset);
+    server.on("/resetwifi",    handleResetWifi);
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
     static const char *hdrs[] = {"X-Requested-With"};
     server.collectHeaders(hdrs, 1);

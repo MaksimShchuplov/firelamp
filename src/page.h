@@ -1,7 +1,7 @@
 #pragma once
 #include <pgmspace.h>
 
-// Ember-theme control UI — self-contained, served from PROGMEM.
+// Fire Lamp control UI — self-contained, served from PROGMEM.
 // EN/RU language toggle stored in localStorage.
 // Sliders debounce at 120 ms before sending to the ESP.
 // Initial values are injected by handleRoot() via a trailing <script> chunk
@@ -9,7 +9,9 @@
 static const char PAGE[] PROGMEM = R"HTML(<!doctype html><html lang=en><head>
 <meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
-<meta name=theme-color content="#0a0503"><title>Ember</title><style>
+<meta name=theme-color content="#0a0503">
+<link rel=icon href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+<title>Fire Lamp</title><style>
 :root{--b:60;--g:calc(var(--b)/100)}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 button,input[type=range]{touch-action:manipulation}
@@ -38,21 +40,21 @@ h1{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:600;c
 .bar::-moz-range-thumb{width:48px;height:48px;border:0;border-radius:50%;
  background:radial-gradient(circle at 38% 32%,#fff,#ffae45 40%,#ff5e10 75%,#7a1f00);
  box-shadow:0 0 16px rgba(255,140,40,.9)}
-.desc{font-size:12px;color:#a85a22;margin-top:-14px;margin-bottom:24px;letter-spacing:0.05em;line-height:1.4;opacity:0.8;font-weight:400;}
-.reset{margin-top:10px;padding:14px 24px;background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:24px;cursor:pointer;font-size:13px;text-transform:uppercase;letter-spacing:0.1em;transition:all 0.2s;}
-.reset:active{background:#7a3f16;color:#fff2dd;}
-.lang{position:absolute;top:20px;right:20px;display:flex;gap:4px;z-index:3;}
-.lbtn{background:none;border:1px solid #7a3f16;color:#c8743a;padding:0 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;transition:all 0.2s;display:inline-flex;align-items:center;min-height:44px;}
-.lbtn.act{background:#7a3f16;color:#fff2dd;}
-.stat{margin-top:20px;text-align:center;font-size:13px;color:#a85a22;letter-spacing:0.1em;opacity:0.8;font-weight:400;}
-.stat span{color:#ffb14a;font-weight:bold;}
-.ibtn{position:absolute;top:20px;left:20px;background:none;border:1px solid #7a3f16;color:#c8743a;padding:0 16px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;transition:all 0.2s;z-index:3;display:inline-flex;align-items:center;min-height:44px;min-width:44px;}
-.ibtn:active{background:#7a3f16;color:#fff2dd;}
-.mod{display:none;position:fixed;inset:0;background:rgba(10,5,3,0.95);z-index:10;flex-direction:column;padding:30px;overflow-y:auto;color:#f6d9b0;text-align:left;font-size:14px;line-height:1.5;}
-.mod.show{display:flex;}
-.mcls{align-self:flex-end;background:none;border:none;color:#ffb14a;font-size:28px;cursor:pointer;margin-bottom:10px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;}
-.mt{font-size:16px;font-weight:bold;color:#ff6a18;margin-top:15px;margin-bottom:5px;letter-spacing:.1em;text-transform:uppercase;}
-.md{margin-bottom:15px;opacity:0.85;}
+.desc{font-size:12px;color:#a85a22;margin-top:-14px;margin-bottom:24px;letter-spacing:.05em;line-height:1.4;opacity:.8;font-weight:400}
+.reset{margin-top:10px;padding:14px 24px;background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:24px;cursor:pointer;font-size:13px;text-transform:uppercase;letter-spacing:.1em;transition:all .2s}
+.reset:active{background:#7a3f16;color:#fff2dd}
+.lang{position:absolute;top:20px;right:20px;display:flex;gap:4px;z-index:3}
+.lbtn{background:none;border:1px solid #7a3f16;color:#c8743a;padding:0 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;transition:all .2s;display:inline-flex;align-items:center;min-height:44px}
+.lbtn.act{background:#7a3f16;color:#fff2dd}
+.stat{margin-top:20px;text-align:center;font-size:13px;color:#a85a22;letter-spacing:.1em;opacity:.8;font-weight:400}
+.stat span{color:#ffb14a;font-weight:bold}
+.ibtn{position:absolute;top:20px;left:20px;background:none;border:1px solid #7a3f16;color:#c8743a;padding:0 16px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;transition:all .2s;z-index:3;display:inline-flex;align-items:center;min-height:44px;min-width:44px}
+.ibtn:active{background:#7a3f16;color:#fff2dd}
+.mod{display:none;position:fixed;inset:0;background:rgba(10,5,3,.95);z-index:10;flex-direction:column;padding:30px;overflow-y:auto;color:#f6d9b0;text-align:left;font-size:14px;line-height:1.5}
+.mod.show{display:flex}
+.mcls{align-self:flex-end;background:none;border:none;color:#ffb14a;font-size:28px;cursor:pointer;margin-bottom:10px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+.mt{font-size:16px;font-weight:bold;color:#ff6a18;margin-top:15px;margin-bottom:5px;letter-spacing:.1em;text-transform:uppercase}
+.md{margin-bottom:15px;opacity:.85}
 body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 .themes{display:flex;gap:8px;margin:8px 0 24px}
 .tbtn{flex:1;background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:8px;cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:.05em;transition:all .2s;min-height:44px;touch-action:manipulation}
@@ -60,6 +62,10 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 .tbtn[data-t="1"].act{background:#200803;border-color:#602010;color:#e08060}
 .tbtn[data-t="2"].act{background:#2a0840;border-color:#8830c0;color:#d898ff}
 .tbtn[data-t="3"].act{background:#04152a;border-color:#2060a0;color:#80c8ff}
+.tbtn[data-t="0"]:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff6a18;margin-right:5px;vertical-align:middle}
+.tbtn[data-t="1"]:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#8b1a0a;margin-right:5px;vertical-align:middle}
+.tbtn[data-t="2"]:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#9933cc;margin-right:5px;vertical-align:middle}
+.tbtn[data-t="3"]:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#4499dd;margin-right:5px;vertical-align:middle}
 .presets{display:flex;gap:8px;margin:8px 0 24px}
 .prbtn{flex:1;background:none;border:1px dashed #4a2010;color:#5a3018;border-radius:8px;cursor:pointer;font-size:10px;text-transform:uppercase;letter-spacing:.05em;transition:all .2s;min-height:44px;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation}
 .prbtn.filled{border-style:solid;border-color:#7a3f16;color:#c8743a}
@@ -72,7 +78,25 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 .prein input:focus{outline:none;border-color:#d6510c}
 .pric{background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:8px;cursor:pointer;min-width:44px;height:44px;font-size:16px;transition:all .2s;flex-shrink:0;touch-action:manipulation}
 .pric:active{background:#7a3f16;color:#fff2dd}
-</style></head><body><div class=amb></div>
+.offb{position:fixed;top:0;left:0;right:0;background:#7a1616;color:#fca5a5;text-align:center;font-size:12px;padding:10px;z-index:15;transform:translateY(-100%);transition:transform .3s;letter-spacing:.05em}
+.offb.show{transform:translateY(0)}
+.shdim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:19;opacity:0;pointer-events:none;transition:opacity .25s}
+.shdim.show{opacity:1;pointer-events:auto}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:#150803;border-top:1px solid #7a3f16;border-radius:16px 16px 0 0;z-index:20;padding:20px 20px 36px;transform:translateY(100%);transition:transform .25s ease}
+.sheet.show{transform:translateY(0)}
+.shtit{font-size:14px;font-weight:bold;color:#c8743a;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;text-align:center}
+.shmsg{font-size:13px;color:#a85a22;text-align:center;margin-bottom:16px;line-height:1.5;opacity:.9}
+.shbtn{width:100%;padding:14px;border-radius:8px;border:1px solid #7a3f16;background:none;color:#c8743a;font-size:14px;cursor:pointer;letter-spacing:.05em;transition:all .2s;touch-action:manipulation;margin-top:8px;display:block}
+.shbtn:active{background:#7a3f16}
+.shbtn.danger{border-color:#7a1616;color:#f87171}
+.shbtn.danger:active{background:#4a1010}
+.shbtn.primary{border-color:#16a34a;color:#4ade80}
+.shbtn.primary:active{background:#0d2a18}
+</style></head><body>
+<div id=offb class=offb></div>
+<div id=shdim class=shdim></div>
+<div id=sheet class=sheet><div id=shtit class=shtit></div><div id=shmsg class=shmsg></div><div id=shbtns></div></div>
+<div class=amb></div>
 <button id=ibtn class=ibtn>?</button>
 <div id=mod class=mod>
 <button id=mcls class=mcls>&times;</button>
@@ -93,19 +117,19 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=kick>Fire Lamp</div>
 <h1 id=lb>Brightness</h1><div class=val id=vb>--</div>
 <input class=bar id=sb type=range min=0 max=100 value=100>
-<div class=desc id=db>Controls the overall light output of the lamp.</div>
+<div class=desc id=db>Full brightness</div>
 <h1 id=lc>Contrast</h1><div class=val id=vc>--</div>
 <input class=bar id=sc type=range min=0 max=100 value=50>
-<div class=desc id=dc>Adjusts the intensity of reds and oranges.</div>
+<div class=desc id=dc>Warm balanced</div>
 <h1 id=lco>Cooling</h1><div class=val id=vco>--</div>
 <input class=bar id=sco type=range min=20 max=150 value=45>
-<div class=desc id=dco>Lower = taller flames.</div>
+<div class=desc id=dco>Tall flames</div>
 <h1 id=lsp>Sparking</h1><div class=val id=vsp>--</div>
 <input class=bar id=ssp type=range min=0 max=255 value=36>
-<div class=desc id=dsp>Higher = hotter base.</div>
+<div class=desc id=dsp>Calm smoldering</div>
 <h1 id=lbl>Blend</h1><div class=val id=vbl>--</div>
 <input class=bar id=sbl type=range min=0 max=255 value=50>
-<div class=desc id=dbl>Smoothness of flame transitions.</div>
+<div class=desc id=dbl>Natural fire</div>
 <h1 id=lth>Theme</h1>
 <div class=themes><button class="tbtn act" id=tb0 data-t=0>Fire</button><button class=tbtn id=tb1 data-t=1>Ember</button><button class=tbtn id=tb2 data-t=2>Plasma</button><button class=tbtn id=tb3 data-t=3>Ice</button></div>
 <h1 id=lpr>Presets</h1>
@@ -117,6 +141,18 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <button class=reset id=rwifi style="margin-top:10px;border-color:#7a1616;color:#f87171">Reset WiFi</button>
 <div class=stat><span id=lw>Power:</span> <span id=vw>0.0</span> W</div>
 </div><script>
+var DD={
+ sb:{en:[[0,0,'Off'],[1,25,'Very dim'],[26,50,'Dim'],[51,75,'Medium'],[76,95,'Bright'],[96,100,'Full brightness']],
+     ru:[[0,0,'Выключено'],[1,25,'Очень тускло'],[26,50,'Тускло'],[51,75,'Средняя'],[76,95,'Ярко'],[96,100,'Максимум яркости']]},
+ sc:{en:[[0,25,'Yellows and whites'],[26,55,'Warm balanced'],[56,80,'Saturated oranges'],[81,100,'Deep reds only']],
+     ru:[[0,25,'Жёлтые и белые тона'],[26,55,'Тёплые сбалансированные'],[56,80,'Насыщенные оранжевые'],[81,100,'Только глубокий красный']]},
+ sco:{en:[[20,40,'Very tall flames'],[41,70,'Tall flames'],[71,105,'Medium flames'],[106,135,'Short sparks'],[136,150,'Quick embers']],
+      ru:[[20,40,'Очень высокое пламя'],[41,70,'Высокое пламя'],[71,105,'Среднее пламя'],[106,135,'Короткие искры'],[136,150,'Быстрое тление']]},
+ ssp:{en:[[0,40,'Calm smoldering'],[41,90,'Steady flame'],[91,160,'Active fire'],[161,220,'Hot inferno'],[221,255,'Raging maximum']],
+      ru:[[0,40,'Тихое тление'],[41,90,'Ровное пламя'],[91,160,'Активный огонь'],[161,220,'Жаркое пламя'],[221,255,'Бушующий максимум']]},
+ sbl:{en:[[0,20,'Sharp flicker'],[21,60,'Natural fire'],[61,120,'Soft glow'],[121,200,'Slow motion'],[201,255,'Frozen glow']],
+      ru:[[0,20,'Резкое мерцание'],[21,60,'Естественный огонь'],[61,120,'Мягкое свечение'],[121,200,'Замедленное движение'],[201,255,'Застывшее свечение']]}
+};
 var vb=document.getElementById('vb'),sb=document.getElementById('sb');
 var vc=document.getElementById('vc'),sc=document.getElementById('sc');
 var vco=document.getElementById('vco'),sco=document.getElementById('sco');
@@ -125,22 +161,38 @@ var vbl=document.getElementById('vbl'),sbl=document.getElementById('sbl');
 var R=document.documentElement,t1,t2,t4,t5,t6;
 var xf=function(u){return fetch(u,{headers:{'X-Requested-With':'firelamp'}});};
 var ru=(localStorage.getItem('lang')==='ru')||(!localStorage.getItem('lang')&&navigator.language.startsWith('ru'));
+var pullFails=0;
+function dynDesc(sid,val){
+  var r=DD[sid];if(!r)return;
+  var a=r[ru?'ru':'en'],t=a[0][2];
+  for(var i=0;i<a.length;i++){if(val>=a[i][0]&&val<=a[i][1]){t=a[i][2];break;}}
+  document.getElementById(sid.replace('s','d')).textContent=t;
+}
+function dynAll(){dynDesc('sb',+sb.value);dynDesc('sc',+sc.value);dynDesc('sco',+sco.value);dynDesc('ssp',+ssp.value);dynDesc('sbl',+sbl.value);}
+function showOffline(){var b=document.getElementById('offb');b.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';b.classList.add('show');}
+function hideOffline(){document.getElementById('offb').classList.remove('show');}
+function showSheet(title,msg,btns){
+  document.getElementById('shtit').textContent=title;
+  document.getElementById('shmsg').textContent=msg;
+  var c=document.getElementById('shbtns');c.innerHTML='';
+  btns.forEach(function(b){var e=document.createElement('button');e.className='shbtn'+(b.cls?' '+b.cls:'');e.textContent=b.label;e.onclick=function(){hideSheet();b.fn();};c.appendChild(e);});
+  var cl=document.createElement('button');cl.className='shbtn';cl.textContent=ru?'Отмена':'Cancel';cl.onclick=hideSheet;c.appendChild(cl);
+  document.getElementById('shdim').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+}
+function hideSheet(){document.getElementById('shdim').classList.remove('show');document.getElementById('sheet').classList.remove('show');}
+document.getElementById('shdim').onclick=hideSheet;
 function ul(){
  document.getElementById('len').classList.toggle('act',!ru);
  document.getElementById('lru').classList.toggle('act',ru);
  document.getElementById('lb').textContent=ru?'Яркость':'Brightness';
- document.getElementById('db').textContent=ru?'Управляет общей яркостью лампы.':'Controls the overall light output of the lamp.';
  document.getElementById('lc').textContent=ru?'Контрастность':'Contrast';
- document.getElementById('dc').textContent=ru?'Насыщенность красных и оранжевых оттенков.':'Adjusts the intensity of reds and oranges.';
  document.getElementById('lco').textContent=ru?'Охлаждение':'Cooling';
- document.getElementById('dco').textContent=ru?'Меньше = выше пламя.':'Lower = taller flames.';
  document.getElementById('lsp').textContent=ru?'Искры':'Sparking';
- document.getElementById('dsp').textContent=ru?'Больше = горячее основание.':'Higher = hotter base.';
  document.getElementById('rst').textContent=ru?'По умолчанию':'Reset to Default';
  var ck=document.getElementById('chk');if(!ck.disabled){ck.textContent=ru?'Проверить обновления':'Check for Update';ck.style.borderColor='#1e3a8a';ck.style.color='#60a5fa';}
  document.getElementById('rwifi').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
  document.getElementById('lbl').textContent=ru?'Плавность':'Blend';
- document.getElementById('dbl').textContent=ru?'Плавность смены кадров пламени. Меньше = резкое мерцание, больше = медленное мягкое свечение.':'Temporal smoothing per frame. Lower = sharp flicker, higher = slow soft glow.';
  document.getElementById('lth').textContent=ru?'Тема':'Theme';
  document.getElementById('lpr').textContent=ru?'Пресеты':'Presets';
  document.getElementById('tb0').textContent=ru?'Огонь':'Fire';
@@ -151,38 +203,47 @@ function ul(){
  document.getElementById('mt1').textContent=ru?'Яркость (Масштаб)':'Brightness (Scale)';
  document.getElementById('md1').textContent=ru?'Управляет общей яркостью лампы. Гамма-коррекция 2.2 обеспечивает равномерное восприятие по всей шкале. Не меняет физику пламени.':'Controls the overall light output. A gamma-2.2 curve makes the slider feel perceptually even across its range. Does not change the flame physics.';
  document.getElementById('mt2').textContent=ru?'Контрастность (Цвет)':'Contrast (Palette)';
- document.getElementById('md2').textContent=ru?'Не влияет на физику. Сдвигает цвета: низкая контрастность дает больше желтого/белого, высокая оставляет только глубокий красный.':'Does not affect physics. Shifts the colors: low contrast allows more yellow/white, high contrast forces deep reds.';
+ document.getElementById('md2').textContent=ru?'Не влияет на физику. Сдвигает цвета: низкая контрастность даёт больше жёлтого/белого, высокая оставляет только глубокий красный.':'Does not affect physics. Shifts the colors: low contrast allows more yellow/white, high contrast forces deep reds.';
  document.getElementById('mt3').textContent=ru?'Охлаждение (Высота)':'Cooling (Height)';
- document.getElementById('md3').textContent=ru?'Управляет скоростью затухания искр по мере подъема. Меньше значение = выше пламя. Больше значение = короткие искры.':'Dictates how quickly sparks die out as they travel up. Lower value = taller flames. Higher value = short embers.';
- document.getElementById('mt4').textContent=ru?'Искры (Бензин)':'Sparking (Ignition)';
- document.getElementById('md4').textContent=ru?'Управляет хаосом у основания. Высокое значение = сплошной, ревущий белый/желтый жар. Низкое = спокойное тление.':'Dictates chaos at the base. Higher value = a solid, roaring white/yellow inferno. Lower value = calm smoldering.';
+ document.getElementById('md3').textContent=ru?'Управляет скоростью затухания искр по мере подъёма. Меньше = выше пламя. Больше = короткие искры.':'Dictates how quickly sparks die out as they travel up. Lower = taller flames. Higher = short embers.';
+ document.getElementById('mt4').textContent=ru?'Искры (Зажигание)':'Sparking (Ignition)';
+ document.getElementById('md4').textContent=ru?'Управляет хаосом у основания. Высокое = сплошной ревущий жар. Низкое = спокойное тление.':'Dictates chaos at the base. Higher = a solid roaring inferno. Lower = calm smoldering.';
  document.getElementById('mt5').textContent=ru?'По умолчанию':'Reset to Default';
  document.getElementById('md5').textContent=ru?'Восстанавливает все параметры к заводским значениям: яркость 100, контрастность 50, охлаждение 45, искры 36, плавность 50, тема Огонь.':'Restores all parameters to factory defaults: brightness 100, contrast 50, cooling 45, sparking 36, blend 50, theme Fire.';
  document.getElementById('mt6').textContent=ru?'Проверить обновления':'Check for Update';
  document.getElementById('md6').textContent=ru?'Сравнивает текущую прошивку с последней сборкой на GitHub. При наличии обновления предложит установить его — лампа перезагрузится автоматически.':'Compares current firmware with the latest build on GitHub. If an update is available you can install it — the lamp reboots automatically.';
  document.getElementById('mt7').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
- document.getElementById('md7').textContent=ru?'Удаляет сохранённые данные сети и перезагружает лампу в режим настройки. Подключитесь к точке доступа "FireLamp-Setup" и откройте 192.168.4.1 чтобы выбрать новую сеть.':'Clears saved Wi-Fi credentials and reboots into setup mode. Connect to the "FireLamp-Setup" hotspot and open 192.168.4.1 to choose a new network.';
+ document.getElementById('md7').textContent=ru?'Удаляет сохранённые данные сети и перезагружает лампу в режим настройки. Подключитесь к "FireLamp-Setup" и откройте 192.168.4.1 чтобы выбрать новую сеть.':'Clears saved Wi-Fi credentials and reboots into setup mode. Connect to "FireLamp-Setup" and open 192.168.4.1 to choose a new network.';
  document.getElementById('mt8').textContent=ru?'Потребление':'Power';
  document.getElementById('md8').textContent=ru?'Расчётное потребление в ваттах на основе текущего цвета и яркости каждого светодиода. Обновляется каждые 4 секунды.':'Estimated power draw in watts based on the current colour and brightness of each LED. Updates every 4 seconds.';
  document.getElementById('mt9').textContent=ru?'Плавность':'Blend';
- document.getElementById('md9').textContent=ru?'Временное сглаживание кадров. 0 = резкое мерцание, 255 = медленное мягкое свечение. Оптимальный диапазон 30–80.':'Temporal blend per frame. 0 = sharp flicker, 255 = slow soft glow. Sweet spot 30–80.';
+ document.getElementById('md9').textContent=ru?'Временное сглаживание кадров. 0 = резкое мерцание, 255 = медленное свечение. Оптимальный диапазон 30–80.':'Temporal blend per frame. 0 = sharp flicker, 255 = slow soft glow. Sweet spot 30–80.';
  document.getElementById('mt10').textContent=ru?'Тема цвета':'Color Theme';
- document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (глубокий тёмно-красный), Плазма (пурпурно-белый), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
+ document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (тёмно-красный), Плазма (пурпурный), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
  document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
- document.getElementById('md11').textContent=ru?'До 4 наборов параметров. Нажмите + чтобы сохранить текущие настройки. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы переименовать или перезаписать.':'Up to 4 parameter sets. Tap + to save current settings. Tap a filled slot to load. Long-press to rename or overwrite.';
+ document.getElementById('md11').textContent=ru?'До 4 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы переименовать или удалить.':'Up to 4 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to rename or delete.';
+ var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';
+ dynAll();
 }
 ul();
 document.getElementById('ibtn').onclick=function(){document.getElementById('mod').classList.add('show')};
 document.getElementById('mcls').onclick=function(){document.getElementById('mod').classList.remove('show')};
 document.getElementById('len').onclick=function(){ru=false;localStorage.setItem('lang','en');ul();};
 document.getElementById('lru').onclick=function(){ru=true;localStorage.setItem('lang','ru');ul();};
-function pb(n){n=Math.max(0,Math.min(100,n|0));vb.textContent=n;sb.value=n;R.style.setProperty('--b',n);document.body.classList.toggle('off',n===0)}
-function pc(n){n=Math.max(0,Math.min(100,n|0));vc.textContent=n;sc.value=n;}
-function pco(n){n=Math.max(20,Math.min(150,n|0));vco.textContent=n;sco.value=n;}
-function psp(n){n=Math.max(0,Math.min(255,n|0));vsp.textContent=n;ssp.value=n;}
-function pbl(n){n=Math.max(0,Math.min(255,n|0));vbl.textContent=n;sbl.value=n;}
+function pb(n){n=Math.max(0,Math.min(100,n|0));vb.textContent=n;sb.value=n;R.style.setProperty('--b',n);document.body.classList.toggle('off',n===0);dynDesc('sb',n);}
+function pc(n){n=Math.max(0,Math.min(100,n|0));vc.textContent=n;sc.value=n;dynDesc('sc',n);}
+function pco(n){n=Math.max(20,Math.min(150,n|0));vco.textContent=n;sco.value=n;dynDesc('sco',n);}
+function psp(n){n=Math.max(0,Math.min(255,n|0));vsp.textContent=n;ssp.value=n;dynDesc('ssp',n);}
+function pbl(n){n=Math.max(0,Math.min(255,n|0));vbl.textContent=n;sbl.value=n;dynDesc('sbl',n);}
 function pth(n){[0,1,2,3].forEach(function(i){document.getElementById('tb'+i).classList.toggle('act',i===n);});}
-function pull(){fetch('/state').then(r=>r.json()).then(x=>{pb(x.b);pc(x.c);pco(x.co);psp(x.sp);if(x.bl!==undefined)pbl(x.bl);if(x.th!==undefined)pth(x.th);if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}}).catch(()=>{})}
+function pull(){fetch('/state').then(r=>r.json()).then(x=>{
+  pullFails=0;hideOffline();
+  pb(x.b);pc(x.c);pco(x.co);psp(x.sp);
+  if(x.bl!==undefined)pbl(x.bl);
+  if(x.th!==undefined)pth(x.th);
+  if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
+  if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
+}).catch(()=>{pullFails++;if(pullFails>=3)showOffline();});}
 sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){xf('/setb?v='+sb.value)},120);clearActive();});
 sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){xf('/setc?v='+sc.value)},120);clearActive();});
 sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){xf('/setco?v='+sco.value)},120);clearActive();});
@@ -194,6 +255,7 @@ var presets=[{},{},{},{}],activePreset=-1;
 function updPresetBtns(){presets.forEach(function(pr,i){var b=document.getElementById('pr'+i);if(pr.name){b.textContent=pr.name;b.classList.add('filled');}else{b.textContent='+';b.classList.remove('filled');}b.classList.toggle('act',i===activePreset);});}
 function clearActive(){activePreset=-1;updPresetBtns();}
 function fetchPresets(){fetch('/getpresets').then(r=>r.json()).then(function(d){presets=d;updPresetBtns();}).catch(function(){});}
+function deletePreset(s){xf('/deletepreset?slot='+s).then(function(){if(activePreset===s)activePreset=-1;fetchPresets();}).catch(function(){});}
 var pendingSlot=-1;
 function saveSlot(s){
   pendingSlot=s;
@@ -215,7 +277,13 @@ document.getElementById('precancel').onclick=cancelSave;
 document.getElementById('prename').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSave();}if(e.key==='Escape')cancelSave();});
 [0,1,2,3].forEach(function(s){
   var b=document.getElementById('pr'+s),pt=null;
-  function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(function(){pt=null;if(navigator.vibrate)navigator.vibrate(40);b.classList.add('shk');setTimeout(function(){b.classList.remove('shk');},250);saveSlot(s);},600);}
+  function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(function(){pt=null;if(navigator.vibrate)navigator.vibrate(40);b.classList.add('shk');setTimeout(function(){b.classList.remove('shk');},250);
+    if(presets[s]&&presets[s].name){
+      showSheet(presets[s].name,ru?'Выберите действие:':'Choose an action:',
+        [{label:ru?'Переименовать / перезаписать':'Rename / Overwrite',fn:function(){saveSlot(s);}},
+         {label:ru?'Удалить пресет':'Delete preset',cls:'danger',fn:function(){deletePreset(s);}}]);
+    }else saveSlot(s);
+  },600);}
   function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(r=>r.json()).then(function(x){pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);activePreset=s;updPresetBtns();}).catch(function(){});}else saveSlot(s);}}
   b.addEventListener('touchstart',onStart,{passive:false});
   b.addEventListener('touchend',onEnd,{passive:false});
@@ -226,8 +294,11 @@ document.getElementById('prename').addEventListener('keydown',function(e){if(e.k
 });
 fetchPresets();
 document.getElementById('rwifi').onclick=function(){
-  if(confirm(ru?'Сбросить настройки Wi-Fi?\nЛампа перезагрузится в режим настройки.\nПодключитесь к сети "FireLamp-Setup" и откройте 192.168.4.1':'Reset WiFi credentials?\nThe lamp will reboot into setup mode.\nConnect to "FireLamp-Setup" and open 192.168.4.1'))
-    {var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;xf('/resetwifi').catch(function(){});}
+  showSheet(ru?'Сменить сеть Wi-Fi':'Reset WiFi',
+    ru?'Лампа перезагрузится в режим настройки. Подключитесь к "FireLamp-Setup" и откройте 192.168.4.1':'Lamp will reboot into setup mode. Connect to "FireLamp-Setup" and open 192.168.4.1',
+    [{label:ru?'Сбросить и перезагрузить':'Reset and Reboot',cls:'danger',fn:function(){
+      var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;xf('/resetwifi').catch(function(){});
+    }}]);
 };
 function startOTA(){
   clearInterval(pollTid);
@@ -273,8 +344,10 @@ document.getElementById('chk').onclick=function(){
     if(x.update_available){
       btn.textContent=ru?'Установить обновление ↑':'Install Update ↑';
       btn.style.borderColor='#16a34a';btn.style.color='#4ade80';btn.disabled=false;
-      btn.onclick=function(){if(confirm(ru?'Начать обновление? Лампа перезагрузится.':'Install update? The lamp will reboot.'))startOTA();};
-    } else {
+      btn.onclick=function(){showSheet(ru?'Установить обновление?':'Install Update?',
+        ru?'Лампа перезагрузится автоматически после прошивки.':'The lamp will reboot automatically after flashing.',
+        [{label:ru?'Установить':'Install',cls:'primary',fn:startOTA}]);};
+    }else{
       btn.textContent=ru?'Версия актуальна ✓':'Up to date ✓';btn.style.color='#4ade80';
       setTimeout(function(){btn.textContent=ru?'Проверить обновления':'Check for Update';btn.style.color='#60a5fa';btn.disabled=false;},3000);
     }
