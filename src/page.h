@@ -387,7 +387,7 @@ function askAI(){
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({contents:[{parts:[{text:pr}]}],generationConfig:{temperature:1.3,maxOutputTokens:80}})
   }).then(function(r){return r.json();}).then(function(resp){
-    if(resp.error)throw new Error(resp.error.message||'api error');
+    if(resp.error){var code=resp.error.code||0;if(code===429)throw new Error('rate_limit');if(code===400||code===401||code===403)throw new Error('bad_key');throw new Error(resp.error.message||'api error');}
     var txt=((resp.candidates||[])[0]||{}).content&&resp.candidates[0].content.parts&&resp.candidates[0].content.parts[0]&&resp.candidates[0].content.parts[0].text||'';
     var m=txt.match(/\{[\s\S]*?\}/);if(!m)throw new Error('no json in response');
     var x=JSON.parse(m[0]);
@@ -403,7 +403,10 @@ function askAI(){
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
-    nm.style.color='#ef4444';nm.textContent=ru?'⚠ Ошибка — проверьте ключ API':'⚠ Error — check your API key';
+    var msg=e.message==='rate_limit'?(ru?'⚠ Лимит — подождите минуту':'⚠ Rate limit — wait a moment')
+      :e.message==='bad_key'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
+      :(ru?'⚠ Ошибка сети':'⚠ Network error');
+    nm.style.color='#ef4444';nm.textContent=msg;
     setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);
   });
 }
