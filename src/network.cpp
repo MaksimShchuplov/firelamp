@@ -470,8 +470,11 @@ static void handleSurprise() {
     http.end();
 
     // Extract text field from Gemini JSON, unescaping \" → " to recover our inner JSON object.
-    int ti = resp.indexOf("\"text\":\"");
+    // Use lastIndexOf: thinking models (gemini-2.5-flash) may prepend a "thought":true part
+    // with its own "text" field before the actual response part. The output text is always last.
+    int ti = resp.lastIndexOf("\"text\":\"");
     if (ti < 0) {
+        LOG_WARN("Gemini: no \"text\" field found. HTTP %d, body len %d", code, resp.length());
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
     ti += 8;
@@ -498,6 +501,8 @@ static void handleSurprise() {
         }
     }
     if (inner.length() < 10) {
+        LOG_WARN("Gemini: inner JSON too short (%d chars). Partial resp: %.200s",
+                 inner.length(), resp.c_str());
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
 
@@ -512,6 +517,7 @@ static void handleSurprise() {
         String s = String("\"") + fld + "\":";
         int i = inner.indexOf(s); if (i < 0) return -1;
         i += s.length();
+        while (i < (int)inner.length() && inner[i] == ' ') i++;  // tolerate "key": value spacing
         int e = i;
         while (e < (int)inner.length() && (isdigit((unsigned char)inner[e]) || (e == i && inner[e] == '-'))) e++;
         return (e > i) ? inner.substring(i, e).toInt() : -1;
@@ -521,6 +527,8 @@ static void handleSurprise() {
     int b  = exNum("b"),  cv = exNum("c"),  co = exNum("co");
     int sp = exNum("sp"), bl = exNum("bl"), th = exNum("th");
     if (name.length() == 0 || b < 0) {
+        LOG_WARN("Gemini: missing fields in inner JSON: name=\"%s\" b=%d. inner: %.120s",
+                 name.c_str(), b, inner.c_str());
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
 
