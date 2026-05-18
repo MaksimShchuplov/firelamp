@@ -429,7 +429,23 @@ static void handleSurprise() {
         server.send(400, "application/json", "{\"error\":\"no_key\"}"); return;
     }
 
-    static const char kPrompt[] =
+    static const char * const kScenes[] = {
+        "midnight thunderstorm", "arctic tundra", "volcanic eruption", "deep ocean abyss",
+        "northern lights aurora", "dying campfire", "neon city rain", "solar flare",
+        "haunted forest", "candlelit cathedral", "desert mirage", "lava field at dusk",
+        "bioluminescent cave", "blizzard whiteout", "ember meditation"
+    };
+    const char *scene = kScenes[random8(15)];
+
+    static const char * const kThemeNames[] = {"Fire", "Ember", "Plasma", "Ice"};
+    char curState[80];
+    snprintf(curState, sizeof(curState),
+             "Currently: b=%d c=%d co=%d sp=%d bl=%d th=%d(%s). Make something strikingly different.",
+             (int)uiBright, (int)uiContrast, (int)uiCooling,
+             (int)uiSparking, (int)uiBlend, (int)uiTheme,
+             kThemeNames[(int)uiTheme < 4 ? (int)uiTheme : 0]);
+
+    static const char kPromptBase[] =
         "You design fire effects for an 800-LED cylinder lamp (20 col \xc3\x97 40 rows, WS2812B). "
         "The LED cylinder is 125 mm diameter 1260 mm tall, inside a frosted glass globe 190 mm wide "
         "1380 mm tall \xe2\x80\x94 like a giant floor lamp. Frosted glass diffuses light beautifully.\n"
@@ -440,14 +456,16 @@ static void handleSurprise() {
         "sp = sparking 0-255 (0=calm smoldering, 36=steady flame, 160=active fire, 255=raging inferno)\n"
         "bl = temporal blend 0-255 (0=sharp flicker, 50=natural fire, 200=slow motion, 255=frozen glow; sweet spot 30-80)\n"
         "th = theme 0-3 (0=Fire red/orange/white, 1=Ember deep dark red, 2=Plasma purple/magenta/white, 3=Ice blue/cyan/white)\n"
-        "Create unusual, evocative, coherent combinations. Name max 12 chars. "
+        "Create an unusual, evocative effect inspired by the scene: ";
+
+    String prompt = String(kPromptBase) + scene + ". " + curState + " Name max 12 chars. "
         "Respond ONLY with valid JSON, no markdown: "
         "{\"name\":\"...\",\"b\":N,\"c\":N,\"co\":N,\"sp\":N,\"bl\":N,\"th\":N}";
 
     String body =
-        String("{\"contents\":[{\"parts\":[{\"text\":\"") + jsonEscape(String(kPrompt)) +
-        "\"}]}],\"generationConfig\":{\"temperature\":1.0,\"maxOutputTokens\":300,"
-        "\"thinkingConfig\":{\"thinkingBudget\":0}}}";  // temperature 1.0: creative but format-stable
+        String("{\"contents\":[{\"parts\":[{\"text\":\"") + jsonEscape(prompt) +
+        "\"}]}],\"generationConfig\":{\"temperature\":1.5,\"maxOutputTokens\":300,"
+        "\"thinkingConfig\":{\"thinkingBudget\":0}}}";
 
     WiFiClientSecure client;
     client.setInsecure();
