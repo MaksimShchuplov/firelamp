@@ -385,7 +385,7 @@ function askAI(){
   btn.disabled=true;btn.textContent=ru?'✨ Думаю...':'✨ Thinking...';nm.style.color='#fbbf24';nm.textContent='';
   var pr='You design fire effects for an 800-LED cylinder lamp (20 col × 40 rows, WS2812B). The LED cylinder is 125 mm in diameter and 1260 mm tall, housed inside a frosted glass globe 190 mm wide and 1380 mm tall — like a giant floor lamp. The frosted globe softens and diffuses the light, so subtle colour gradients and slow transitions read beautifully, while sharp high-contrast effects also work well. Pick creative unusual values: b=brightness 0-100, c=contrast 0-100, co=cooling 20-150, sp=sparking 0-255, bl=blend 0-255, th=theme 0-3 (0=Fire 1=Ember 2=Plasma 3=Ice). Give the effect a short evocative name (max 12 chars). Respond with ONLY valid JSON, no markdown: {"name":"...","b":N,"c":N,"co":N,"sp":N,"bl":N,"th":N}';
   var ctrl=new AbortController(),tid=setTimeout(function(){ctrl.abort();},15000);
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+encodeURIComponent(key),{
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(key),{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({contents:[{parts:[{text:pr}]}],generationConfig:{temperature:1.3,maxOutputTokens:80}}),
     signal:ctrl.signal
