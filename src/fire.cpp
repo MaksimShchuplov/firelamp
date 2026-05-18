@@ -6,6 +6,8 @@
 //  PALETTE — heat LUT (red → orange → white-hot), double-buffered
 // =============================================================================
 
+// Called from Core 1 only (network handlers / startNetwork). Not reentrant.
+// Double-buffer + memw barrier make the palette flip safe to read from Core 0.
 void buildHeatPalette() {
     const uint8_t next  = 1 - activePal;
     const float   power = 1.0f + ((uiContrast - 50.0f) / 50.0f);
@@ -68,7 +70,9 @@ void setBright(int v) {
         uiBright   = (uint8_t)v;
         prefsDirty = true;
         prefsTouch = millis();
-        applyBrightness();
+        // applyBrightness() is called at the top of fireEffect() on Core 0,
+        // so the change takes effect within one frame (~25 ms) without
+        // crossing core boundaries into FastLED's global state.
     }
 }
 
@@ -105,6 +109,8 @@ void updatePowerCalc() {
 }
 
 void fireEffect() {
+    applyBrightness();  // runs on Core 0, safe alongside FastLED.show()
+
     // 1. Cooling
     for (int y = 0; y < ROWS; y++) {
         const uint8_t cmax = coolMax[y];

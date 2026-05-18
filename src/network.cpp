@@ -73,12 +73,16 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
 
 static String jsonEscape(const String &s) {
     String r;
-    r.reserve(s.length() + 4);
+    r.reserve(s.length() + 8);
     for (unsigned i = 0; i < s.length(); i++) {
         char c = s[i];
-        if      (c == '"')  r += "\\\"";
-        else if (c == '\\') r += "\\\\";
-        else                r += c;
+        if      (c == '"')          r += "\\\"";
+        else if (c == '\\')         r += "\\\\";
+        else if (c == '\n')         r += "\\n";
+        else if (c == '\r')         r += "\\r";
+        else if (c == '\t')         r += "\\t";
+        else if ((uint8_t)c < 0x20) { /* skip other control characters */ }
+        else                        r += c;
     }
     return r;
 }
@@ -99,6 +103,7 @@ static bool isWebRequest() {
 static bool parseIntArg(const char *name, int lo, int hi, int &out) {
     if (!server.hasArg(name)) return false;
     const String &s = server.arg(name);
+    if (s.isEmpty()) return false;
     // Reject obviously non-numeric strings before toInt() silently returns 0.
     bool hasDigit = false;
     for (unsigned i = (s[0] == '-') ? 1 : 0; i < s.length(); i++)
@@ -113,6 +118,8 @@ static bool parseIntArg(const char *name, int lo, int hi, int &out) {
 static void handleRoot() {
     server.sendHeader("X-Content-Type-Options", "nosniff");
     server.sendHeader("X-Frame-Options", "SAMEORIGIN");
+    server.sendHeader("Content-Security-Policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'");
     server.setContentLength(CONTENT_LENGTH_UNKNOWN);
     server.send(200, "text/html", "");
     server.sendContent_P(PAGE);
@@ -202,10 +209,13 @@ static void handleGetPresets() {
 
 static void handleSavePreset() {
     if (!isWebRequest()) return;
-    if (!server.hasArg("slot") || !server.hasArg("name")) {
+    if (!server.hasArg("name")) {
         server.send(400, "application/json", "{\"error\":\"missing params\"}"); return;
     }
-    int slot = constrain(server.arg("slot").toInt(), 0, PRESET_COUNT - 1);
+    int slot;
+    if (!parseIntArg("slot", 0, PRESET_COUNT - 1, slot)) {
+        server.send(400, "application/json", "{\"error\":\"invalid slot\"}"); return;
+    }
     String name = server.arg("name");
     name.trim();
     if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
@@ -227,10 +237,10 @@ static void handleSavePreset() {
 
 static void handleLoadPreset() {
     if (!isWebRequest()) return;
-    if (!server.hasArg("slot")) {
-        server.send(400, "application/json", "{\"error\":\"missing slot\"}"); return;
+    int slot;
+    if (!parseIntArg("slot", 0, PRESET_COUNT - 1, slot)) {
+        server.send(400, "application/json", "{\"error\":\"invalid slot\"}"); return;
     }
-    int slot = constrain(server.arg("slot").toInt(), 0, PRESET_COUNT - 1);
     Preferences p;
     p.begin("presets", true);
     char k[6];
@@ -245,7 +255,7 @@ static void handleLoadPreset() {
         *kPPtr[j] = p.getUChar(k, kPDef[j]);
     }
     p.end();
-    applyBrightness(); buildHeatPalette(); recalcCooling(); updatePowerCalc();
+    buildHeatPalette(); recalcCooling(); updatePowerCalc();
     prefsDirty = true; prefsTouch = millis();
     sendVal();
 }
@@ -276,7 +286,7 @@ static void handleReset() {
     uiBright = BRIGHT_DEFAULT; uiContrast = CONTRAST_DEFAULT;
     uiCooling = COOLING_DEFAULT; uiSparking = SPARKING_DEFAULT;
     uiBlend = BLEND_DEFAULT; uiTheme = THEME_DEFAULT;
-    applyBrightness(); buildHeatPalette(); recalcCooling();
+    buildHeatPalette(); recalcCooling();
     prefsDirty = true; prefsTouch = millis();
     updatePowerCalc(); sendVal();
 }
@@ -364,10 +374,10 @@ static void handleDebug() {
 
 static void handleDeletePreset() {
     if (!isWebRequest()) return;
-    if (!server.hasArg("slot")) {
-        server.send(400, "application/json", "{\"error\":\"missing slot\"}"); return;
+    int slot;
+    if (!parseIntArg("slot", 0, PRESET_COUNT - 1, slot)) {
+        server.send(400, "application/json", "{\"error\":\"invalid slot\"}"); return;
     }
-    int slot = constrain(server.arg("slot").toInt(), 0, PRESET_COUNT - 1);
     Preferences p;
     p.begin("presets", false);
     char k[6];
@@ -404,6 +414,8 @@ static void autoUpdateCheck(void *) {
 
 void startNetwork() {
     prefs.begin("lamp", false);
+    // "bright2": key was renamed from "bright" after gamma curve change to force
+    // NVS re-read on existing devices; keep as-is to preserve settings in the field.
     uiBright   = prefs.getUChar("bright2",  BRIGHT_DEFAULT);
     uiContrast = prefs.getUChar("contrast", CONTRAST_DEFAULT);
     uiCooling  = prefs.getUChar("cooling",  COOLING_DEFAULT);
@@ -444,7 +456,8 @@ void startNetwork() {
     if (wm.autoConnect(WIFI_PORTAL_SSID)) {
         LOG_INFO("UI: http://%s.local  |  http://%s", MDNS_NAME, WiFi.localIP().toString().c_str());
         if (MDNS.begin(MDNS_NAME)) MDNS.addService("http", "tcp", 80);
-        xTaskCreate(autoUpdateCheck, "UpdChk", 8192, NULL, 1, NULL);
+        if (xTaskCreate(autoUpdateCheck, "UpdChk", 8192, NULL, 1, NULL) != pdPASS)
+            LOG_WARN("autoUpdateCheck task not created — OTA badge disabled");
     } else {
         LOG_WARN("WiFi not configured — connect to \"%s\"", WIFI_PORTAL_SSID);
     }

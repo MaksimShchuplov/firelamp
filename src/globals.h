@@ -16,10 +16,12 @@ extern CRGB             heatPalette[2][256];
 extern volatile uint8_t activePal;
 
 // ---- Wind state ------------------------------------------------------------
+// windDir, windTarget, lastWindChange are accessed exclusively from LEDTask (Core 0).
+// Do NOT read or write them from Core 1 network handlers without a mutex.
 extern float             windDir[ROWS];
 extern float             windTarget[ROWS];
 extern volatile uint8_t  coolMax[ROWS];   // written Core 1 (recalcCooling), read Core 0
-extern uint32_t          lastWindChange;
+extern uint32_t          lastWindChange;  // LEDTask-only
 
 // ---- Shared singletons -----------------------------------------------------
 extern WebServer   server;
