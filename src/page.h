@@ -271,7 +271,7 @@ sbl.addEventListener('input',function(){pbl(+sbl.value);clearTimeout(t6);t6=setT
 document.getElementById('rst').onclick=function(){xf('/reset').then(pull);clearActive();};
 var presets=[{},{},{},{},{},{},{},{}],activePreset=-1;
 function updPresetBtns(){presets.forEach(function(pr,i){var b=document.getElementById('pr'+i);if(pr.name){b.textContent=pr.name;b.classList.add('filled');}else{b.textContent='+';b.classList.remove('filled');}b.classList.toggle('act',i===activePreset);});}
-function clearActive(){activePreset=-1;lastAiName='';updPresetBtns();}
+function clearActive(){activePreset=-1;lastAiName='';document.getElementById('ainame').textContent='';updPresetBtns();}
 function fetchPresets(){fetch('/getpresets').then(r=>r.json()).then(function(d){presets=d;updPresetBtns();}).catch(function(){});}
 function deletePreset(s){xf('/deletepreset?slot='+s).then(function(){if(activePreset===s)activePreset=-1;fetchPresets();}).catch(function(){});}
 var pendingSlot=-1,lastAiName='';
