@@ -25,11 +25,11 @@ void sendVal() {
 // by the MD5 hash embedded in version.json (checked by Update.setMD5 before flashing).
 // To enable full TLS verification, replace setInsecure() with setCACert() pointing to
 // GitHub's root CA (DigiCert Global Root CA / G2) stored in a separate header.
-static bool fetchVersionInfo(String &ver, String &md5) {
+static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     static String   s_ver, s_md5;
-    static uint32_t s_at = 0;
+    static uint32_t s_buildN = 0, s_at = 0;
     if (s_ver.length() > 0 && millis() - s_at < 60000) {
-        ver = s_ver; md5 = s_md5; return true;
+        ver = s_ver; md5 = s_md5; buildN = s_buildN; return true;
     }
     WiFiClientSecure client;
     client.setInsecure();
@@ -44,17 +44,26 @@ static bool fetchVersionInfo(String &ver, String &md5) {
     }
     String body = http.getString();
     http.end();
-    auto extract = [&](const char *key) -> String {
+    auto extractStr = [&](const char *key) -> String {
         String s = String("\"") + key + "\":\"";
         int i = body.indexOf(s); if (i < 0) return "";
         i += s.length();
         int e = body.indexOf("\"", i);
         return (e > i) ? body.substring(i, e) : "";
     };
-    ver = extract("version");
-    md5 = extract("md5");
+    auto extractNum = [&](const char *key) -> uint32_t {
+        String s = String("\"") + key + "\":";
+        int i = body.indexOf(s); if (i < 0) return 0;
+        i += s.length();
+        int e = i;
+        while (e < (int)body.length() && isdigit((unsigned char)body[e])) e++;
+        return (e > i) ? (uint32_t)body.substring(i, e).toInt() : 0;
+    };
+    ver    = extractStr("version");
+    md5    = extractStr("md5");
+    buildN = extractNum("build_n");
     if (ver.length() == 0) { LOG_WARN("version.json parse failed"); return false; }
-    s_ver = ver; s_md5 = md5; s_at = millis();
+    s_ver = ver; s_md5 = md5; s_buildN = buildN; s_at = millis();
     return true;
 }
 
@@ -274,10 +283,14 @@ static void handleReset() {
 
 static void handleCheckUpdate() {
     String ver, md5;
-    if (!fetchVersionInfo(ver, md5)) {
+    uint32_t buildN;
+    if (!fetchVersionInfo(ver, md5, buildN)) {
         server.send(503, "application/json", "{\"error\":\"fetch_failed\"}"); return;
     }
-    bool avail = (ver != String(FIRMWARE_VERSION));
+    // Compare monotonic build numbers when available (build_n > 0 means a CI build).
+    // Falls back to SHA inequality for firmware flashed locally (BUILD_N == 0).
+    bool avail = (buildN > 0 && BUILD_N > 0) ? (buildN > BUILD_N)
+                                              : (ver != String(FIRMWARE_VERSION));
     server.send(200, "application/json",
         "{\"current\":\"" FIRMWARE_VERSION "\",\"latest\":\"" + ver +
         "\",\"update_available\":" + (avail ? "true" : "false") +
@@ -287,7 +300,8 @@ static void handleCheckUpdate() {
 static void handleUpdate() {
     if (!isWebRequest()) return;
     String ver, md5;
-    if (!fetchVersionInfo(ver, md5) || md5.length() != 32) {
+    uint32_t buildN;
+    if (!fetchVersionInfo(ver, md5, buildN) || md5.length() != 32) {
         server.send(503, "application/json", "{\"error\":\"fetch_failed\"}");
         return;
     }
@@ -381,8 +395,10 @@ static void handleResetWifi() {
 static void autoUpdateCheck(void *) {
     vTaskDelay(pdMS_TO_TICKS(8000));
     String ver, md5;
-    if (fetchVersionInfo(ver, md5))
-        updatePending = (ver != String(FIRMWARE_VERSION));
+    uint32_t buildN;
+    if (fetchVersionInfo(ver, md5, buildN))
+        updatePending = (buildN > 0 && BUILD_N > 0) ? (buildN > BUILD_N)
+                                                    : (ver != String(FIRMWARE_VERSION));
     vTaskDelete(NULL);
 }
 

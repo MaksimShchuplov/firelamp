@@ -58,7 +58,7 @@ jobs:
           echo "BUILD_STAMP=${BUILD_STAMP}" >> $GITHUB_ENV
           BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           MD5=$(md5sum .pio/build/esp32s3/firmware.bin | awk '{print $1}')
-          echo "{\"version\":\"${GIT_SHA}\",\"date\":\"${BUILD_DATE}\",\"md5\":\"${MD5}\"}" > version.json
+          echo "{\"version\":\"${GIT_SHA}\",\"build_n\":${{ github.run_number }},\"date\":\"${BUILD_DATE}\",\"md5\":\"${MD5}\"}" > version.json
 
           # Changelog: commits since the previous build-* tag (or last 10 if no prior tag)
           PREV_TAG=$(git tag --list 'build-*' --sort=-creatordate | sed -n '1p')

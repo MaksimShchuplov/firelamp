@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import os
 Import("env")
 
 try:
@@ -13,5 +14,12 @@ except Exception as e:
     sha = "unknown"
     print(f"WARNING: could not read git SHA ({e}); FIRMWARE_VERSION will be 'unknown'", file=sys.stderr)
 
-env.Append(CPPDEFINES=[("FIRMWARE_VERSION", f'\\"{sha}\\"')])
-print(f"Firmware version: {sha}")
+# 0 for local builds; CI sets GITHUB_RUN_NUMBER (monotonically increasing).
+# Used to decide update availability: GitHub build_n > BUILD_N → update exists.
+build_n = int(os.environ.get('GITHUB_RUN_NUMBER', '0'))
+
+env.Append(CPPDEFINES=[
+    ("FIRMWARE_VERSION", f'\\"{sha}\\"'),
+    ("BUILD_N", build_n),
+])
+print(f"Firmware version: {sha}  build_n: {build_n}")
