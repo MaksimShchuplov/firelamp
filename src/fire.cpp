@@ -37,10 +37,9 @@ void buildHeatPalette() {
                 else                  heatPalette[next][i] = CRGB(ramp, 0, 0);
         }
     }
-    // Compiler barrier: ensure all palette stores are visible before the index flip.
-    // Core 0 snapshots activePal once per frame; the barrier prevents the compiler
-    // from moving any heatPalette[] write past this point.
-    __asm__ __volatile__("" : : : "memory");
+    // Hardware store barrier: ensures all palette stores drain to L1/L2 before the
+    // index flip is visible to Core 0. `memw` is the Xtensa LX7 instruction for this.
+    __asm__ __volatile__("memw" : : : "memory");
     activePal = next;
 }
 
