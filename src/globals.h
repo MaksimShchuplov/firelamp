@@ -45,6 +45,9 @@ extern uint32_t prefsTouch;
 extern uint32_t wifiRetryAt;
 extern uint32_t lastPowerCalc;
 
+// ---- Task handles ----------------------------------------------------------
+extern TaskHandle_t ledTaskHandle;   // set in setup(); used for stack watermark queries
+
 // ---- Structured logging ----------------------------------------------------
 // All log output includes a millisecond timestamp so serial captures are
 // trivially grep-able for [ERROR] / [WARN] even without an RTC.

@@ -35,6 +35,8 @@ volatile uint8_t appliedRaw   = 0;
 volatile uint32_t currentPowerMw = 0;
 volatile bool    updatePending = false;
 
+TaskHandle_t ledTaskHandle = NULL;
+
 bool     prefsDirty  = false;
 uint32_t prefsTouch  = 0;
 uint32_t wifiRetryAt = 0;
@@ -75,7 +77,7 @@ void setup() {
                 vTaskDelay(pdMS_TO_TICKS(1));
             }
         },
-        "LEDTask", LEDTASK_STACK_BYTES, NULL, 1, NULL, 0   // pinned to Core 0
+        "LEDTask", LEDTASK_STACK_BYTES, NULL, 1, &ledTaskHandle, 0   // pinned to Core 0
     );
     if (ok != pdPASS) {
         LOG_ERROR("LEDTask creation failed — rebooting");

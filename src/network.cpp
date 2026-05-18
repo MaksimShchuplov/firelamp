@@ -292,18 +292,47 @@ static void handleUpdate() {
 }
 
 static void handleInfo() {
-    char j[320];
-    String ip = WiFi.localIP().toString();
+    char j[384];
+    String ip   = WiFi.localIP().toString();
+    String ssid = WiFi.SSID();
+    uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
     snprintf(j, sizeof(j),
              "{\"flash_mb\":%u,\"free_heap\":%u,\"min_heap\":%u,"
-             "\"rssi_dbm\":%d,\"uptime_s\":%lu,\"ip\":\"%s\","
+             "\"rssi_dbm\":%d,\"uptime_s\":%lu,\"ip\":\"%s\",\"ssid\":\"%s\","
+             "\"led_stack_free\":%lu,"
              "\"version\":\"" FIRMWARE_VERSION "\",\"build\":\"" __DATE__ " " __TIME__ "\"}",
              (unsigned)(ESP.getFlashChipSize() / (1024 * 1024)),
              (unsigned)ESP.getFreeHeap(),
              (unsigned)ESP.getMinFreeHeap(),
              (int)WiFi.RSSI(),
              (unsigned long)(millis() / 1000),
-             ip.c_str());
+             ip.c_str(), ssid.c_str(),
+             (unsigned long)watermark);
+    server.send(200, "application/json", j);
+}
+
+static void handleDebug() {
+    char j[512];
+    uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
+    String   ssid      = WiFi.SSID();
+    String   ip        = WiFi.localIP().toString();
+    snprintf(j, sizeof(j),
+             "{\"uptime_s\":%lu,\"free_heap\":%u,\"min_heap\":%u,"
+             "\"led_stack_free\":%lu,\"task_count\":%u,"
+             "\"rssi_dbm\":%d,\"ssid\":\"%s\",\"ip\":\"%s\","
+             "\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"bl\":%d,\"th\":%d,"
+             "\"bright_raw\":%d,\"power_mw\":%lu,\"upd\":%d,"
+             "\"version\":\"" FIRMWARE_VERSION "\"}",
+             (unsigned long)(millis() / 1000),
+             (unsigned)ESP.getFreeHeap(),
+             (unsigned)ESP.getMinFreeHeap(),
+             (unsigned long)watermark,
+             (unsigned)uxTaskGetNumberOfTasks(),
+             (int)WiFi.RSSI(), ssid.c_str(), ip.c_str(),
+             (int)uiBright, (int)uiContrast, (int)uiCooling,
+             (int)uiSparking, (int)uiBlend, (int)uiTheme,
+             (int)appliedRaw, (unsigned long)currentPowerMw,
+             updatePending ? 1 : 0);
     server.send(200, "application/json", j);
 }
 
@@ -353,6 +382,14 @@ void startNetwork() {
     uiSparking = prefs.getUChar("sparking", SPARKING_DEFAULT);
     uiBlend    = prefs.getUChar("blend",    BLEND_DEFAULT);
     uiTheme    = prefs.getUChar("theme",    THEME_DEFAULT);
+    // Sanity-clamp in case NVS held out-of-range bytes from a corrupt write
+    // or a downgrade from a future firmware with wider parameter ranges.
+    uiBright   = constrain(uiBright,   0,   100);
+    uiContrast = constrain(uiContrast, 0,   100);
+    uiCooling  = constrain(uiCooling,  20,  150);
+    uiSparking = constrain(uiSparking, 0,   255);
+    uiBlend    = constrain(uiBlend,    0,   255);
+    uiTheme    = constrain(uiTheme,    0,   THEME_COUNT - 1);
     applyBrightness();
     buildHeatPalette();
     recalcCooling();
@@ -399,6 +436,7 @@ void startNetwork() {
     server.on("/checkupdate", handleCheckUpdate);
     server.on("/update",      handleUpdate);
     server.on("/info",        handleInfo);
+    server.on("/debug",       handleDebug);
     server.on("/deletepreset",handleDeletePreset);
     server.on("/resetwifi",   handleResetWifi);
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });

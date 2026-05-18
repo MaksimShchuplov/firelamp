@@ -215,13 +215,13 @@ function ul(){
  document.getElementById('mt7').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
  document.getElementById('md7').textContent=ru?'Удаляет сохранённые данные сети и перезагружает лампу в режим настройки. Подключитесь к "FireLamp-Setup" и откройте 192.168.4.1 чтобы выбрать новую сеть.':'Clears saved Wi-Fi credentials and reboots into setup mode. Connect to "FireLamp-Setup" and open 192.168.4.1 to choose a new network.';
  document.getElementById('mt8').textContent=ru?'Потребление':'Power';
- document.getElementById('md8').textContent=ru?'Расчётное потребление в ваттах на основе текущего цвета и яркости каждого светодиода. Обновляется каждые 4 секунды.':'Estimated power draw in watts based on the current colour and brightness of each LED. Updates every 4 seconds.';
+ document.getElementById('md8').textContent=ru?'Расчётное потребление в ваттах на основе текущего цвета и яркости каждого светодиода. Обновляется каждые 8 секунд.':'Estimated power draw in watts based on the current colour and brightness of each LED. Updates every 8 seconds.';
  document.getElementById('mt9').textContent=ru?'Плавность':'Blend';
  document.getElementById('md9').textContent=ru?'Временное сглаживание кадров. 0 = резкое мерцание, 255 = медленное свечение. Оптимальный диапазон 30–80.':'Temporal blend per frame. 0 = sharp flicker, 255 = slow soft glow. Sweet spot 30–80.';
  document.getElementById('mt10').textContent=ru?'Тема цвета':'Color Theme';
  document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (тёмно-красный), Плазма (пурпурный), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
  document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
- document.getElementById('md11').textContent=ru?'До 8 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы переименовать или удалить.':'Up to 8 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to rename or delete.';
+ document.getElementById('md11').textContent=ru?'До 8 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы сохранить в слот или удалить.':'Up to 8 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to save or delete.';
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';
  dynAll();
 }
@@ -280,7 +280,7 @@ document.getElementById('prename').addEventListener('keydown',function(e){if(e.k
   function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(function(){pt=null;if(navigator.vibrate)navigator.vibrate(40);b.classList.add('shk');setTimeout(function(){b.classList.remove('shk');},250);
     if(presets[s]&&presets[s].name){
       showSheet(presets[s].name,ru?'Выберите действие:':'Choose an action:',
-        [{label:ru?'Переименовать / перезаписать':'Rename / Overwrite',fn:function(){saveSlot(s);}},
+        [{label:ru?'Сохранить в этот слот':'Save to this slot',fn:function(){saveSlot(s);}},
          {label:ru?'Удалить пресет':'Delete preset',cls:'danger',fn:function(){deletePreset(s);}}]);
     }else saveSlot(s);
   },600);}
@@ -353,5 +353,5 @@ document.getElementById('chk').onclick=function(){
     }
   }).catch(function(){btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;});
 };
-pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},4000);
+pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},8000);
 </script></body></html>)HTML";
