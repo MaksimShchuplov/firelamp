@@ -515,10 +515,15 @@ static void handleSurprise() {
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
 
+    // Both helpers skip optional whitespace after ':' so they work with
+    // compact ("key":"val") and pretty-printed ("key": "val") inner JSON.
     auto exStr = [&](const char *fld) -> String {
-        String s = String("\"") + fld + "\":\"";
+        String s = String("\"") + fld + "\":";
         int i = inner.indexOf(s); if (i < 0) return "";
         i += s.length();
+        while (i < (int)inner.length() && inner[i] == ' ') i++;
+        if (i >= (int)inner.length() || inner[i] != '"') return "";
+        i++;
         int e = inner.indexOf("\"", i);
         return (e > i) ? inner.substring(i, e) : "";
     };
@@ -526,6 +531,7 @@ static void handleSurprise() {
         String s = String("\"") + fld + "\":";
         int i = inner.indexOf(s); if (i < 0) return -1;
         i += s.length();
+        while (i < (int)inner.length() && inner[i] == ' ') i++;
         int e = i;
         while (e < (int)inner.length() && (isdigit((unsigned char)inner[e]) || (e == i && inner[e] == '-'))) e++;
         return (e > i) ? inner.substring(i, e).toInt() : -1;
