@@ -375,7 +375,7 @@ document.getElementById('chk').onclick=function(){
   var btn=document.getElementById('chk');
   btn.textContent=ru?'Проверка...':'Checking...';
   btn.disabled=true;
-  fetch('/checkupdate').then(r=>r.json()).then(x=>{
+  xf('/checkupdate').then(r=>r.json()).then(x=>{
     document.getElementById('vinfo').textContent=(ru?'Текущая: ':'Current: ')+x.current+' → GitHub: '+x.latest;
     if(x.update_available){
       btn.textContent=ru?'Установить обновление ↑':'Install Update ↑';
@@ -425,6 +425,7 @@ function askAI(){
       :e.message==='rate_limit'?(ru?'⚠ Лимит — подождите минуту':'⚠ Rate limit — wait a moment')
       :e.message==='bad_key'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
       :e.message==='parse_failed'?(ru?'⚠ Ошибка ответа AI':'⚠ AI response error')
+      :e.message==='fetch_failed'?(ru?'⚠ Нет связи':'⚠ Connection failed')
       :(ru?'⚠ Ошибка':'⚠ Error');
     nm.style.color='#ef4444';nm.textContent=msg;
     setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);

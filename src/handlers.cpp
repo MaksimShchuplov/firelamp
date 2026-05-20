@@ -154,6 +154,7 @@ static void handleSetTheme() {
             buildHeatPalette();
             markDirty();
         }
+        updatePowerCalc();
     }
     sendVal();
 }

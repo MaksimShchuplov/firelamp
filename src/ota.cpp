@@ -62,6 +62,7 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
 }
 
 static void handleCheckUpdate() {
+    if (!isWebRequest()) return;
     String ver, md5;
     uint32_t buildN;
     if (!fetchVersionInfo(ver, md5, buildN)) {
