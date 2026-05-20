@@ -517,11 +517,13 @@ static void handleSurprise() {
     client.setInsecure();
     HTTPClient http;
     http.setTimeout(GEMINI_TIMEOUT_MS);
-    // Pass the key as Authorization header rather than a URL query parameter so
+    // Pass the key via x-goog-api-key header rather than a URL query parameter so
     // it does not appear in ESP-IDF HTTP debug logs or server-side access logs.
+    // Note: Authorization: Bearer is for OAuth2 tokens; x-goog-api-key is the
+    // correct header for Google API keys.
     http.begin(client, "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
     http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", String("Bearer ") + apiKey);
+    http.addHeader("x-goog-api-key", apiKey);
     int code = http.POST(body);
     if (code <= 0) {
         http.end(); server.send(503, "application/json", "{\"error\":\"fetch_failed\"}"); return;
