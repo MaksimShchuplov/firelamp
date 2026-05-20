@@ -28,9 +28,14 @@ void sendVal() {
 static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     static String   s_ver, s_md5;
     static uint32_t s_buildN = 0, s_at = 0;
+    static bool     s_busy = false;
     if (s_ver.length() > 0 && millis() - s_at < 60000) {
         ver = s_ver; md5 = s_md5; buildN = s_buildN; return true;
     }
+    // Guard against re-entrant calls from autoUpdateCheck task and HTTP handlers
+    // running on the same core under preemptive FreeRTOS scheduling.
+    if (s_busy) return false;
+    s_busy = true;
     WiFiClientSecure client;
     client.setInsecure();
     HTTPClient http;
@@ -40,7 +45,7 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     int code = http.GET();
     if (code != 200) {
         LOG_WARN("version fetch returned HTTP %d", code);
-        http.end(); return false;
+        http.end(); s_busy = false; return false;
     }
     String body = http.getString();
     http.end();
@@ -62,8 +67,9 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     ver    = extractStr("version");
     md5    = extractStr("md5");
     buildN = extractNum("build_n");
-    if (ver.length() == 0) { LOG_WARN("version.json parse failed"); return false; }
+    if (ver.length() == 0) { LOG_WARN("version.json parse failed"); s_busy = false; return false; }
     s_ver = ver; s_md5 = md5; s_buildN = buildN; s_at = millis();
+    s_busy = false;
     return true;
 }
 
@@ -177,33 +183,42 @@ static const uint8_t      kPDef[]= {BRIGHT_DEFAULT, CONTRAST_DEFAULT, COOLING_DE
                                      SPARKING_DEFAULT, BLEND_DEFAULT, THEME_DEFAULT};
 
 static void handleGetPresets() {
+    // buf fits worst case: 8 slots × ~88 chars + delimiters ≈ 650 bytes.
+    // 1024 gives 1.5× headroom for escaped names and future fields.
+    char buf[1024];
+    int  len = 0;
+    // gpcat / gpfmt: safe helpers that clamp len so direct writes and
+    // snprintf calls can never escape the buffer regardless of data size.
+#define GPCAT(c) do { if (len < (int)sizeof(buf) - 1) buf[len++] = (c); } while (0)
+#define GPFMT(...) do { \
+        int _w = snprintf(buf + len, (int)sizeof(buf) - len, __VA_ARGS__); \
+        if (_w > 0) len += (_w < (int)sizeof(buf) - len) ? _w : (int)sizeof(buf) - len - 1; \
+    } while (0)
     Preferences p;
     p.begin("presets", true);
-    char buf[900];
-    int  len = 0;
-    buf[len++] = '[';
+    GPCAT('[');
     for (int i = 0; i < PRESET_COUNT; i++) {
         char k[6];
-        if (i > 0) buf[len++] = ',';
+        if (i > 0) GPCAT(',');
         snprintf(k, sizeof k, "p%dn", i);
         String nm = p.getString(k, "");
         // Escape for JSON — names may contain backslashes or quotes from old firmware
         nm.replace("\\", "\\\\");
         nm.replace("\"", "\\\"");
-        len += snprintf(buf + len, sizeof(buf) - len,
-                        "{\"slot\":%d,\"name\":\"%s\"", i, nm.c_str());
+        GPFMT("{\"slot\":%d,\"name\":\"%s\"", i, nm.c_str());
         if (nm.length() > 0) {
             for (int j = 0; j < 6; j++) {
                 snprintf(k, sizeof k, "p%d%s", i, kPS[j]);
-                len += snprintf(buf + len, sizeof(buf) - len,
-                                ",\"%s\":%d", kPS[j], p.getUChar(k, kPDef[j]));
+                GPFMT(",\"%s\":%d", kPS[j], p.getUChar(k, kPDef[j]));
             }
         }
-        buf[len++] = '}';
+        GPCAT('}');
     }
     p.end();
-    buf[len++] = ']';
-    buf[len]   = '\0';
+    GPCAT(']');
+    buf[len] = '\0';
+#undef GPCAT
+#undef GPFMT
     server.send(200, "application/json", buf);
 }
 

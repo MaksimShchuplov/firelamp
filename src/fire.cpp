@@ -11,7 +11,7 @@
 void buildHeatPalette() {
     const uint8_t next  = 1 - activePal;
     const float   power = 1.0f + ((uiContrast - 50.0f) / 50.0f);
-    const uint8_t theme = uiTheme;            // snapshot volatile once
+    const uint8_t theme = uiTheme;            // snapshot atomic once
     for (int i = 0; i < 256; i++) {
         float    n    = powf((float)i / 255.0f, power);
         uint16_t m    = (uint16_t)(n * 255.0f);
@@ -93,7 +93,7 @@ void updateWind() {
 }
 
 void recalcCooling() {
-    const uint8_t cooling = uiCooling;   // snapshot volatile once — prevents lo/hi split if Core 1 updates mid-loop
+    const uint8_t cooling = uiCooling;   // snapshot atomic once — prevents lo/hi split if Core 1 updates mid-loop
     const uint8_t lo = (cooling > 10) ? cooling - 10 : 0;
     for (int y = 0; y < ROWS; y++)
         coolMax[y] = (uint8_t)((random8(lo, cooling + 10) * 10) / ROWS + 2);
