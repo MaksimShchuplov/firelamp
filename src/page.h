@@ -10,6 +10,7 @@ static const char PAGE[] PROGMEM = R"HTML(<!doctype html><html lang=en><head>
 <meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <meta name=theme-color content="#0a0503">
+<meta name=referrer content=no-referrer>
 <link rel=icon href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
 <title>Fire Lamp</title><style>
 :root{--b:60;--g:calc(var(--b)/100)}

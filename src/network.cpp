@@ -34,8 +34,10 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     }
     // Guard against re-entrant calls from autoUpdateCheck task and HTTP handlers
     // running on the same core under preemptive FreeRTOS scheduling.
-    if (s_busy) return false;
-    s_busy = true;
+    // compare_exchange_strong atomically checks-and-sets, avoiding the TOCTOU
+    // race that a separate load + store would have under preemptive scheduling.
+    bool expected = false;
+    if (!s_busy.compare_exchange_strong(expected, true)) return false;
     WiFiClientSecure client;
     client.setInsecure();
     HTTPClient http;
@@ -139,12 +141,14 @@ static void handleRoot() {
 }
 
 static void handleSetB() {
+    if (!isWebRequest()) return;
     int v;
     if (parseIntArg("v", 0, 100, v)) { setBright(v); updatePowerCalc(); }
     sendVal();
 }
 
 static void handleSetC() {
+    if (!isWebRequest()) return;
     int v;
     if (parseIntArg("v", 0, 100, v)) {
         if (uiContrast != (uint8_t)v) {
@@ -158,6 +162,7 @@ static void handleSetC() {
 }
 
 static void handleSetCo() {
+    if (!isWebRequest()) return;
     int v;
     if (parseIntArg("v", 20, 150, v)) {
         uiCooling  = (uint8_t)v;
@@ -168,6 +173,7 @@ static void handleSetCo() {
 }
 
 static void handleSetSp() {
+    if (!isWebRequest()) return;
     int v;
     if (parseIntArg("v", 0, 255, v)) {
         uiSparking = (uint8_t)v;
@@ -278,6 +284,7 @@ static void handleLoadPreset() {
 }
 
 static void handleSetBl() {
+    if (!isWebRequest()) return;
     int v;
     if (parseIntArg("v", 0, 255, v)) {
         uiBlend = (uint8_t)v;
@@ -287,6 +294,7 @@ static void handleSetBl() {
 }
 
 static void handleSetTheme() {
+    if (!isWebRequest()) return;
     int v;
     if (parseIntArg("v", 0, THEME_COUNT - 1, v)) {
         if (uiTheme != (uint8_t)v) {
@@ -331,6 +339,16 @@ static void handleUpdate() {
     if (!fetchVersionInfo(ver, md5, buildN) || md5.length() != 32) {
         server.send(503, "application/json", "{\"error\":\"fetch_failed\"}");
         return;
+    }
+    // Flush any pending NVS writes before rebooting so no settings are lost.
+    if (prefsDirty) {
+        prefs.putUChar("bright2",  uiBright);
+        prefs.putUChar("contrast", uiContrast);
+        prefs.putUChar("cooling",  uiCooling);
+        prefs.putUChar("sparking", uiSparking);
+        prefs.putUChar("blend",    uiBlend);
+        prefs.putUChar("theme",    uiTheme);
+        prefsDirty = false;
     }
     Update.setMD5(md5.c_str());
     server.send(200, "text/plain", "Update starting...");
