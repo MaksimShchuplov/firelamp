@@ -133,8 +133,10 @@ void fireEffect() {
     }
 
     // 3. Ignite sparks at the base
+    // Snapshot atomics once — avoids 20 + 800 seq_cst loads (memw on LX7) per frame.
+    const uint8_t sparking = uiSparking;
     for (int x = 0; x < COLUMNS; x++) {
-        if (random8() < uiSparking) {
+        if (random8() < sparking) {
             uint8_t y = random8(3);
             heat[y][x] = qadd8(heat[y][x], random8(SPARK_INTENSITY - 40, SPARK_INTENSITY));
         }
@@ -142,11 +144,12 @@ void fireEffect() {
 
     // 4. Render with temporal blend.
     // Snapshot activePal once — a mid-frame flip must not split palette reads.
-    const CRGB *pal = heatPalette[activePal & 1];  // & 1 guards against memory corruption setting it > 1
+    const CRGB    *pal   = heatPalette[activePal & 1];  // & 1 guards against memory corruption setting it > 1
+    const uint8_t  blend = uiBlend;
     for (int y = 0; y < ROWS; y++) {
         const uint16_t base = (uint16_t)(ROWS - 1 - y) * COLUMNS;
         for (int x = 0; x < COLUMNS; x++)
-            nblend(leds[base + x], pal[heat[y][x]], uiBlend);
+            nblend(leds[base + x], pal[heat[y][x]], blend);
     }
 
     if (millis() - lastPowerCalc > POWER_CALC_INTERVAL_MS)

@@ -327,7 +327,7 @@ static void handleCheckUpdate() {
     bool avail = (buildN > 0 && BUILD_N > 0) ? (buildN > BUILD_N)
                                               : (ver != String(FIRMWARE_VERSION));
     server.send(200, "application/json",
-        "{\"current\":\"" FIRMWARE_VERSION "\",\"latest\":\"" + ver +
+        "{\"current\":\"" FIRMWARE_VERSION "\",\"latest\":\"" + jsonEscape(ver) +
         "\",\"update_available\":" + (avail ? "true" : "false") +
         ",\"date\":\"" __DATE__ " " __TIME__ "\"}");
 }
@@ -470,7 +470,8 @@ static void handleSurprise() {
         "haunted forest", "candlelit cathedral", "desert mirage", "lava field at dusk",
         "bioluminescent cave", "blizzard whiteout", "ember meditation"
     };
-    const char *scene = kScenes[random8(15)];
+    constexpr uint8_t kScenesCount = sizeof(kScenes) / sizeof(kScenes[0]);
+    const char *scene = kScenes[random8(kScenesCount)];
 
     static const char * const kThemeNames[] = {"Fire", "Ember", "Plasma", "Ice"};
     char curState[128];  // max output ~95 bytes ("...th=3(Plasma). Make something strikingly different.")
