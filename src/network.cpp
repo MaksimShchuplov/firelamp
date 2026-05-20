@@ -728,12 +728,15 @@ void serviceNetwork() {
     server.handleClient();
 
     if (prefsDirty && millis() - prefsTouch > NVS_COMMIT_DELAY_MS) {
-        bool ok = (prefs.putUChar("bright2",  uiBright)  == 1)
-               && (prefs.putUChar("contrast", uiContrast) == 1)
-               && (prefs.putUChar("cooling",  uiCooling)  == 1)
-               && (prefs.putUChar("sparking", uiSparking) == 1)
-               && (prefs.putUChar("blend",    uiBlend)    == 1)
-               && (prefs.putUChar("theme",    uiTheme)    == 1);
+        // Use &= (not &&) so all six keys are always attempted — && short-circuits
+        // and would leave NVS in a partially-written state on the first failure.
+        bool ok = true;
+        ok &= (prefs.putUChar("bright2",  uiBright)  == 1);
+        ok &= (prefs.putUChar("contrast", uiContrast) == 1);
+        ok &= (prefs.putUChar("cooling",  uiCooling)  == 1);
+        ok &= (prefs.putUChar("sparking", uiSparking) == 1);
+        ok &= (prefs.putUChar("blend",    uiBlend)    == 1);
+        ok &= (prefs.putUChar("theme",    uiTheme)    == 1);
         if (ok) {
             prefsDirty = false;
         } else {
