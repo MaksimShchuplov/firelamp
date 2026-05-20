@@ -45,10 +45,15 @@ extern std::atomic<uint8_t>  appliedRaw;
 extern std::atomic<uint32_t> currentPowerMw;  // milliwatts
 extern std::atomic<bool>     updatePending;
 
-// ---- NVS deferred-write state (Core 1 only) --------------------------------
+// ---- NVS deferred-write state (Core 1 only — never read or write from Core 0) ----
 extern bool     prefsDirty;
 extern uint32_t prefsTouch;
-extern uint32_t wifiRetryAt;
+// Written from WiFi event callback (Core 0 WiFi task) and read/written from
+// serviceNetwork (Core 1). Must be atomic to avoid a formal data race on LX7.
+extern std::atomic<uint32_t> wifiRetryAt;
+
+// Marks NVS dirty and resets the debounce timer. Call from Core 1 only.
+inline void markDirty() { prefsDirty = true; prefsTouch = millis(); }
 extern std::atomic<uint32_t> lastPowerCalc;  // written Core 0 (fireEffect) + Core 1 (handlers)
 
 // ---- Task handles ----------------------------------------------------------

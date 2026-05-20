@@ -53,3 +53,18 @@
 #ifndef FIRMWARE_VERSION
   #define FIRMWARE_VERSION "dev"
 #endif
+#ifndef BUILD_N
+  #define BUILD_N 0
+#endif
+
+// ---- Fire algorithm tuning constants (magic numbers extracted) -------------
+#define SPARK_MIN_VARIANCE      40      // random range width for spark heat: [SPARK_INTENSITY-SPARK_MIN_VARIANCE .. SPARK_INTENSITY]
+#define WIND_LERP_ALPHA         0.1f    // exponential smoothing coefficient for wind direction
+#define COOLING_VARIANCE        10      // ±window around uiCooling for per-row randomisation
+#define COOLING_ROW_SCALE       10      // maps cooling units to heat-per-row
+#define COOLING_ROW_BIAS        2       // minimum cooling applied regardless of uiCooling
+
+// ---- OTA / update check ----------------------------------------------------
+#define VERSION_CACHE_MS        60000   // re-fetch version.json at most once per minute
+#define OTA_CHECK_DELAY_MS      8000    // delay after WiFi connect before background OTA check
+#define UPDCHK_STACK_BYTES      12288   // autoUpdateCheck: TLS handshake + HTTPClient needs ~10 KB stack

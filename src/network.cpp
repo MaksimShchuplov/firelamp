@@ -29,7 +29,7 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     static String   s_ver, s_md5;
     static uint32_t s_buildN = 0, s_at = 0;
     static std::atomic<bool> s_busy{false};
-    if (s_ver.length() > 0 && millis() - s_at < 60000) {
+    if (s_ver.length() > 0 && millis() - s_at < VERSION_CACHE_MS) {
         ver = s_ver; md5 = s_md5; buildN = s_buildN; return true;
     }
     // Guard against re-entrant calls from autoUpdateCheck task and HTTP handlers
@@ -106,6 +106,19 @@ static bool isWebRequest() {
     return true;
 }
 
+// Writes all six UI parameters to NVS. Returns true if all writes succeeded.
+// Uses the always-open global `prefs` handle (opened in startNetwork).
+static bool flushPrefs() {
+    bool ok = true;
+    ok &= (prefs.putUChar("bright2",  uiBright)  == 1);
+    ok &= (prefs.putUChar("contrast", uiContrast) == 1);
+    ok &= (prefs.putUChar("cooling",  uiCooling)  == 1);
+    ok &= (prefs.putUChar("sparking", uiSparking) == 1);
+    ok &= (prefs.putUChar("blend",    uiBlend)    == 1);
+    ok &= (prefs.putUChar("theme",    uiTheme)    == 1);
+    return ok;
+}
+
 // Parses a bounded integer from a query parameter. Returns false and sends 400
 // if the argument is absent or outside [lo, hi].
 static bool parseIntArg(const char *name, int lo, int hi, int &out) {
@@ -154,7 +167,7 @@ static void handleSetC() {
         if (uiContrast != (uint8_t)v) {
             uiContrast = (uint8_t)v;
             buildHeatPalette();
-            prefsDirty = true; prefsTouch = millis();
+            markDirty();
         }
         updatePowerCalc();
     }
@@ -166,7 +179,7 @@ static void handleSetCo() {
     int v;
     if (parseIntArg("v", 20, 150, v)) {
         uiCooling  = (uint8_t)v;
-        prefsDirty = true; prefsTouch = millis();
+        markDirty();
         recalcCooling(); updatePowerCalc();
     }
     sendVal();
@@ -177,7 +190,7 @@ static void handleSetSp() {
     int v;
     if (parseIntArg("v", 0, 255, v)) {
         uiSparking = (uint8_t)v;
-        prefsDirty = true; prefsTouch = millis();
+        markDirty();
         updatePowerCalc();
     }
     sendVal();
@@ -279,7 +292,7 @@ static void handleLoadPreset() {
     }
     p.end();
     buildHeatPalette(); recalcCooling(); updatePowerCalc();
-    prefsDirty = true; prefsTouch = millis();
+    markDirty();
     sendVal();
 }
 
@@ -288,7 +301,7 @@ static void handleSetBl() {
     int v;
     if (parseIntArg("v", 0, 255, v)) {
         uiBlend = (uint8_t)v;
-        prefsDirty = true; prefsTouch = millis();
+        markDirty();
     }
     sendVal();
 }
@@ -300,7 +313,7 @@ static void handleSetTheme() {
         if (uiTheme != (uint8_t)v) {
             uiTheme = (uint8_t)v;
             buildHeatPalette();
-            prefsDirty = true; prefsTouch = millis();
+            markDirty();
         }
     }
     sendVal();
@@ -312,7 +325,7 @@ static void handleReset() {
     uiCooling = COOLING_DEFAULT; uiSparking = SPARKING_DEFAULT;
     uiBlend = BLEND_DEFAULT; uiTheme = THEME_DEFAULT;
     buildHeatPalette(); recalcCooling();
-    prefsDirty = true; prefsTouch = millis();
+    markDirty();
     updatePowerCalc(); sendVal();
 }
 
@@ -342,12 +355,8 @@ static void handleUpdate() {
     }
     // Flush any pending NVS writes before rebooting so no settings are lost.
     if (prefsDirty) {
-        prefs.putUChar("bright2",  uiBright);
-        prefs.putUChar("contrast", uiContrast);
-        prefs.putUChar("cooling",  uiCooling);
-        prefs.putUChar("sparking", uiSparking);
-        prefs.putUChar("blend",    uiBlend);
-        prefs.putUChar("theme",    uiTheme);
+        if (!flushPrefs())
+            LOG_WARN("OTA pre-flush: NVS write failed — settings may not persist after update");
         prefsDirty = false;
     }
     Update.setMD5(md5.c_str());
@@ -383,6 +392,7 @@ static void handleInfo() {
 }
 
 static void handleDebug() {
+    if (!isWebRequest()) return;
     char j[640];
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
     String   ssid      = jsonEscape(WiFi.SSID());
@@ -507,9 +517,11 @@ static void handleSurprise() {
     client.setInsecure();
     HTTPClient http;
     http.setTimeout(GEMINI_TIMEOUT_MS);
-    http.begin(client, String("https://generativelanguage.googleapis.com/v1beta/models/"
-                              "gemini-2.5-flash:generateContent?key=") + apiKey);
+    // Pass the key as Authorization header rather than a URL query parameter so
+    // it does not appear in ESP-IDF HTTP debug logs or server-side access logs.
+    http.begin(client, "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
     http.addHeader("Content-Type", "application/json");
+    http.addHeader("Authorization", String("Bearer ") + apiKey);
     int code = http.POST(body);
     if (code <= 0) {
         http.end(); server.send(503, "application/json", "{\"error\":\"fetch_failed\"}"); return;
@@ -619,7 +631,7 @@ static void handleSurprise() {
     if (th >= 0) { uiTheme    = (uint8_t)constrain(th, 0,   THEME_COUNT - 1); }
     buildHeatPalette();
     updatePowerCalc();
-    prefsDirty = true; prefsTouch = millis();
+    markDirty();
 
     if (name.length() > PRESET_NAME_MAX_LEN) name = name.substring(0, PRESET_NAME_MAX_LEN);
     char j[192];
@@ -638,7 +650,7 @@ static void handleSurprise() {
 // =============================================================================
 
 static void autoUpdateCheck(void *) {
-    vTaskDelay(pdMS_TO_TICKS(8000));
+    vTaskDelay(pdMS_TO_TICKS(OTA_CHECK_DELAY_MS));
     String ver, md5;
     uint32_t buildN;
     if (fetchVersionInfo(ver, md5, buildN))
@@ -690,8 +702,12 @@ void startNetwork() {
 
     if (wm.autoConnect(WIFI_PORTAL_SSID)) {
         LOG_INFO("UI: http://%s.local  |  http://%s", MDNS_NAME, WiFi.localIP().toString().c_str());
-        if (MDNS.begin(MDNS_NAME)) MDNS.addService("http", "tcp", 80);
-        if (xTaskCreatePinnedToCore(autoUpdateCheck, "UpdChk", 8192, NULL, 1, NULL, 1) != pdPASS)
+        if (MDNS.begin(MDNS_NAME)) {
+            MDNS.addService("http", "tcp", 80);
+        } else {
+            LOG_WARN("mDNS start failed — firelamp.local will not resolve");
+        }
+        if (xTaskCreatePinnedToCore(autoUpdateCheck, "UpdChk", UPDCHK_STACK_BYTES, NULL, 1, NULL, 1) != pdPASS)
             LOG_WARN("autoUpdateCheck task not created — OTA badge disabled");
     } else {
         LOG_WARN("WiFi not configured — connect to \"%s\"", WIFI_PORTAL_SSID);
@@ -728,16 +744,7 @@ void serviceNetwork() {
     server.handleClient();
 
     if (prefsDirty && millis() - prefsTouch > NVS_COMMIT_DELAY_MS) {
-        // Use &= (not &&) so all six keys are always attempted — && short-circuits
-        // and would leave NVS in a partially-written state on the first failure.
-        bool ok = true;
-        ok &= (prefs.putUChar("bright2",  uiBright)  == 1);
-        ok &= (prefs.putUChar("contrast", uiContrast) == 1);
-        ok &= (prefs.putUChar("cooling",  uiCooling)  == 1);
-        ok &= (prefs.putUChar("sparking", uiSparking) == 1);
-        ok &= (prefs.putUChar("blend",    uiBlend)    == 1);
-        ok &= (prefs.putUChar("theme",    uiTheme)    == 1);
-        if (ok) {
+        if (flushPrefs()) {
             prefsDirty = false;
         } else {
             LOG_ERROR("NVS write failed — will retry in %d ms", NVS_COMMIT_DELAY_MS);

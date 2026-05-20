@@ -27,7 +27,8 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#f6d9b0;
 @keyframes fl{0%,100%{opacity:.85}45%{opacity:1}70%{opacity:.78}}
 .wrap{width:min(92vw,420px);text-align:center;position:relative;z-index:2}
 .kick{font-size:12px;letter-spacing:.42em;text-transform:uppercase;color:#c8743a;opacity:.85;margin-bottom:6px}
-h1{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:600;color:#8a4a22;margin-bottom:12px;margin-top:24px}
+.label{font-size:13px;letter-spacing:.3em;text-transform:uppercase;font-weight:600;color:#b06030;margin-bottom:12px;margin-top:24px}
+.bar:focus-visible{outline:2px solid #ff8a1f;outline-offset:3px}
 .val{font-size:72px;font-weight:200;line-height:1;letter-spacing:-.04em;
  background:linear-gradient(180deg,#fff3d6,#ffb14a 55%,#ff6a18);-webkit-background-clip:text;
  background-clip:text;color:transparent;transition:filter .25s;
@@ -107,9 +108,9 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div id=shdim class=shdim></div>
 <div id=sheet class=sheet><div id=shtit class=shtit></div><div id=shmsg class=shmsg></div><div id=shbtns></div></div>
 <div class=amb></div>
-<button id=ibtn class=ibtn>?</button>
-<div id=mod class=mod>
-<button id=mcls class=mcls>&times;</button>
+<button id=ibtn class=ibtn aria-label="Help">?</button>
+<div id=mod class=mod role=dialog aria-modal=true aria-label="Help">
+<button id=mcls class=mcls aria-label="Close">&times;</button>
 <div class=mt id=mt1>Brightness</div><div class=md id=md1></div>
 <div class=mt id=mt2>Contrast</div><div class=md id=md2></div>
 <div class=mt id=mt3>Cooling</div><div class=md id=md3></div>
@@ -129,24 +130,24 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=lang><button id=len class="lbtn act">EN</button><button id=lru class=lbtn>RU</button></div>
 <div class=wrap>
 <div class=kick>Fire Lamp</div>
-<h1 id=lb>Brightness</h1><div class=val id=vb>--</div>
-<input class=bar id=sb type=range min=0 max=100 value=100>
+<p class=label id=lb>Brightness</p><div class=val id=vb>--</div>
+<input class=bar id=sb type=range min=0 max=100 value=100 aria-labelledby=lb>
 <div class=desc id=db>Full brightness</div>
-<h1 id=lc>Contrast</h1><div class=val id=vc>--</div>
-<input class=bar id=sc type=range min=0 max=100 value=50>
+<p class=label id=lc>Contrast</p><div class=val id=vc>--</div>
+<input class=bar id=sc type=range min=0 max=100 value=50 aria-labelledby=lc>
 <div class=desc id=dc>Warm balanced</div>
-<h1 id=lco>Cooling</h1><div class=val id=vco>--</div>
-<input class=bar id=sco type=range min=20 max=150 value=45>
+<p class=label id=lco>Cooling</p><div class=val id=vco>--</div>
+<input class=bar id=sco type=range min=20 max=150 value=45 aria-labelledby=lco>
 <div class=desc id=dco>Tall flames</div>
-<h1 id=lsp>Sparking</h1><div class=val id=vsp>--</div>
-<input class=bar id=ssp type=range min=0 max=255 value=36>
+<p class=label id=lsp>Sparking</p><div class=val id=vsp>--</div>
+<input class=bar id=ssp type=range min=0 max=255 value=36 aria-labelledby=lsp>
 <div class=desc id=dsp>Calm smoldering</div>
-<h1 id=lbl>Blend</h1><div class=val id=vbl>--</div>
-<input class=bar id=sbl type=range min=0 max=255 value=50>
+<p class=label id=lbl>Blend</p><div class=val id=vbl>--</div>
+<input class=bar id=sbl type=range min=0 max=255 value=50 aria-labelledby=lbl>
 <div class=desc id=dbl>Natural fire</div>
-<h1 id=lth>Theme</h1>
+<p class=label id=lth>Theme</p>
 <div class=themes><button class="tbtn act" id=tb0 data-t=0>Fire</button><button class=tbtn id=tb1 data-t=1>Ember</button><button class=tbtn id=tb2 data-t=2>Plasma</button><button class=tbtn id=tb3 data-t=3>Ice</button></div>
-<h1 id=lpr>Presets</h1>
+<p class=label id=lpr>Presets</p>
 <div class=presets><button class=prbtn id=pr0 data-slot=0>+</button><button class=prbtn id=pr1 data-slot=1>+</button><button class=prbtn id=pr2 data-slot=2>+</button><button class=prbtn id=pr3 data-slot=3>+</button><button class=prbtn id=pr4 data-slot=4>+</button><button class=prbtn id=pr5 data-slot=5>+</button><button class=prbtn id=pr6 data-slot=6>+</button><button class=prbtn id=pr7 data-slot=7>+</button></div>
 <div class=prein id=prein><input id=prename type=text maxlength=15 autocomplete=off spellcheck=false><button class=pric id=presave>✓</button><button class=pric id=precancel>✗</button></div>
 <button class=reset id=rst>Reset to Default</button>
@@ -250,8 +251,11 @@ function ul(){
  dynAll();
 }
 ul();
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&document.getElementById('mod').classList.contains('show')){document.getElementById('mcls').click();}});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});
 document.getElementById('ibtn').onclick=function(){
   document.getElementById('mod').classList.add('show');
+  document.getElementById('mcls').focus();
   fetch('/geminikey').then(r=>r.json()).then(function(x){
     var s=document.getElementById('aikeystatus');
     s.textContent=x.set?(ru?'Ключ сохранён ✓':'Key saved ✓'):(ru?'Ключ не задан':'No key set');
@@ -275,11 +279,12 @@ function pull(){fetch('/state').then(r=>r.json()).then(x=>{
   if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
   if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
 }).catch(()=>{pullFails++;if(pullFails>=3)showOffline();});}
-sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){xf('/setb?v='+sb.value)},120);clearActive();});
-sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){xf('/setc?v='+sc.value)},120);clearActive();});
-sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){xf('/setco?v='+sco.value)},120);clearActive();});
-ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){xf('/setsp?v='+ssp.value)},120);clearActive();});
-sbl.addEventListener('input',function(){pbl(+sbl.value);clearTimeout(t6);t6=setTimeout(function(){xf('/setbl?v='+sbl.value)},120);clearActive();});
+function xfc(u){return xf(u).catch(function(){pullFails++;if(pullFails>=2)showOffline();});}
+sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){xfc('/setb?v='+sb.value);},120);clearActive();});
+sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){xfc('/setc?v='+sc.value);},120);clearActive();});
+sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){xfc('/setco?v='+sco.value);},120);clearActive();});
+ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){xfc('/setsp?v='+ssp.value);},120);clearActive();});
+sbl.addEventListener('input',function(){pbl(+sbl.value);clearTimeout(t6);t6=setTimeout(function(){xfc('/setbl?v='+sbl.value);},120);clearActive();});
 [0,1,2,3].forEach(function(t){document.getElementById('tb'+t).onclick=function(){xf('/settheme?v='+t).then(pull);clearActive();};});
 document.getElementById('rst').onclick=function(){xf('/reset').then(pull);clearActive();};
 var presets=[{},{},{},{},{},{},{},{}],activePreset=-1;
@@ -389,13 +394,16 @@ document.getElementById('aiksave').onclick=function(){
   if(!v)return;
   var b=document.getElementById('aiksave');
   var s=document.getElementById('aikeystatus');
+  b.disabled=true;
   fetch('/setgeminikey',{method:'POST',headers:{'X-Requested-With':'firelamp','Content-Type':'application/x-www-form-urlencoded'},body:'key='+encodeURIComponent(v)}).then(r=>r.json()).then(function(x){
     if(x.ok){document.getElementById('aikey').value='';s.textContent=ru?'Ключ сохранён ✓':'Key saved ✓';s.style.color='#4ade80';}
     else{s.textContent=ru?'Ошибка сохранения':'Save failed';s.style.color='#f87171';}
-    b.textContent=x.ok?'✓':'✗';setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);
+    b.textContent=x.ok?'✓':'✗';
+    setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';b.disabled=false;},1500);
   }).catch(function(){
     s.textContent=ru?'Ошибка сети':'Network error';s.style.color='#f87171';
-    b.textContent='✗';setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);
+    b.textContent='✗';
+    setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';b.disabled=false;},1500);
   });
 };
 function askAI(){
