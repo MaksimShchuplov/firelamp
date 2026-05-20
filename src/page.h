@@ -99,7 +99,8 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 .ainame{font-size:11px;color:#fbbf24;margin-top:6px;text-align:center;min-height:16px;opacity:.85;letter-spacing:.05em}
 .aikey{width:100%;background:rgba(120,40,10,.15);border:1px solid #7a3f16;border-radius:8px;color:#f6d9b0;padding:0 12px;height:44px;font-size:13px;font-family:inherit;-webkit-appearance:none;margin-top:8px;box-sizing:border-box}
 .aikey:focus{outline:none;border-color:#d6510c}
-.aiksave{background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:8px;cursor:pointer;padding:0 16px;height:36px;font-size:13px;transition:all .2s;margin-top:8px;touch-action:manipulation}
+.aiksave{background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:8px;cursor:pointer;padding:0 16px;height:44px;font-size:13px;transition:all .2s;margin-top:8px;touch-action:manipulation}
+.aikeyst{font-size:11px;color:#4ade80;margin-top:4px;min-height:16px;letter-spacing:.05em}
 .aiksave:active{background:#7a3f16;color:#fff2dd}
 </style></head><body>
 <div id=offb class=offb></div>
@@ -121,8 +122,9 @@ body.off .val,body.off .amb{filter:grayscale(.5);opacity:.4}
 <div class=mt id=mt10>Theme</div><div class=md id=md10></div>
 <div class=mt id=mt11>Presets</div><div class=md id=md11></div>
 <div class=mt id=mt12>✨ Surprise Me (AI)</div><div class=md id=md12></div>
-<input class=aikey id=aikey type=text placeholder="Gemini API key" autocomplete=off spellcheck=false>
+<input class=aikey id=aikey type=password placeholder="Gemini API key" autocomplete=off spellcheck=false>
 <button class=aiksave id=aiksave>Save key</button>
+<div id=aikeystatus class=aikeyst></div>
 </div>
 <div class=lang><button id=len class="lbtn act">EN</button><button id=lru class=lbtn>RU</button></div>
 <div class=wrap>
@@ -197,6 +199,7 @@ function showSheet(title,msg,btns){
 function hideSheet(){document.getElementById('shdim').classList.remove('show');document.getElementById('sheet').classList.remove('show');}
 document.getElementById('shdim').onclick=hideSheet;
 function ul(){
+ document.documentElement.lang=ru?'ru':'en';
  document.getElementById('len').classList.toggle('act',!ru);
  document.getElementById('lru').classList.toggle('act',ru);
  document.getElementById('lb').textContent=ru?'Яркость':'Brightness';
@@ -240,12 +243,21 @@ function ul(){
  document.getElementById('md12').textContent=ru?'Gemini AI придумает уникальный эффект пламени. Вставьте API-ключ Gemini ниже — он сохранится в памяти лампы и будет работать с любого устройства.':'Gemini AI designs a unique flame effect each time. Paste your Gemini API key below — it is stored on the lamp and works from any device.';
  document.getElementById('aiksave').textContent=ru?'Сохранить ключ':'Save key';
  document.getElementById('aikey').placeholder=ru?'Ключ Gemini API':'Gemini API key';
+ var ks=document.getElementById('aikeystatus');
+ if(ks.textContent){var isOk=ks.style.color==='rgb(74, 222, 128)';ks.textContent=isOk?(ru?'Ключ сохранён ✓':'Key saved ✓'):(ru?'Ключ не задан':'No key set');}
  var sp2=document.getElementById('surprise');if(sp2&&!sp2.disabled)sp2.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';
  dynAll();
 }
 ul();
-document.getElementById('ibtn').onclick=function(){document.getElementById('mod').classList.add('show')};
+document.getElementById('ibtn').onclick=function(){
+  document.getElementById('mod').classList.add('show');
+  fetch('/geminikey').then(r=>r.json()).then(function(x){
+    var s=document.getElementById('aikeystatus');
+    s.textContent=x.set?(ru?'Ключ сохранён ✓':'Key saved ✓'):(ru?'Ключ не задан':'No key set');
+    s.style.color=x.set?'#4ade80':'#f87171';
+  }).catch(function(){});
+};
 document.getElementById('mcls').onclick=function(){document.getElementById('mod').classList.remove('show')};
 document.getElementById('len').onclick=function(){ru=false;localStorage.setItem('lang','en');ul();};
 document.getElementById('lru').onclick=function(){ru=true;localStorage.setItem('lang','ru');ul();};
@@ -376,9 +388,15 @@ document.getElementById('aiksave').onclick=function(){
   var v=document.getElementById('aikey').value.trim();
   if(!v)return;
   var b=document.getElementById('aiksave');
+  var s=document.getElementById('aikeystatus');
   fetch('/setgeminikey',{method:'POST',headers:{'X-Requested-With':'firelamp','Content-Type':'application/x-www-form-urlencoded'},body:'key='+encodeURIComponent(v)}).then(r=>r.json()).then(function(x){
+    if(x.ok){document.getElementById('aikey').value='';s.textContent=ru?'Ключ сохранён ✓':'Key saved ✓';s.style.color='#4ade80';}
+    else{s.textContent=ru?'Ошибка сохранения':'Save failed';s.style.color='#f87171';}
     b.textContent=x.ok?'✓':'✗';setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);
-  }).catch(function(){b.textContent='✗';setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);});
+  }).catch(function(){
+    s.textContent=ru?'Ошибка сети':'Network error';s.style.color='#f87171';
+    b.textContent='✗';setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);
+  });
 };
 function askAI(){
   var btn=document.getElementById('surprise'),nm=document.getElementById('ainame');
