@@ -28,7 +28,7 @@ void sendVal() {
 static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     static String   s_ver, s_md5;
     static uint32_t s_buildN = 0, s_at = 0;
-    static bool     s_busy = false;
+    static std::atomic<bool> s_busy{false};
     if (s_ver.length() > 0 && millis() - s_at < 60000) {
         ver = s_ver; md5 = s_md5; buildN = s_buildN; return true;
     }
@@ -124,6 +124,7 @@ static bool parseIntArg(const char *name, int lo, int hi, int &out) {
 static void handleRoot() {
     server.sendHeader("X-Content-Type-Options", "nosniff");
     server.sendHeader("X-Frame-Options", "SAMEORIGIN");
+    server.sendHeader("Referrer-Policy", "no-referrer");
     server.sendHeader("Content-Security-Policy",
         "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'");
     server.setContentLength(CONTENT_LENGTH_UNKNOWN);
@@ -176,11 +177,14 @@ static void handleSetSp() {
     sendVal();
 }
 
-// Suffixes and defaults for the 6 UI parameters stored per preset slot.
-// Order must match kPDef and kPPtr (declared locally where writes are needed).
+// Suffixes, defaults, and live-value pointers for the 6 UI parameters per preset slot.
+// kPS / kPDef / kPPtr order must stay in sync.
 static const char * const kPS[]  = {"b","c","co","sp","bl","th"};
 static const uint8_t      kPDef[]= {BRIGHT_DEFAULT, CONTRAST_DEFAULT, COOLING_DEFAULT,
                                      SPARKING_DEFAULT, BLEND_DEFAULT, THEME_DEFAULT};
+static std::atomic<uint8_t> * const kPPtr[] = {
+    &uiBright, &uiContrast, &uiCooling, &uiSparking, &uiBlend, &uiTheme
+};
 
 static void handleGetPresets() {
     // buf fits worst case: 8 slots × ~88 chars + delimiters ≈ 650 bytes.
@@ -237,7 +241,6 @@ static void handleSavePreset() {
     name.replace("\\", "");    // strip backslashes so stored names are always JSON-safe
     name.replace("\"", "'");   // replace double-quotes before truncating to avoid split surrogates
     if (name.length() > PRESET_NAME_MAX_LEN) name = name.substring(0, PRESET_NAME_MAX_LEN);
-    std::atomic<uint8_t>* const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
     Preferences p;
     p.begin("presets", false);
     char k[6];
@@ -264,7 +267,6 @@ static void handleLoadPreset() {
     if (name.length() == 0) {
         p.end(); server.send(404, "application/json", "{\"error\":\"empty slot\"}"); return;
     }
-    std::atomic<uint8_t>* const kPPtr[] = {&uiBright,&uiContrast,&uiCooling,&uiSparking,&uiBlend,&uiTheme};
     for (int j = 0; j < 6; j++) {
         snprintf(k, sizeof k, "p%d%s", slot, kPS[j]);
         *kPPtr[j] = p.getUChar(k, kPDef[j]);
@@ -343,7 +345,7 @@ static void handleUpdate() {
 }
 
 static void handleInfo() {
-    char j[384];
+    char j[512];
     String ip   = WiFi.localIP().toString();
     String ssid = jsonEscape(WiFi.SSID());
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
@@ -363,7 +365,7 @@ static void handleInfo() {
 }
 
 static void handleDebug() {
-    char j[512];
+    char j[640];
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
     String   ssid      = jsonEscape(WiFi.SSID());
     String   ip        = WiFi.localIP().toString();
@@ -670,7 +672,7 @@ void startNetwork() {
     if (wm.autoConnect(WIFI_PORTAL_SSID)) {
         LOG_INFO("UI: http://%s.local  |  http://%s", MDNS_NAME, WiFi.localIP().toString().c_str());
         if (MDNS.begin(MDNS_NAME)) MDNS.addService("http", "tcp", 80);
-        if (xTaskCreate(autoUpdateCheck, "UpdChk", 8192, NULL, 1, NULL) != pdPASS)
+        if (xTaskCreatePinnedToCore(autoUpdateCheck, "UpdChk", 8192, NULL, 1, NULL, 1) != pdPASS)
             LOG_WARN("autoUpdateCheck task not created — OTA badge disabled");
     } else {
         LOG_WARN("WiFi not configured — connect to \"%s\"", WIFI_PORTAL_SSID);
