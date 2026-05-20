@@ -18,13 +18,18 @@ pio run -e esp32s3 -t upload && pio device monitor   # flash + monitor
 
 ```
 src/
-  config.h      — all #define constants (strip geometry, fire tuning, network)
+  config.h      — all #define constants (strip geometry, fire tuning, network timeouts)
   globals.h     — extern declarations + function signatures shared across modules
+  net_helpers.h — shared HTTP utility declarations (isWebRequest, parseIntArg, sendVal, …)
   page.h        — PROGMEM HTML/CSS/JS UI blob (edit only for UI changes)
+  main.cpp      — global definitions, setup(), loop()
   fire.cpp      — palette, brightness/gamma, wind, fire simulation
   boot.cpp      — crash-counter boot-loop detection + OTA rollback
-  network.cpp   — WiFiManager, all HTTP handlers, OTA update logic
-  main.cpp      — global definitions, setup(), loop()
+  network.cpp   — startNetwork() + serviceNetwork() only (~86 lines); calls registerXxx()
+  handlers.cpp  — shared utilities + basic handlers (setb/c/co/sp/bl/theme, reset, info, debug)
+  presets.cpp   — preset CRUD (getpresets, savepreset, loadpreset, deletepreset)
+  ota.cpp       — OTA update flow + autoUpdateCheck background task
+  gemini.cpp    — Gemini AI Surprise Me effect (surprise, setgeminikey, geminikey)
 partitions_ota_4mb.csv   — custom partition table (two 1.75 MB OTA slots + NVS)
 get_version.py           — PlatformIO pre-build script (injects git SHA as version)
 .github/workflows/build.yml  — CI: build → version.json + MD5 → publish to Releases
@@ -93,7 +98,7 @@ Every push to `main` builds the firmware, generates `version.json` (git short-SH
 - `WIFI_PORTAL_TIMEOUT_S 120` — if not configured in 2 min, fire runs without WiFi
 - `MDNS_NAME "firelamp"`
 
-## HTTP API (src/network.cpp)
+## HTTP API
 
 All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 

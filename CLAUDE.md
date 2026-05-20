@@ -7,3 +7,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Always commit and push directly to `main`. Do not create feature branches unless explicitly asked.
 
 @ARCHITECTURE.md
+@CODING.md
