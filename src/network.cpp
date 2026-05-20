@@ -453,7 +453,7 @@ static void handleSurprise() {
     const char *scene = kScenes[random8(15)];
 
     static const char * const kThemeNames[] = {"Fire", "Ember", "Plasma", "Ice"};
-    char curState[80];
+    char curState[128];  // max output ~95 bytes ("...th=3(Plasma). Make something strikingly different.")
     snprintf(curState, sizeof(curState),
              "Currently: b=%d c=%d co=%d sp=%d bl=%d th=%d(%s). Make something strikingly different.",
              (int)uiBright, (int)uiContrast, (int)uiCooling,
