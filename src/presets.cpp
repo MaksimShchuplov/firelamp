@@ -61,9 +61,9 @@ static void handleSavePreset() {
     }
     String name = server.arg("name");
     name.trim();
-    if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
     name.replace("\\", "");    // strip backslashes so stored names are always JSON-safe
     name.replace("\"", "'");   // replace double-quotes before truncating to avoid split surrogates
+    if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
     if (name.length() > PRESET_NAME_MAX_LEN) name = name.substring(0, PRESET_NAME_MAX_LEN);
     Preferences p;
     p.begin("presets", false);

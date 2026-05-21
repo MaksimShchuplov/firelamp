@@ -129,8 +129,8 @@ void fireEffect() {
             int nx = x + wind;
             if (nx >= COLUMNS) nx -= COLUMNS;
             else if (nx < 0)   nx += COLUMNS;
-            // *3/5 + *2/5 without division in the inner loop
-            heat[y][x] = (uint8_t)(((uint16_t)heat[y1][nx] * 153
+            // *3/5 + *2/5 in Q8 fixed-point: 154/256≈0.602, 102/256=0.398, sum=256/256=1.0
+            heat[y][x] = (uint8_t)(((uint16_t)heat[y1][nx] * 154
                                   + (uint16_t)heat[y2][nx] * 102) >> 8);
         }
     }

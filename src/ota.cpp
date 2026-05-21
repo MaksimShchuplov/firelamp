@@ -12,18 +12,26 @@
 // To enable full TLS verification replace setInsecure() with setCACert() pointing to the
 // GitHub root CA (DigiCert Global Root CA / G2) stored in a separate header.
 static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
-    static String   s_ver, s_md5;
-    static uint32_t s_buildN = 0, s_at = 0;
+    static String            s_ver, s_md5;
+    static uint32_t          s_buildN = 0, s_at = 0;
     static std::atomic<bool> s_busy{false};
-    if (s_ver.length() > 0 && millis() - s_at < VERSION_CACHE_MS) {
-        ver = s_ver; md5 = s_md5; buildN = s_buildN; return true;
-    }
+
     // Guard against re-entrant calls from autoUpdateCheck task and HTTP handlers
     // running on the same core under preemptive FreeRTOS scheduling.
     // compare_exchange_strong atomically checks-and-sets, avoiding the TOCTOU
     // race that a separate load + store would have under preemptive scheduling.
+    // Cache read is also inside the lock so s_ver/s_md5/s_buildN are never
+    // read while another task is writing them.
     bool expected = false;
     if (!s_busy.compare_exchange_strong(expected, true)) return false;
+
+    // RAII: unconditionally release the lock on all exit paths.
+    struct Guard { std::atomic<bool> &f; ~Guard() { f.store(false, std::memory_order_seq_cst); } } guard{s_busy};
+
+    if (s_ver.length() > 0 && millis() - s_at < VERSION_CACHE_MS) {
+        ver = s_ver; md5 = s_md5; buildN = s_buildN; return true;
+    }
+
     WiFiClientSecure client;
     client.setInsecure();
     HTTPClient http;
@@ -33,7 +41,7 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     int code = http.GET();
     if (code != 200) {
         LOG_WARN("version fetch returned HTTP %d", code);
-        http.end(); s_busy = false; return false;
+        http.end(); return false;
     }
     String body = http.getString();
     http.end();
@@ -55,9 +63,8 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     ver    = extractStr("version");
     md5    = extractStr("md5");
     buildN = extractNum("build_n");
-    if (ver.length() == 0) { LOG_WARN("version.json parse failed"); s_busy = false; return false; }
+    if (ver.length() == 0) { LOG_WARN("version.json parse failed"); return false; }
     s_ver = ver; s_md5 = md5; s_buildN = buildN; s_at = millis();
-    s_busy = false;
     return true;
 }
 

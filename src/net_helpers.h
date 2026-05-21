@@ -6,19 +6,21 @@
 // =============================================================================
 
 // CSRF guard: rejects requests without X-Requested-With: firelamp header.
-bool isWebRequest();
+// Browser CORS pre-flight fails for cross-origin requests that set custom headers,
+// so any request that reaches this check with the header set came from our own page.
+[[nodiscard]] bool isWebRequest();
 
 // Parses a bounded integer query arg. Returns false (and sends 400) on failure.
-bool parseIntArg(const char *name, int lo, int hi, int &out);
+[[nodiscard]] bool parseIntArg(const char *name, int lo, int hi, int &out);
 
 // JSON string escaping.
-String jsonEscape(const String &s);
+[[nodiscard]] String jsonEscape(const String &s);
 
 // Sends current lamp state as JSON {b,c,co,sp,w,bl,th,upd}.
 void sendVal();
 
 // Writes all 6 UI params to NVS via the global prefs handle. Returns true on success.
-bool flushPrefs();
+[[nodiscard]] bool flushPrefs();
 
 // =============================================================================
 //  Route registration — each module calls server.on() for its own handlers
