@@ -1,6 +1,7 @@
 ---
-description: FireLamp ESP32-S3 project context and architecture
+description: FireLamp ESP32-S3 project context, architecture and coding guidelines
 alwaysApply: true
 ---
 
 @ARCHITECTURE.md
+@CODING.md

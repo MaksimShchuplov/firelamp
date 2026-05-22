@@ -39,8 +39,8 @@ TaskHandle_t ledTaskHandle = NULL;
 
 bool     prefsDirty  = false;
 uint32_t prefsTouch  = 0;
-uint32_t wifiRetryAt = 0;
-uint32_t lastPowerCalc = 0;
+std::atomic<uint32_t> wifiRetryAt{0};
+std::atomic<uint32_t> lastPowerCalc{0};
 
 // =============================================================================
 //  SETUP / LOOP
@@ -60,15 +60,16 @@ void setup() {
     FastLED.show(); delay(1000); FastLED.clear(true);
 #endif
 
-    memset(windDir,    0, sizeof(windDir));
-    memset(windTarget, 0, sizeof(windTarget));
+    std::fill(std::begin(windDir),    std::end(windDir),    0.0f);
+    std::fill(std::begin(windTarget), std::end(windTarget), 0.0f);
 
     startNetwork();   // loads NVS → builds palette → joins WiFi → starts web server
 
     BaseType_t ok = xTaskCreatePinnedToCore(
         [](void *) {
             // Register with task watchdog so the WDT catches a hung LED loop.
-            esp_task_wdt_add(NULL);
+            if (esp_task_wdt_add(NULL) != ESP_OK)
+                LOG_WARN("TWDT add failed — LED task not watchdog-monitored");
             for (;;) {
                 updateWind();
                 fireEffect();
@@ -80,7 +81,10 @@ void setup() {
         "LEDTask", LEDTASK_STACK_BYTES, NULL, 1, &ledTaskHandle, 0   // pinned to Core 0
     );
     if (ok != pdPASS) {
-        LOG_ERROR("LEDTask creation failed — rebooting");
+        // Firmware is valid; the failure is a runtime resource issue (heap).
+        // Mark boot success so the crash counter is not incremented on restart.
+        markBootSuccess();
+        LOG_ERROR("LEDTask creation failed (heap?) — rebooting");
         ESP.restart();
     }
     markBootSuccess();  // firmware initialised without crashing — cancel OTA rollback

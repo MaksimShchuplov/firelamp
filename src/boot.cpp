@@ -20,10 +20,17 @@ void safeBootCheck() {
         LOG_ERROR("boot loop detected — rolling back firmware");
         p.putUInt("crashes", 0);
         p.end();
-        if (Update.canRollBack()) { Update.rollBack(); ESP.restart(); }
-        // No rollback slot available — halt to avoid a permanent crash loop.
-        // User must reflash via USB.
-        LOG_ERROR("canRollBack() = false — halting. Reflash via USB.");
+        if (Update.canRollBack()) {
+            if (Update.rollBack()) {
+                ESP.restart();
+            }
+            // rollBack() returned false — flash write error. Fall through to halt.
+            LOG_ERROR("rollBack() failed — halting. Reflash via USB.");
+        } else {
+            // No rollback slot available — halt to avoid a permanent crash loop.
+            // User must reflash via USB.
+            LOG_ERROR("canRollBack() = false — halting. Reflash via USB.");
+        }
         esp_deep_sleep_start();
     } else {
         LOG_WARN("crash %lu/3 — incrementing counter", crashes);

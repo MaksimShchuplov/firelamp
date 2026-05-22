@@ -11,7 +11,7 @@
 void buildHeatPalette() {
     const uint8_t next  = 1 - activePal;
     const float   power = 1.0f + ((uiContrast - 50.0f) / 50.0f);
-    const uint8_t theme = uiTheme;            // snapshot volatile once
+    const uint8_t theme = uiTheme;            // snapshot atomic once
     for (int i = 0; i < 256; i++) {
         float    n    = powf((float)i / 255.0f, power);
         uint16_t m    = (uint16_t)(n * 255.0f);
@@ -68,8 +68,7 @@ void setBright(int v) {
     v = constrain(v, 0, 100);
     if ((uint8_t)v != uiBright) {
         uiBright   = (uint8_t)v;
-        prefsDirty = true;
-        prefsTouch = millis();
+        markDirty();
         // applyBrightness() is called at the top of fireEffect() on Core 0,
         // so the change takes effect within one frame (~25 ms) without
         // crossing core boundaries into FastLED's global state.
@@ -89,21 +88,25 @@ void updateWind() {
         lastWindChange = millis();
     }
     for (int y = 0; y < ROWS; y++)
-        windDir[y] += (windTarget[y] - windDir[y]) * 0.1f;
+        windDir[y] += (windTarget[y] - windDir[y]) * WIND_LERP_ALPHA;
 }
 
+// Called from Core 1 only (network handlers). Not reentrant.
 void recalcCooling() {
-    const uint8_t cooling = uiCooling;   // snapshot volatile once — prevents lo/hi split if Core 1 updates mid-loop
-    const uint8_t lo = (cooling > 10) ? cooling - 10 : 0;
+    const uint8_t cooling = uiCooling;   // snapshot atomic once — prevents lo/hi split if Core 1 updates mid-loop
+    const uint8_t lo = (cooling > COOLING_VARIANCE) ? cooling - COOLING_VARIANCE : 0;
     for (int y = 0; y < ROWS; y++)
-        coolMax[y] = (uint8_t)((random8(lo, cooling + 10) * 10) / ROWS + 2);
+        coolMax[y] = (uint8_t)((random8(lo, cooling + COOLING_VARIANCE) * COOLING_ROW_SCALE) / ROWS + COOLING_ROW_BIAS);
 }
 
 void updatePowerCalc() {
-    float req = (float)calculate_unscaled_power_mW(leds, NUM_LEDS)
-                * ((float)appliedRaw / 255.0f) / 1000.0f;
-    float cap = ((float)PSU_VOLTS * (float)PSU_MAX_MA) / 1000.0f;
-    float w   = (req > cap) ? cap : req;
+    // leds[] is written by Core 0 without synchronisation; readings from Core 1
+    // may reflect a partially-rendered frame. Acceptable for display — do NOT add
+    // a mutex here as it would stall LEDTask.
+    const float req = (float)calculate_unscaled_power_mW(leds, NUM_LEDS)
+                      * ((float)appliedRaw / 255.0f) / 1000.0f;
+    const float cap = ((float)PSU_VOLTS * (float)PSU_MAX_MA) / 1000.0f;
+    const float w   = (req > cap) ? cap : req;
     currentPowerMw = (uint32_t)(w * 1000.0f);  // atomic uint32 write; avoids torn float read on Core 1
     lastPowerCalc = millis();
 }
@@ -126,27 +129,30 @@ void fireEffect() {
             int nx = x + wind;
             if (nx >= COLUMNS) nx -= COLUMNS;
             else if (nx < 0)   nx += COLUMNS;
-            // *3/5 + *2/5 without division in the inner loop
-            heat[y][x] = (uint8_t)(((uint16_t)heat[y1][nx] * 153
+            // *3/5 + *2/5 in Q8 fixed-point: 154/256≈0.602, 102/256=0.398, sum=256/256=1.0
+            heat[y][x] = (uint8_t)(((uint16_t)heat[y1][nx] * 154
                                   + (uint16_t)heat[y2][nx] * 102) >> 8);
         }
     }
 
     // 3. Ignite sparks at the base
+    // Snapshot atomics once — avoids 20 + 800 seq_cst loads (memw on LX7) per frame.
+    const uint8_t sparking = uiSparking;
     for (int x = 0; x < COLUMNS; x++) {
-        if (random8() < uiSparking) {
+        if (random8() < sparking) {
             uint8_t y = random8(3);
-            heat[y][x] = qadd8(heat[y][x], random8(SPARK_INTENSITY - 40, SPARK_INTENSITY));
+            heat[y][x] = qadd8(heat[y][x], random8(SPARK_INTENSITY - SPARK_MIN_VARIANCE, SPARK_INTENSITY));
         }
     }
 
     // 4. Render with temporal blend.
     // Snapshot activePal once — a mid-frame flip must not split palette reads.
-    const CRGB *pal = heatPalette[activePal & 1];  // & 1 guards against memory corruption setting it > 1
+    const CRGB    *pal   = heatPalette[activePal & 1];  // & 1 guards against memory corruption setting it > 1
+    const uint8_t  blend = uiBlend;
     for (int y = 0; y < ROWS; y++) {
         const uint16_t base = (uint16_t)(ROWS - 1 - y) * COLUMNS;
         for (int x = 0; x < COLUMNS; x++)
-            nblend(leds[base + x], pal[heat[y][x]], uiBlend);
+            nblend(leds[base + x], pal[heat[y][x]], blend);
     }
 
     if (millis() - lastPowerCalc > POWER_CALC_INTERVAL_MS)
