@@ -57,6 +57,7 @@ void sendVal() {
              (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
              (float)currentPowerMw / 1000.0f, (int)uiBlend, (int)uiTheme, updatePending ? 1 : 0);
     server.send(200, "application/json", j);
+    wsPushState();
 }
 
 // Uses the always-open global prefs handle (opened in startNetwork).

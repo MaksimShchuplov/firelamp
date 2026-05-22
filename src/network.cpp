@@ -65,10 +65,12 @@ void startNetwork() {
     static const char *hdrs[] = {"X-Requested-With"};
     server.collectHeaders(hdrs, 1);
     server.begin();
+    wsSetup();
 }
 
 void serviceNetwork() {
     server.handleClient();
+    wsLoop();
 
     if (prefsDirty && millis() - prefsTouch > NVS_COMMIT_DELAY_MS) {
         if (flushPrefs()) {

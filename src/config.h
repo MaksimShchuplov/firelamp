@@ -41,6 +41,7 @@
 #define PRESET_NAME_MAX_LEN     15
 
 // ---- Network ---------------------------------------------------------------
+#define WS_PORT                 81      // WebSocket server port (HTTP is 80)
 #define WIFI_PORTAL_SSID        "FireLamp-Setup"
 #define WIFI_PORTAL_TIMEOUT_S   120     // portal auto-closes; fire still runs
 #define WIFI_RETRY_MS           15000

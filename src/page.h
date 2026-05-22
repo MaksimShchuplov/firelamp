@@ -432,5 +432,23 @@ function askAI(){
   });
 }
 document.getElementById('surprise').onclick=askAI;
-pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},8000);
+pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},60000);
+(function(){
+  var ws,wst;
+  function applyState(x){
+    pullFails=0;hideOffline();
+    pb(x.b);pc(x.c);pco(x.co);psp(x.sp);
+    if(x.bl!==undefined)pbl(x.bl);
+    if(x.th!==undefined)pth(x.th);
+    if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
+    if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
+  }
+  function connect(){
+    ws=new WebSocket('ws://'+location.hostname+':81/');
+    ws.onmessage=function(e){try{applyState(JSON.parse(e.data));}catch(err){}};
+    ws.onclose=function(){clearTimeout(wst);wst=setTimeout(connect,3000);};
+    ws.onerror=function(){ws.close();};
+  }
+  connect();
+})();
 </script></body></html>)HTML";
