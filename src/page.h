@@ -175,7 +175,7 @@ var vc=document.getElementById('vc'),sc=document.getElementById('sc');
 var vco=document.getElementById('vco'),sco=document.getElementById('sco');
 var vsp=document.getElementById('vsp'),ssp=document.getElementById('ssp');
 var vbl=document.getElementById('vbl'),sbl=document.getElementById('sbl');
-var R=document.documentElement,t1,t2,t4,t5,t6;
+var R=document.documentElement,t1,t2,t3,t4,t5;
 var xf=function(u){return fetch(u,{headers:{'X-Requested-With':'firelamp'}});};
 var ru=(localStorage.getItem('lang')==='ru')||(!localStorage.getItem('lang')&&navigator.language.startsWith('ru'));
 var pullFails=0;
@@ -279,12 +279,12 @@ function pull(){fetch('/state').then(r=>r.json()).then(x=>{
   if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
   if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
 }).catch(()=>{pullFails++;if(pullFails>=3)showOffline();});}
-function xfc(u){return xf(u).catch(function(){pullFails++;if(pullFails>=2)showOffline();});}
+function xfc(u){return xf(u).then(function(r){pullFails=0;hideOffline();return r;},function(){pullFails++;if(pullFails>=3)showOffline();});}
 sb.addEventListener('input',function(){pb(+sb.value);clearTimeout(t1);t1=setTimeout(function(){xfc('/setb?v='+sb.value);},120);clearActive();});
 sc.addEventListener('input',function(){pc(+sc.value);clearTimeout(t2);t2=setTimeout(function(){xfc('/setc?v='+sc.value);},120);clearActive();});
-sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t4);t4=setTimeout(function(){xfc('/setco?v='+sco.value);},120);clearActive();});
-ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t5);t5=setTimeout(function(){xfc('/setsp?v='+ssp.value);},120);clearActive();});
-sbl.addEventListener('input',function(){pbl(+sbl.value);clearTimeout(t6);t6=setTimeout(function(){xfc('/setbl?v='+sbl.value);},120);clearActive();});
+sco.addEventListener('input',function(){pco(+sco.value);clearTimeout(t3);t3=setTimeout(function(){xfc('/setco?v='+sco.value);},120);clearActive();});
+ssp.addEventListener('input',function(){psp(+ssp.value);clearTimeout(t4);t4=setTimeout(function(){xfc('/setsp?v='+ssp.value);},120);clearActive();});
+sbl.addEventListener('input',function(){pbl(+sbl.value);clearTimeout(t5);t5=setTimeout(function(){xfc('/setbl?v='+sbl.value);},120);clearActive();});
 [0,1,2,3].forEach(function(t){document.getElementById('tb'+t).onclick=function(){xf('/settheme?v='+t).then(pull);clearActive();};});
 document.getElementById('rst').onclick=function(){xf('/reset').then(pull);clearActive();};
 var presets=[{},{},{},{},{},{},{},{}],activePreset=-1;
@@ -434,7 +434,7 @@ function askAI(){
 document.getElementById('surprise').onclick=askAI;
 pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},60000);
 (function(){
-  var ws,wst;
+  var ws,wst,wsDelay=3000;
   function applyState(x){
     pullFails=0;hideOffline();
     pb(x.b);pc(x.c);pco(x.co);psp(x.sp);
@@ -444,9 +444,10 @@ pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},60000);
     if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
   }
   function connect(){
-    ws=new WebSocket('ws://'+location.hostname+':81/');
+    try{ws=new WebSocket('ws://'+location.hostname+':81/');}catch(e){wst=setTimeout(connect,wsDelay);wsDelay=Math.min(wsDelay*2,30000);return;}
+    ws.onopen=function(){wsDelay=3000;};
     ws.onmessage=function(e){try{applyState(JSON.parse(e.data));}catch(err){}};
-    ws.onclose=function(){clearTimeout(wst);wst=setTimeout(connect,3000);};
+    ws.onclose=function(){clearTimeout(wst);wst=setTimeout(connect,wsDelay);wsDelay=Math.min(wsDelay*2,30000);};
     ws.onerror=function(){ws.close();};
   }
   connect();

@@ -85,11 +85,21 @@ static void handleCheckUpdate() {
         ",\"date\":\"" __DATE__ " " __TIME__ "\"}");
 }
 
+static bool isValidMd5(const String &s) {
+    if (s.length() != 32) return false;
+    for (unsigned i = 0; i < 32; i++) {
+        char c = s[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+            return false;
+    }
+    return true;
+}
+
 static void handleUpdate() {
     if (!isWebRequest()) return;
     String ver, md5;
     uint32_t buildN;
-    if (!fetchVersionInfo(ver, md5, buildN) || md5.length() != 32) {
+    if (!fetchVersionInfo(ver, md5, buildN) || !isValidMd5(md5)) {
         server.send(503, "application/json", "{\"error\":\"fetch_failed\"}");
         return;
     }

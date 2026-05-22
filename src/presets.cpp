@@ -64,7 +64,19 @@ static void handleSavePreset() {
     name.replace("\\", "");    // strip backslashes so stored names are always JSON-safe
     name.replace("\"", "'");   // replace double-quotes before truncating to avoid split surrogates
     if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
-    if (name.length() > PRESET_NAME_MAX_LEN) name = name.substring(0, PRESET_NAME_MAX_LEN);
+    // Truncate by Unicode codepoints, not bytes, to avoid splitting multibyte UTF-8 sequences
+    // (e.g. Cyrillic = 2 bytes/char; naive byte-slice would store invalid UTF-8 in NVS).
+    if (name.length() > (unsigned)PRESET_NAME_MAX_LEN) {
+        int bytePos = 0, chars = 0;
+        while (bytePos < (int)name.length() && chars < PRESET_NAME_MAX_LEN) {
+            uint8_t c = (uint8_t)name[bytePos];
+            int seqLen = (c < 0x80) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
+            if (bytePos + seqLen > (int)name.length()) break;  // incomplete sequence at end
+            bytePos += seqLen;
+            chars++;
+        }
+        name = name.substring(0, bytePos);
+    }
     Preferences p;
     p.begin("presets", false);
     char k[6];

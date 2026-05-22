@@ -137,6 +137,11 @@ static void handleSurprise() {
                 if (started) {
                     if      (c == '"')  inner += '"';
                     else if (c == '\\') inner += '\\';
+                    else if (c == 'n')  inner += '\n';
+                    else if (c == 't')  inner += '\t';
+                    else if (c == 'r')  inner += '\r';
+                    // \uXXXX and other escapes: append literal char (harmless for
+                    // numeric fields; \u in name is uncommon given ASCII-only prompt)
                     else                inner += c;
                 }
                 esc = false; continue;

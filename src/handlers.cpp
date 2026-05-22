@@ -171,7 +171,7 @@ static void handleReset() {
 }
 
 static void handleInfo() {
-    char j[512];
+    char j[768];  // 512 is tight for 32-char escaped SSID + all fields; 768 gives safe headroom
     String ip   = WiFi.localIP().toString();
     String ssid = jsonEscape(WiFi.SSID());
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
@@ -192,7 +192,7 @@ static void handleInfo() {
 
 static void handleDebug() {
     if (!isWebRequest()) return;
-    char j[640];
+    char j[768];
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
     String   ssid      = jsonEscape(WiFi.SSID());
     String   ip        = WiFi.localIP().toString();

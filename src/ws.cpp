@@ -4,17 +4,18 @@
 
 static WebSocketsServer wsServer(WS_PORT);
 
-static void onWsEvent(uint8_t, WStype_t type, uint8_t *, size_t) {
+static void onWsEvent(uint8_t num, WStype_t type, uint8_t *, size_t) {
     // Push-only server: we don't process incoming messages.
-    // Send current state immediately on new connection so the client is
-    // synchronised even if it missed a broadcast while disconnected.
+    // Send current state to the newly connected client so it is synchronised
+    // immediately even if it missed a broadcast while disconnected.
+    // Use sendTXT(num) — not broadcastTXT — to target only the new client.
     if (type == WStype_CONNECTED) {
         char j[96];
         snprintf(j, sizeof(j),
                  "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f,\"bl\":%d,\"th\":%d,\"upd\":%d}",
                  (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
                  (float)currentPowerMw / 1000.0f, (int)uiBlend, (int)uiTheme, updatePending ? 1 : 0);
-        wsServer.broadcastTXT(j);
+        wsServer.sendTXT(num, j);
     }
 }
 
