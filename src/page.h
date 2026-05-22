@@ -437,8 +437,14 @@ pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},60000);
   var ws,wst,wsDelay=3000;
   function applyState(x){
     pullFails=0;hideOffline();
-    pb(x.b);pc(x.c);pco(x.co);psp(x.sp);
-    if(x.bl!==undefined)pbl(x.bl);
+    // Skip updating a slider that is currently being dragged — avoids the thumb
+    // snapping back to the server-confirmed value while the user is still moving it.
+    var ae=document.activeElement;
+    if(ae!==sb)pb(x.b);
+    if(ae!==sc)pc(x.c);
+    if(ae!==sco)pco(x.co);
+    if(ae!==ssp)psp(x.sp);
+    if(x.bl!==undefined&&ae!==sbl)pbl(x.bl);
     if(x.th!==undefined)pth(x.th);
     if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
     if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}

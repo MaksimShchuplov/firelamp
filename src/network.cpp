@@ -52,6 +52,7 @@ void startNetwork() {
         } else {
             LOG_WARN("mDNS start failed — firelamp.local will not resolve");
         }
+        wsSetup();   // only when connected — avoids unauthenticated WS on AP provisioning port
         startAutoUpdateTask();
     } else {
         LOG_WARN("WiFi not configured — connect to \"%s\"", WIFI_PORTAL_SSID);
@@ -65,7 +66,6 @@ void startNetwork() {
     static const char *hdrs[] = {"X-Requested-With"};
     server.collectHeaders(hdrs, 1);
     server.begin();
-    wsSetup();
 }
 
 void serviceNetwork() {

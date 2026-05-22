@@ -13,9 +13,9 @@ static std::atomic<uint8_t> * const kPPtr[] = {
 };
 
 static void handleGetPresets() {
-    // buf fits worst case: 8 slots × ~88 chars + delimiters ≈ 650 bytes.
-    // 1024 gives 1.5× headroom for escaped names and future fields.
-    char buf[1024];
+    // buf fits worst case: 8 slots × up to ~100 chars (name up to 60 bytes for 15 emoji
+    // × 4 bytes each) + JSON framing ≈ 1280 bytes. 2048 gives comfortable headroom.
+    char buf[2048];
     int  len = 0;
 #define GPCAT(c) do { if (len < (int)sizeof(buf) - 1) buf[len++] = (c); } while (0)
 #define GPFMT(...) do { \
@@ -70,7 +70,10 @@ static void handleSavePreset() {
         int bytePos = 0, chars = 0;
         while (bytePos < (int)name.length() && chars < PRESET_NAME_MAX_LEN) {
             uint8_t c = (uint8_t)name[bytePos];
-            int seqLen = (c < 0x80) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
+            // 0x80–0xBF are continuation bytes, never valid sequence starters —
+            // treat them as 1-byte invalid units so a malformed input byte cannot
+            // cause the loop to skip into the middle of a valid codepoint that follows.
+            int seqLen = (c < 0x80) ? 1 : (c < 0xC0) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
             if (bytePos + seqLen > (int)name.length()) break;  // incomplete sequence at end
             bytePos += seqLen;
             chars++;
