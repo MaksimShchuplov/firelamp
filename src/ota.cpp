@@ -105,12 +105,14 @@ static void handleUpdate() {
     }
     // Flush any pending NVS writes before rebooting so no settings are lost.
     if (prefsDirty) {
-        if (!flushPrefs())
+        if (flushPrefs())
+            prefsDirty = false;
+        else
             LOG_WARN("OTA pre-flush: NVS write failed — settings may not persist after update");
-        prefsDirty = false;
     }
     Update.setMD5(md5.c_str());
     server.send(200, "text/plain", "Update starting...");
+    server.client().flush();
     server.client().stop();
     WiFiClientSecure client; client.setInsecure();
     httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);

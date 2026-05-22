@@ -63,12 +63,12 @@ void sendVal() {
 // Uses the always-open global prefs handle (opened in startNetwork).
 bool flushPrefs() {
     bool ok = true;
-    ok &= (prefs.putUChar("bright2",  uiBright)  == 1);
-    ok &= (prefs.putUChar("contrast", uiContrast) == 1);
-    ok &= (prefs.putUChar("cooling",  uiCooling)  == 1);
-    ok &= (prefs.putUChar("sparking", uiSparking) == 1);
-    ok &= (prefs.putUChar("blend",    uiBlend)    == 1);
-    ok &= (prefs.putUChar("theme",    uiTheme)    == 1);
+    ok &= (prefs.putUChar("bright2",  uiBright)  != 0);
+    ok &= (prefs.putUChar("contrast", uiContrast) != 0);
+    ok &= (prefs.putUChar("cooling",  uiCooling)  != 0);
+    ok &= (prefs.putUChar("sparking", uiSparking) != 0);
+    ok &= (prefs.putUChar("blend",    uiBlend)    != 0);
+    ok &= (prefs.putUChar("theme",    uiTheme)    != 0);
     return ok;
 }
 

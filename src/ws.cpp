@@ -3,6 +3,7 @@
 #include "globals.h"
 
 static WebSocketsServer wsServer(WS_PORT);
+static bool             wsReady = false;
 
 static void onWsEvent(uint8_t num, WStype_t type, uint8_t *, size_t) {
     // Push-only server: we don't process incoming messages.
@@ -22,9 +23,11 @@ static void onWsEvent(uint8_t num, WStype_t type, uint8_t *, size_t) {
 void wsSetup() {
     wsServer.begin();
     wsServer.onEvent(onWsEvent);
+    wsReady = true;
 }
 
 void wsLoop() {
+    if (!wsReady) return;
     wsServer.loop();
 }
 

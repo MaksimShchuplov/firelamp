@@ -38,6 +38,10 @@ void startNetwork() {
         } else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
             LOG_INFO("WiFi connected — IP %s  RSSI %d dBm",
                      WiFi.localIP().toString().c_str(), WiFi.RSSI());
+            // wsSetup() was skipped if WiFi wasn't ready during startNetwork()
+            // (e.g. portal timed out then STA connected later). Call it once.
+            static bool wsStarted = false;
+            if (!wsStarted) { wsSetup(); wsStarted = true; }
         }
     });
 
@@ -52,7 +56,6 @@ void startNetwork() {
         } else {
             LOG_WARN("mDNS start failed — firelamp.local will not resolve");
         }
-        wsSetup();   // only when connected — avoids unauthenticated WS on AP provisioning port
         startAutoUpdateTask();
     } else {
         LOG_WARN("WiFi not configured — connect to \"%s\"", WIFI_PORTAL_SSID);

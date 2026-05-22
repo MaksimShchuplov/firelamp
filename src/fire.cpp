@@ -9,7 +9,7 @@
 // Called from Core 1 only (network handlers / startNetwork). Not reentrant.
 // Double-buffer + memw barrier make the palette flip safe to read from Core 0.
 void buildHeatPalette() {
-    const uint8_t next  = 1 - activePal;
+    const uint8_t next  = (activePal.load() & 1) ^ 1;
     const float   power = 1.0f + ((uiContrast - 50.0f) / 50.0f);
     const uint8_t theme = uiTheme;            // snapshot atomic once
     for (int i = 0; i < 256; i++) {
@@ -96,7 +96,7 @@ void recalcCooling() {
     const uint8_t cooling = uiCooling;   // snapshot atomic once — prevents lo/hi split if Core 1 updates mid-loop
     const uint8_t lo = (cooling > COOLING_VARIANCE) ? cooling - COOLING_VARIANCE : 0;
     for (int y = 0; y < ROWS; y++)
-        coolMax[y] = (uint8_t)((random8(lo, cooling + COOLING_VARIANCE) * COOLING_ROW_SCALE) / ROWS + COOLING_ROW_BIAS);
+        coolMax[y] = (uint8_t)((random8(lo, (uint8_t)min((int)cooling + COOLING_VARIANCE, 255)) * COOLING_ROW_SCALE) / ROWS + COOLING_ROW_BIAS);
 }
 
 void updatePowerCalc() {

@@ -46,12 +46,13 @@ static void handleSurprise() {
     const char *scene = kScenes[random8(kScenesCount)];
 
     static const char * const kThemeNames[] = {"Fire", "Ember", "Plasma", "Ice"};
+    const int curTh = uiTheme;
     char curState[128];  // max output ~95 bytes ("...th=3(Plasma). Make something strikingly different.")
     snprintf(curState, sizeof(curState),
              "Currently: b=%d c=%d co=%d sp=%d bl=%d th=%d(%s). Make something strikingly different.",
              (int)uiBright, (int)uiContrast, (int)uiCooling,
-             (int)uiSparking, (int)uiBlend, (int)uiTheme,
-             kThemeNames[(int)uiTheme < 4 ? (int)uiTheme : 0]);
+             (int)uiSparking, (int)uiBlend, curTh,
+             kThemeNames[curTh < 4 ? curTh : 0]);
 
     static const char kPromptBase[] =
         "You design fire effects for an 800-LED cylinder lamp (20 col \xc3\x97 40 rows, WS2812B). "
@@ -123,7 +124,7 @@ static void handleSurprise() {
         p++;
     }
     if (ti < 0) {
-        LOG_WARN("Gemini: no \"text\" field found. HTTP %d, body len %d", code, resp.length());
+        LOG_WARN("Gemini: no \"text\" field found. HTTP %d, body len %u", code, (unsigned)resp.length());
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
     String inner;
@@ -154,8 +155,8 @@ static void handleSurprise() {
         }
     }
     if (inner.length() < 10) {
-        LOG_WARN("Gemini: inner JSON too short (%d chars). Partial resp: %.200s",
-                 inner.length(), resp.c_str());
+        LOG_WARN("Gemini: inner JSON too short (%u chars). Partial resp: %.200s",
+                 (unsigned)inner.length(), resp.c_str());
         server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
     }
 
