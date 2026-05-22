@@ -2,8 +2,8 @@
 #include <WebSocketsServer.h>
 #include "globals.h"
 
-static WebSocketsServer wsServer(WS_PORT);
-static bool             wsReady = false;
+static WebSocketsServer      wsServer(WS_PORT);
+static std::atomic<bool>     wsReady{false};
 
 static void onWsEvent(uint8_t num, WStype_t type, uint8_t *, size_t) {
     // Push-only server: we don't process incoming messages.
@@ -23,15 +23,17 @@ static void onWsEvent(uint8_t num, WStype_t type, uint8_t *, size_t) {
 void wsSetup() {
     wsServer.begin();
     wsServer.onEvent(onWsEvent);
-    wsReady = true;
+    // release ensures all wsServer writes above are visible before wsReady is seen true on Core 1
+    wsReady.store(true, std::memory_order_release);
 }
 
 void wsLoop() {
-    if (!wsReady) return;
+    if (!wsReady.load(std::memory_order_acquire)) return;
     wsServer.loop();
 }
 
 void wsPushState() {
+    if (!wsReady.load(std::memory_order_acquire)) return;
     if (wsServer.connectedClients() == 0) return;
     char j[96];
     snprintf(j, sizeof(j),
