@@ -211,6 +211,7 @@ static void handleSurprise() {
              (int)uiSparking, (int)uiBlend, (int)uiTheme,
              (float)currentPowerMw / 1000.0f);
     server.send(200, "application/json", j);
+    wsPushState();
 }
 
 void registerGeminiHandlers() {
