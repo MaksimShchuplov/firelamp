@@ -171,7 +171,15 @@ static void handleSurprise() {
         while (i < (int)inner.length() && inner[i] == ' ') i++;
         if (i >= (int)inner.length() || inner[i] != '"') return "";
         i++;
-        int e = inner.indexOf("\"", i);
+        // Scan for closing '"', skipping '\\' escape pairs so a name that
+        // contained '\"' in the original JSON (unescaped to '"' by the
+        // extractor loop above) doesn't truncate the value prematurely.
+        int e = i;
+        while (e < (int)inner.length()) {
+            if (inner[e] == '\\') { e += 2; continue; }
+            if (inner[e] == '"')  break;
+            e++;
+        }
         return (e > i) ? inner.substring(i, e) : "";
     };
     auto exNum = [&](const char *fld) -> int {

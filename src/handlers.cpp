@@ -142,6 +142,7 @@ static void handleSetBl() {
     if (parseIntArg("v", 0, 255, v)) {
         uiBlend = (uint8_t)v;
         markDirty();
+        updatePowerCalc();
     }
     sendVal();
 }
