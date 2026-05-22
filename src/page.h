@@ -415,6 +415,7 @@ function askAI(){
     return r.json();
   }).then(function(x){
     if(x.error)throw new Error(x.error);
+    pullFails=0;hideOffline();
     pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);
     if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
     clearActive();lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';

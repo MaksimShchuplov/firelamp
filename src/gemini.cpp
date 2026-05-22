@@ -130,7 +130,7 @@ static void handleSurprise() {
     String inner;
     inner.reserve(128);
     {
-        bool esc = false, started = false;
+        bool esc = false, started = false, inStr = false;
         int depth = 0;
         for (int i = ti; i < (int)resp.length(); i++) {
             char c = resp[i];
@@ -150,6 +150,8 @@ static void handleSurprise() {
             if (c == '\\') { esc = true; continue; }
             if (!started) { if (c == '{') { started = true; depth = 1; inner += c; } continue; }
             inner += c;
+            if (c == '"') { inStr = !inStr; continue; }
+            if (inStr) continue;   // braces inside string values don't affect depth
             if      (c == '{') depth++;
             else if (c == '}') { if (--depth == 0) break; }
         }
