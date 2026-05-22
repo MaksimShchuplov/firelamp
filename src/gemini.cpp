@@ -201,7 +201,19 @@ static void handleSurprise() {
     updatePowerCalc();
     markDirty();
 
-    if (name.length() > PRESET_NAME_MAX_LEN) name = name.substring(0, PRESET_NAME_MAX_LEN);
+    // Truncate by Unicode codepoints (same logic as handleSavePreset) to avoid
+    // splitting a multibyte UTF-8 sequence at a byte boundary.
+    if (name.length() > (unsigned)PRESET_NAME_MAX_LEN) {
+        int bytePos = 0, chars = 0;
+        while (bytePos < (int)name.length() && chars < PRESET_NAME_MAX_LEN) {
+            uint8_t ch = (uint8_t)name[bytePos];
+            int seqLen = (ch < 0x80) ? 1 : (ch < 0xC0) ? 1 : (ch < 0xE0) ? 2 : (ch < 0xF0) ? 3 : 4;
+            if (bytePos + seqLen > (int)name.length()) break;
+            bytePos += seqLen;
+            chars++;
+        }
+        name = name.substring(0, bytePos);
+    }
     char j[192];
     snprintf(j, sizeof(j),
              "{\"ok\":true,\"name\":\"%s\",\"b\":%d,\"c\":%d,\"co\":%d,"
