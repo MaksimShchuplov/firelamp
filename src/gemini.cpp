@@ -200,7 +200,7 @@ static void surpriseTask(void *) {
     int b  = exNum("b"),  cv = exNum("c"),  co = exNum("co");
     int sp = exNum("sp"), bl = exNum("bl"), th = exNum("th");
     if (name.length() == 0 || b < 0) {
-        LOG_WARN("Gemini: missing fields. name=\"%s\" b=%d. inner: %.120s",
+        LOG_WARN("Gemini: missing fields. name=\"%s\" b=%d. inner: %.40s",
                  name.c_str(), b, inner.c_str());
         SURPRISE_FAIL("parse_failed");
     }
