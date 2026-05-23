@@ -175,11 +175,8 @@ static void handleReset() {
     updatePowerCalc(); sendVal();
 }
 
-// No isWebRequest() guard here — OTA reboot polling (page.h pollReboot) calls
-// this endpoint from old firmware JS that may not send the CSRF header.
-// Adding a guard would break the OTA progress bar for anyone updating from an
-// older build. This endpoint is read-only so the CSRF exception is acceptable.
 static void handleInfo() {
+    if (!isWebRequest()) return;
     char j[768];  // 512 is tight for 32-char escaped SSID + all fields; 768 gives safe headroom
     String ip   = WiFi.localIP().toString();
     String ssid = jsonEscape(WiFi.SSID());
