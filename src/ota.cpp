@@ -39,7 +39,7 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *o
     client.setInsecure();
     HTTPClient http;
     http.setTimeout(HTTP_TIMEOUT_MS);
-    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     http.begin(client, VERSION_URL);
     int code = http.GET();
     if (code != 200) {
