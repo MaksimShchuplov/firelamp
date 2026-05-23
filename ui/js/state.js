@@ -13,8 +13,22 @@ function applyState(x){
     aiPending=false;clearTimeout(aiTimeout);aiTimeout=null;
     var btn=document.getElementById('surprise'),nm=document.getElementById('ainame');
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
-    if(x.name){clearActive();lastAiName=x.name.substring(0,15);nm.style.color='#fbbf24';nm.textContent=lastAiName+' ✨';}
-    else{nm.style.color='#ef4444';nm.textContent=ru?'⚠ Ошибка AI':'⚠ AI error';setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);}
+    var n=x.name||'';
+    if(n.substring(0,6)==='__err_'){
+      var code=n.substring(6);
+      var msg=code==='rate_limit'?(ru?'⚠ Лимит запросов':'⚠ Rate limit')
+        :code==='auth_error'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
+        :code==='timeout'?(ru?'⚠ Нет ответа AI (таймаут)':'⚠ AI timeout')
+        :code==='parse_failed'?(ru?'⚠ Ошибка ответа AI':'⚠ AI response error')
+        :(ru?'⚠ Ошибка AI':'⚠ AI error');
+      nm.style.color='#ef4444';nm.textContent=msg;
+      setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},5000);
+    } else if(n){
+      clearActive();lastAiName=n.substring(0,15);nm.style.color='#fbbf24';nm.textContent=lastAiName+' ✨';
+    } else {
+      nm.style.color='#ef4444';nm.textContent=ru?'⚠ Ошибка AI':'⚠ AI error';
+      setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);
+    }
   }
 }
 function pull(){fetch('/state').then(r=>r.json()).then(x=>{applyState(x);}).catch(()=>{pullFails++;if(pullFails>=3)showOffline();});}

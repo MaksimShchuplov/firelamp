@@ -42,11 +42,11 @@ static std::atomic<bool> s_surpriseBusy{false};
 
 static void surpriseTask(void *) {
     // Inline cleanup: push error via WS, release lock, delete self.
-#define SURPRISE_FAIL(reason) do { \
-    LOG_WARN("Gemini task: " reason); \
-    lastSurpriseName[0] = '\0'; \
+#define SURPRISE_FAIL(code) do { \
+    LOG_WARN("Gemini task: " code); \
+    snprintf(lastSurpriseName, sizeof(lastSurpriseName), "__err_%s", code); \
     lastSurpriseAt.store(millis(), std::memory_order_release); \
-    wsPushSurprise(""); \
+    wsPushSurprise(lastSurpriseName); \
     s_surpriseBusy.store(false, std::memory_order_release); \
     vTaskDelete(NULL); return; } while (0)
 
@@ -106,12 +106,10 @@ static void surpriseTask(void *) {
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-goog-api-key", apiKey);
     int code = http.POST(body);
-    if (code <= 0 || (code != 200 && code != 429 && code != 401 && code != 403)) {
-        http.end(); SURPRISE_FAIL("HTTP error");
-    }
-    if (code == 429 || code == 401 || code == 403) {
-        http.end(); SURPRISE_FAIL("auth/rate error");
-    }
+    if (code <= 0) { http.end(); SURPRISE_FAIL("timeout"); }
+    if (code == 429) { http.end(); SURPRISE_FAIL("rate_limit"); }
+    if (code == 401 || code == 403) { http.end(); SURPRISE_FAIL("auth_error"); }
+    if (code != 200) { http.end(); SURPRISE_FAIL("http_error"); }
     String resp = http.getString();
     http.end();
 
@@ -259,7 +257,9 @@ static void handleSurprise() {
             server.send(400, "application/json", "{\"error\":\"no_key\"}"); return;
         }
     }
-    if (xTaskCreatePinnedToCore(surpriseTask, "Surprise", SURPRISE_STACK_BYTES, NULL, 1, NULL, 1) != pdPASS) {
+    // Core 0: keeps Core 1 (web server) free during TLS handshake so HTTP
+    // requests (including /state fallback polls) remain responsive.
+    if (xTaskCreatePinnedToCore(surpriseTask, "Surprise", SURPRISE_STACK_BYTES, NULL, 1, NULL, 0) != pdPASS) {
         s_surpriseBusy.store(false, std::memory_order_release);
         server.send(503, "application/json", "{\"error\":\"task_failed\"}"); return;
     }

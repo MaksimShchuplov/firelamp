@@ -31,9 +31,9 @@ function askAI(){
         if(!aiPending)return;
         aiPending=false;aiTimeout=null;
         btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
-        nm.style.color='#ef4444';nm.textContent=ru?'⚠ Нет ответа AI':'⚠ AI no response';
-        setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);
-      },25000);
+        nm.style.color='#ef4444';nm.textContent=ru?'⚠ Нет ответа AI (таймаут)':'⚠ AI no response (timeout)';
+        setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},5000);
+      },32000);
       return;
     }
     pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);
