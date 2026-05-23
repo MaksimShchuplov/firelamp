@@ -85,7 +85,7 @@ static const char *surpriseBody(const String &apiKey) {
 
     String body =
         String("{\"contents\":[{\"parts\":[{\"text\":\"") + jsonEscape(prompt) +
-        "\"}]}],\"generationConfig\":{\"temperature\":1.4,\"maxOutputTokens\":256}}";
+        "\"}]}],\"generationConfig\":{\"temperature\":1.4,\"maxOutputTokens\":4096}}";
 
     WiFiClientSecure client;
     client.setInsecure();
