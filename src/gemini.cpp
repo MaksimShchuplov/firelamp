@@ -111,6 +111,7 @@ static void surpriseTask(void *) {
     if (code != 200) {
         String eb = http.getString(); http.end();
         LOG_WARN("Gemini: HTTP %d: %.80s", code, eb.c_str());
+        if (code == 400 && eb.indexOf("API key") >= 0) SURPRISE_FAIL("auth_error");
         SURPRISE_FAIL("http_error");
     }
     String resp = http.getString();
