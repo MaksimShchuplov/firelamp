@@ -54,7 +54,7 @@ static void surpriseTask(void *) {
     gp.begin("gemini", true);
     String apiKey = gp.getString("key", "");
     gp.end();
-    if (apiKey.length() == 0) SURPRISE_FAIL("no key");
+    if (apiKey.length() == 0) SURPRISE_FAIL("no_key");
 
     static const char * const kScenes[] = {
         "midnight thunderstorm", "arctic tundra", "volcanic eruption", "deep ocean abyss",
@@ -109,7 +109,7 @@ static void surpriseTask(void *) {
     if (code <= 0) { http.end(); SURPRISE_FAIL("timeout"); }
     if (code == 429) { http.end(); SURPRISE_FAIL("rate_limit"); }
     if (code == 401 || code == 403) { http.end(); SURPRISE_FAIL("auth_error"); }
-    if (code != 200) { http.end(); SURPRISE_FAIL("http_error"); }
+    if (code != 200) { LOG_WARN("Gemini: HTTP %d", code); http.end(); SURPRISE_FAIL("http_error"); }
     String resp = http.getString();
     http.end();
 

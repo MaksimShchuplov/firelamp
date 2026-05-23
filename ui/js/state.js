@@ -24,8 +24,10 @@ function applyState(x){
       var code=n.substring(6);
       var msg=code==='rate_limit'?(ru?'⚠ Лимит запросов':'⚠ Rate limit')
         :code==='auth_error'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
+        :code==='no_key'?(ru?'⚠ Укажите ключ Gemini (?)':'⚠ Set Gemini key (?)')
         :code==='timeout'?(ru?'⚠ Нет ответа AI (таймаут)':'⚠ AI timeout')
         :code==='parse_failed'?(ru?'⚠ Ошибка ответа AI':'⚠ AI response error')
+        :code==='http_error'?(ru?'⚠ Ошибка сервера Gemini':'⚠ Gemini server error')
         :(ru?'⚠ Ошибка AI':'⚠ AI error');
       nm.style.color='#ef4444';nm.textContent=msg;
       setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},5000);
