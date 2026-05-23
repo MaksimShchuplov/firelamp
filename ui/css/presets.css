@@ -1,0 +1,12 @@
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 24px}
+.prbtn{flex:0 0 calc(25% - 6px);background:none;border:1px dashed #4a2010;color:#5a3018;border-radius:8px;cursor:pointer;font-size:10px;text-transform:uppercase;letter-spacing:.05em;transition:all .2s;min-height:44px;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation}
+.prbtn.filled{border-style:solid;border-color:#7a3f16;color:#c8743a}
+.prbtn.act{background:#3a1a06;border-color:#d6510c;color:#ffd8a0}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.shk{animation:shake .25s ease}
+.prein{overflow:hidden;max-height:0;transition:max-height .25s ease;display:flex;gap:8px;align-items:center;margin-bottom:0}
+.prein.show{max-height:52px;margin-bottom:16px}
+.prein input{flex:1;background:rgba(120,40,10,.15);border:1px solid #7a3f16;border-radius:8px;color:#f6d9b0;padding:0 12px;height:44px;font-size:13px;font-family:inherit;-webkit-appearance:none}
+.prein input:focus{outline:none;border-color:#d6510c}
+.pric{background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:8px;cursor:pointer;min-width:44px;height:44px;font-size:16px;transition:all .2s;flex-shrink:0;touch-action:manipulation}
+.pric:active{background:#7a3f16;color:#fff2dd}

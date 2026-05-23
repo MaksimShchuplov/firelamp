@@ -1,0 +1,14 @@
+.offb{position:fixed;top:0;left:0;right:0;background:#7a1616;color:#fca5a5;text-align:center;font-size:12px;padding:10px;z-index:15;transform:translateY(-100%);transition:transform .3s;letter-spacing:.05em}
+.offb.show{transform:translateY(0)}
+.shdim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:19;opacity:0;pointer-events:none;transition:opacity .25s}
+.shdim.show{opacity:1;pointer-events:auto}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:#150803;border-top:1px solid #7a3f16;border-radius:16px 16px 0 0;z-index:20;padding:20px 20px 36px;transform:translateY(100%);transition:transform .25s ease}
+.sheet.show{transform:translateY(0)}
+.shtit{font-size:14px;font-weight:bold;color:#c8743a;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;text-align:center}
+.shmsg{font-size:13px;color:#a85a22;text-align:center;margin-bottom:16px;line-height:1.5;opacity:.9}
+.shbtn{width:100%;padding:14px;border-radius:8px;border:1px solid #7a3f16;background:none;color:#c8743a;font-size:14px;cursor:pointer;letter-spacing:.05em;transition:all .2s;touch-action:manipulation;margin-top:8px;display:block}
+.shbtn:active{background:#7a3f16}
+.shbtn.danger{border-color:#7a1616;color:#f87171}
+.shbtn.danger:active{background:#4a1010}
+.shbtn.primary{border-color:#16a34a;color:#4ade80}
+.shbtn.primary:active{background:#0d2a18}

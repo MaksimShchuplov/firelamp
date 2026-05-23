@@ -1,0 +1,9 @@
+.surprise{margin-top:10px;padding:14px 24px;background:none;border:1px solid #7a5f00;color:#fbbf24;border-radius:24px;cursor:pointer;font-size:13px;text-transform:uppercase;letter-spacing:.1em;transition:all .2s;width:100%}
+.surprise:active{background:#3a2f00;color:#fff2a0}
+.surprise:disabled{opacity:.5;cursor:default}
+.ainame{font-size:11px;color:#fbbf24;margin-top:6px;text-align:center;min-height:16px;opacity:.85;letter-spacing:.05em}
+.aikey{width:100%;background:rgba(120,40,10,.15);border:1px solid #7a3f16;border-radius:8px;color:#f6d9b0;padding:0 12px;height:44px;font-size:13px;font-family:inherit;-webkit-appearance:none;margin-top:8px;box-sizing:border-box}
+.aikey:focus{outline:none;border-color:#d6510c}
+.aiksave{background:none;border:1px solid #7a3f16;color:#c8743a;border-radius:8px;cursor:pointer;padding:0 16px;height:44px;font-size:13px;transition:all .2s;margin-top:8px;touch-action:manipulation}
+.aiksave:active{background:#7a3f16;color:#fff2dd}
+.aikeyst{font-size:11px;color:#4ade80;margin-top:4px;min-height:16px;letter-spacing:.05em}

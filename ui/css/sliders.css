@@ -1,0 +1,15 @@
+.val{font-size:72px;font-weight:200;line-height:1;letter-spacing:-.04em;
+ background:linear-gradient(180deg,#fff3d6,#ffb14a 55%,#ff6a18);-webkit-background-clip:text;
+ background-clip:text;color:transparent;transition:filter .25s;
+ filter:drop-shadow(0 0 calc(6px + 20px*var(--g)) rgba(255,140,40,calc(.4 + .5*var(--g))))}
+.bar{margin:24px 0;-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:9px;
+ outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.7);
+ background:linear-gradient(90deg,#2a0d04,#7a1f06 22%,#d6510c 55%,#ff8a1f 78%,#ffe7b8)}
+.bar:focus-visible{outline:2px solid #ff8a1f;outline-offset:3px}
+.bar::-webkit-slider-thumb{-webkit-appearance:none;width:48px;height:48px;border-radius:50%;cursor:pointer;
+ background:radial-gradient(circle at 38% 32%,#fff,#ffae45 40%,#ff5e10 75%,#7a1f00);
+ box-shadow:0 0 16px rgba(255,140,40,.9),0 2px 6px rgba(0,0,0,.6)}
+.bar::-moz-range-thumb{width:48px;height:48px;border:0;border-radius:50%;
+ background:radial-gradient(circle at 38% 32%,#fff,#ffae45 40%,#ff5e10 75%,#7a1f00);
+ box-shadow:0 0 16px rgba(255,140,40,.9)}
+.desc{font-size:12px;color:#a85a22;margin-top:-14px;margin-bottom:24px;letter-spacing:.05em;line-height:1.4;opacity:.8;font-weight:400}

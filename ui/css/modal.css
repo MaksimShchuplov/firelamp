@@ -1,0 +1,5 @@
+.mod{display:none;position:fixed;inset:0;background:rgba(10,5,3,.95);z-index:10;flex-direction:column;padding:30px;overflow-y:auto;color:#f6d9b0;text-align:left;font-size:14px;line-height:1.5}
+.mod.show{display:flex}
+.mcls{align-self:flex-end;background:none;border:none;color:#ffb14a;font-size:28px;cursor:pointer;margin-bottom:10px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+.mt{font-size:16px;font-weight:bold;color:#ff6a18;margin-top:15px;margin-bottom:5px;letter-spacing:.1em;text-transform:uppercase}
+.md{margin-bottom:15px;opacity:.85}
