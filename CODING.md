@@ -10,7 +10,9 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 | New constant / limit | `config.h` only |
 | New shared variable | `globals.h` only |
 | Fire physics / palette | `fire.cpp` only |
-| Web UI (HTML/CSS/JS) | `page.h` only |
+| Web UI layout / HTML | `ui/index.html` only |
+| Web UI styles / CSS  | `ui/css/<name>.css` only |
+| Web UI logic / JS    | `ui/js/<name>.js` only |
 | Startup / WiFi / mDNS | `network.cpp` only |
 | OTA / version check | `ota.cpp` only |
 | AI Surprise Me | `gemini.cpp` only |
@@ -18,7 +20,7 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 | WebSocket push state | `ws.cpp` only |
 | Cross-module signature | `net_helpers.h` + the one relevant `.cpp` |
 
-Never read all files. Never read `page.h` for C++ changes.
+Never read all files. Never read UI files for C++ changes. `src/page.h` is generated — edit `ui/` sources instead.
 
 ## Module ownership — each module registers its own routes
 
@@ -96,15 +98,21 @@ Checklist (in order):
 6. `network.cpp:startNetwork()` — load + clamp from NVS
 7. `handlers.cpp:sendVal()` — add field to JSON response
 8. `fire.cpp` — use `uiFoo` in simulation
-9. `page.h` — add slider, label, `pfo()` init function, `DD` description table, `ul()` translations
+9. `ui/js/globals.js` — add DOM ref and debounce timer variable
+10. `ui/js/state.js` — add `pfo(n)` apply function
+11. `ui/js/lang.js` — add label text + `ul()` translations (EN + RU) + `DD` description table entry
+12. `ui/js/sliders.js` — add slider event listener
+13. `ui/index.html` — add slider, label, description `<div>`
+14. `ui/css/sliders.css` — add styles if needed
 
 Each step is one file. Read only that file.
 
-## page.h conventions
+## UI conventions (ui/js/)
 
-- All text goes through `ul()` for EN/RU switching. Add both languages.
+- All UI text goes through `ul()` in `lang.js` for EN/RU switching. Add both languages.
 - `xf(url)` — fetch with CSRF header. Use for all mutating calls.
 - `xfc(url)` — same, with offline detection. Use for slider debounce calls.
-- `pb/pc/pco/psp/pbl/pth(n)` — apply server value to UI. Add `pfo(n)` for new params.
-- Slider debounce: 120 ms timeout, use a new `tN` variable.
-- `dynDesc('sid', val)` — maps value range to description text from `DD` table.
+- `pb/pc/pco/psp/pbl/pth(n)` — apply server value to UI (`state.js`). Add `pfo(n)` for new params.
+- Slider debounce: 120 ms timeout; declare timer variable in `globals.js`, handler in `sliders.js`.
+- `dynDesc('sid', val)` — maps value range to description text from `DD` table in `globals.js`.
+- `build_page.py` assembles `ui/` into `src/page.h` at pre-build time. Order is declared in `CSS_FILES` / `JS_FILES` lists in `build_page.py`.

@@ -109,9 +109,9 @@ static void handleUpdate() {
         return;
     }
     // Flush any pending NVS writes before rebooting so no settings are lost.
-    if (prefsDirty) {
+    if (prefsDirty.load(std::memory_order_relaxed)) {
         if (flushPrefs())
-            prefsDirty = false;
+            prefsDirty.store(false, std::memory_order_relaxed);
         else
             LOG_WARN("OTA pre-flush: NVS write failed — settings may not persist after update");
     }
