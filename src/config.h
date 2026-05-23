@@ -35,6 +35,7 @@
 // ---- Task / system ---------------------------------------------------------
 #define LEDTASK_STACK_BYTES     8192    // measured watermark ~3.2 KB; 8 KB gives 2× headroom
 #define POWER_CALC_INTERVAL_MS  3000
+#define WS_PUSH_INTERVAL_MS     3000    // periodic state broadcast when no user interaction
 
 // ---- Themes / presets ------------------------------------------------------
 #define THEME_COUNT             4       // Fire / Ember / Plasma / Ice

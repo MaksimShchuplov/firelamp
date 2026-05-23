@@ -83,6 +83,12 @@ void serviceNetwork() {
     server.handleClient();
     wsLoop();
 
+    static uint32_t lastWsPush = 0;
+    if (millis() - lastWsPush >= WS_PUSH_INTERVAL_MS) {
+        lastWsPush = millis();
+        wsPushState();
+    }
+
     if (prefsDirty && millis() - prefsTouch > NVS_COMMIT_DELAY_MS) {
         if (flushPrefs()) {
             prefsDirty = false;
