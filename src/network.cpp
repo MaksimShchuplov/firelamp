@@ -89,12 +89,12 @@ void serviceNetwork() {
         wsPushState();
     }
 
-    if (prefsDirty.load(std::memory_order_relaxed) && millis() - prefsTouch > NVS_COMMIT_DELAY_MS) {
+    if (prefsDirty.load(std::memory_order_relaxed) && millis() - prefsTouch.load(std::memory_order_relaxed) > NVS_COMMIT_DELAY_MS) {
         if (flushPrefs()) {
             prefsDirty.store(false, std::memory_order_relaxed);
         } else {
             LOG_ERROR("NVS write failed — will retry in %d ms", NVS_COMMIT_DELAY_MS);
-            prefsTouch = millis();
+            prefsTouch.store(millis(), std::memory_order_relaxed);
         }
     }
 
