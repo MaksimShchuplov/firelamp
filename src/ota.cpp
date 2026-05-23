@@ -11,7 +11,7 @@
 // by the MD5 hash embedded in version.json (checked by Update.setMD5 before flashing).
 // To enable full TLS verification replace setInsecure() with setCACert() pointing to the
 // GitHub root CA (DigiCert Global Root CA / G2) stored in a separate header.
-static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
+static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *outBusy = nullptr) {
     static String            s_ver, s_md5;
     static uint32_t          s_buildN = 0, s_at = 0;
     static std::atomic<bool> s_busy{false};
@@ -23,7 +23,10 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN) {
     // Cache read is also inside the lock so s_ver/s_md5/s_buildN are never
     // read while another task is writing them.
     bool expected = false;
-    if (!s_busy.compare_exchange_strong(expected, true)) return false;
+    if (!s_busy.compare_exchange_strong(expected, true)) {
+        if (outBusy) *outBusy = true;
+        return false;
+    }
 
     // RAII: unconditionally release the lock on all exit paths.
     struct Guard { std::atomic<bool> &f; ~Guard() { f.store(false, std::memory_order_seq_cst); } } guard{s_busy};
@@ -72,8 +75,9 @@ static void handleCheckUpdate() {
     if (!isWebRequest()) return;
     String ver, md5;
     uint32_t buildN;
-    if (!fetchVersionInfo(ver, md5, buildN)) {
-        server.send(503, "application/json", "{\"error\":\"fetch_failed\"}"); return;
+    bool busy = false;
+    if (!fetchVersionInfo(ver, md5, buildN, &busy)) {
+        server.send(503, "application/json", busy ? "{\"error\":\"busy\"}" : "{\"error\":\"fetch_failed\"}"); return;
     }
     // Compare monotonic build numbers when available (build_n > 0 means a CI build).
     // Falls back to SHA inequality for firmware flashed locally (BUILD_N == 0).
@@ -99,8 +103,9 @@ static void handleUpdate() {
     if (!isWebRequest()) return;
     String ver, md5;
     uint32_t buildN;
-    if (!fetchVersionInfo(ver, md5, buildN) || !isValidMd5(md5)) {
-        server.send(503, "application/json", "{\"error\":\"fetch_failed\"}");
+    bool busy = false;
+    if (!fetchVersionInfo(ver, md5, buildN, &busy) || !isValidMd5(md5)) {
+        server.send(503, "application/json", busy ? "{\"error\":\"busy\"}" : "{\"error\":\"fetch_failed\"}");
         return;
     }
     // Flush any pending NVS writes before rebooting so no settings are lost.

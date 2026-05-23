@@ -8,6 +8,8 @@
 static const char * const kPS[]  = {"b","c","co","sp","bl","th"};
 static const uint8_t      kPDef[]= {BRIGHT_DEFAULT, CONTRAST_DEFAULT, COOLING_DEFAULT,
                                      SPARKING_DEFAULT, BLEND_DEFAULT, THEME_DEFAULT};
+static const uint8_t      kPLo[] = {0,   0,  20,  0,   0,   0};
+static const uint8_t      kPHi[] = {100, 100, 150, 255, 255, THEME_COUNT - 1};
 static std::atomic<uint8_t> * const kPPtr[] = {
     &uiBright, &uiContrast, &uiCooling, &uiSparking, &uiBlend, &uiTheme
 };
@@ -108,7 +110,7 @@ static void handleLoadPreset() {
     }
     for (int j = 0; j < 6; j++) {
         snprintf(k, sizeof k, "p%d%s", slot, kPS[j]);
-        *kPPtr[j] = p.getUChar(k, kPDef[j]);
+        *kPPtr[j] = (uint8_t)constrain((int)p.getUChar(k, kPDef[j]), (int)kPLo[j], (int)kPHi[j]);
     }
     p.end();
     buildHeatPalette(); recalcCooling(); updatePowerCalc();

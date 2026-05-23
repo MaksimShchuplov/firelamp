@@ -11,6 +11,12 @@ static void handleSetGeminiKey() {
     if (k.length() == 0 || k.length() > 64) {
         server.send(400, "application/json", "{\"error\":\"invalid_key\"}"); return;
     }
+    for (int i = 0; i < (int)k.length(); i++) {
+        // Reject control chars and non-ASCII; prevents HTTP header injection via \r\n.
+        if ((uint8_t)k[i] < 0x21 || (uint8_t)k[i] > 0x7E) {
+            server.send(400, "application/json", "{\"error\":\"invalid_key\"}"); return;
+        }
+    }
     Preferences p;
     p.begin("gemini", false);
     p.putString("key", k);
