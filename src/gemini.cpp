@@ -108,7 +108,11 @@ static void surpriseTask(void *) {
     if (code <= 0) { http.end(); SURPRISE_FAIL("timeout"); }
     if (code == 429) { http.end(); SURPRISE_FAIL("rate_limit"); }
     if (code == 401 || code == 403) { http.end(); SURPRISE_FAIL("auth_error"); }
-    if (code != 200) { LOG_WARN("Gemini: HTTP %d", code); http.end(); SURPRISE_FAIL("http_error"); }
+    if (code != 200) {
+        String eb = http.getString(); http.end();
+        LOG_WARN("Gemini: HTTP %d: %.80s", code, eb.c_str());
+        SURPRISE_FAIL("http_error");
+    }
     String resp = http.getString();
     http.end();
 
