@@ -130,11 +130,13 @@ static void handleUpdate() {
 
 static void autoUpdateCheck(void *) {
     vTaskDelay(pdMS_TO_TICKS(OTA_CHECK_DELAY_MS));
-    String ver, md5;
-    uint32_t buildN;
-    if (fetchVersionInfo(ver, md5, buildN))
-        updatePending = (buildN > 0 && BUILD_N > 0) ? (buildN > BUILD_N)
-                                                    : (ver != String(FIRMWARE_VERSION));
+    {
+        String ver, md5;
+        uint32_t buildN;
+        if (fetchVersionInfo(ver, md5, buildN))
+            updatePending = (buildN > 0 && BUILD_N > 0) ? (buildN > BUILD_N)
+                                                        : (ver != String(FIRMWARE_VERSION));
+    }  // ver, md5 destructors run here before vTaskDelete
     vTaskDelete(NULL);
 }
 

@@ -236,12 +236,18 @@ static const char *surpriseBody(const String &apiKey) {
 }
 
 static void surpriseTask(void *) {
-    Preferences gp;
-    gp.begin("gemini", true);
-    String apiKey = gp.getString("key", "");
-    gp.end();
+    // char array avoids a String heap buffer that vTaskDelete would leak
+    // (vTaskDelete terminates without unwinding, skipping C++ destructors).
+    char apiKey[65] = {};
+    {
+        Preferences gp;
+        gp.begin("gemini", true);
+        String k = gp.getString("key", "");
+        gp.end();
+        strncpy(apiKey, k.c_str(), sizeof(apiKey) - 1);
+    }  // k.~String() runs here, freeing its heap buffer
 
-    const char *err = (apiKey.length() == 0) ? "no_key" : surpriseBody(apiKey);
+    const char *err = (apiKey[0] == '\0') ? "no_key" : surpriseBody(apiKey);
 
     if (err) {
         LOG_WARN("Gemini task: %s", err);
