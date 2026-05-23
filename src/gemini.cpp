@@ -40,21 +40,13 @@ static void handleGeminiKey() {
 
 static std::atomic<bool> s_surpriseBusy{false};
 
-static void surpriseTask(void *) {
-    // Inline cleanup: push error via WS, release lock, delete self.
-#define SURPRISE_FAIL(code) do { \
-    LOG_WARN("Gemini task: " code); \
-    snprintf(lastSurpriseName, sizeof(lastSurpriseName), "__err_%s", code); \
-    lastSurpriseAt.store(millis(), std::memory_order_release); \
-    wsPushSurprise(lastSurpriseName); \
-    s_surpriseBusy.store(false, std::memory_order_release); \
-    vTaskDelete(NULL); return; } while (0)
-
-    Preferences gp;
-    gp.begin("gemini", true);
-    String apiKey = gp.getString("key", "");
-    gp.end();
-    if (apiKey.length() == 0) SURPRISE_FAIL("no_key");
+// Returns nullptr on success, or a short error-code string on failure.
+// All C++ objects (WiFiClientSecure, HTTPClient, String) are locals here —
+// their destructors free mbedTLS contexts when this function returns, before
+// vTaskDelete() is called. The original design called vTaskDelete() inside
+// SURPRISE_FAIL, skipping destructors and leaking ~32 KB of TLS heap per call.
+static const char *surpriseBody(const String &apiKey) {
+#define FAIL(code) return (code)
 
     static const char * const kScenes[] = {
         "midnight thunderstorm", "arctic tundra", "volcanic eruption", "deep ocean abyss",
@@ -105,14 +97,14 @@ static void surpriseTask(void *) {
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-goog-api-key", apiKey);
     int code = http.POST(body);
-    if (code <= 0) { http.end(); SURPRISE_FAIL("timeout"); }
-    if (code == 429) { http.end(); SURPRISE_FAIL("rate_limit"); }
-    if (code == 401 || code == 403) { http.end(); SURPRISE_FAIL("auth_error"); }
+    if (code <= 0) { http.end(); FAIL("timeout"); }
+    if (code == 429) { http.end(); FAIL("rate_limit"); }
+    if (code == 401 || code == 403) { http.end(); FAIL("auth_error"); }
     if (code != 200) {
         String eb = http.getString(); http.end();
         LOG_WARN("Gemini: HTTP %d: %.130s", code, eb.c_str());
-        if (code == 400 && eb.indexOf("API key") >= 0) SURPRISE_FAIL("auth_error");
-        SURPRISE_FAIL("http_error");
+        if (code == 400 && eb.indexOf("API key") >= 0) FAIL("auth_error");
+        FAIL("http_error");
     }
     String resp = http.getString();
     http.end();
@@ -141,7 +133,7 @@ static void surpriseTask(void *) {
     }
     if (ti < 0) {
         LOG_WARN("Gemini: no text field with '{'. HTTP %d, len %u", code, (unsigned)resp.length());
-        SURPRISE_FAIL("parse_failed");
+        FAIL("parse_failed");
     }
 
     String inner;
@@ -173,7 +165,7 @@ static void surpriseTask(void *) {
     }
     if (inner.length() < 10) {
         LOG_WARN("Gemini: inner JSON too short (%u chars)", (unsigned)inner.length());
-        SURPRISE_FAIL("parse_failed");
+        FAIL("parse_failed");
     }
 
     auto exStr = [&](const char *fld) -> String {
@@ -207,7 +199,7 @@ static void surpriseTask(void *) {
     if (name.length() == 0 || b < 0) {
         LOG_WARN("Gemini: missing fields. name=\"%s\" b=%d. inner: %.40s",
                  name.c_str(), b, inner.c_str());
-        SURPRISE_FAIL("parse_failed");
+        FAIL("parse_failed");
     }
 
     if (b  >= 0) setBright(constrain(b,  0, 100));
@@ -239,7 +231,24 @@ static void surpriseTask(void *) {
     wsPushSurprise(lastSurpriseName);
     LOG_INFO("Gemini: applied \"%s\"", name.c_str());
 
-#undef SURPRISE_FAIL
+#undef FAIL
+    return nullptr;
+}
+
+static void surpriseTask(void *) {
+    Preferences gp;
+    gp.begin("gemini", true);
+    String apiKey = gp.getString("key", "");
+    gp.end();
+
+    const char *err = (apiKey.length() == 0) ? "no_key" : surpriseBody(apiKey);
+
+    if (err) {
+        LOG_WARN("Gemini task: %s", err);
+        snprintf(lastSurpriseName, sizeof(lastSurpriseName), "__err_%s", err);
+        lastSurpriseAt.store(millis(), std::memory_order_release);
+        wsPushSurprise(lastSurpriseName);
+    }
     s_surpriseBusy.store(false, std::memory_order_release);
     vTaskDelete(NULL);
 }
