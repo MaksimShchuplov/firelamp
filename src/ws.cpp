@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WebSocketsServer.h>
 #include "globals.h"
+#include "net_helpers.h"
 
 static WebSocketsServer      wsServer(WS_PORT);
 static std::atomic<bool>     wsReady{false};
@@ -12,10 +13,7 @@ static void onWsEvent(uint8_t num, WStype_t type, uint8_t *, size_t) {
     // Use sendTXT(num) — not broadcastTXT — to target only the new client.
     if (type == WStype_CONNECTED) {
         char j[96];
-        snprintf(j, sizeof(j),
-                 "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f,\"bl\":%d,\"th\":%d,\"upd\":%d}",
-                 (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
-                 (float)currentPowerMw / 1000.0f, (int)uiBlend, (int)uiTheme, updatePending ? 1 : 0);
+        formatState(j, sizeof(j));
         wsServer.sendTXT(num, j);
     }
 }
@@ -39,9 +37,6 @@ void wsPushState() {
     if (!wsReady.load(std::memory_order_acquire)) return;
     if (wsServer.connectedClients() == 0) return;
     char j[96];
-    snprintf(j, sizeof(j),
-             "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f,\"bl\":%d,\"th\":%d,\"upd\":%d}",
-             (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
-             (float)currentPowerMw / 1000.0f, (int)uiBlend, (int)uiTheme, updatePending ? 1 : 0);
+    formatState(j, sizeof(j));
     wsServer.broadcastTXT(j);
 }

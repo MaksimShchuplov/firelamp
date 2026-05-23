@@ -176,7 +176,7 @@ var vco=document.getElementById('vco'),sco=document.getElementById('sco');
 var vsp=document.getElementById('vsp'),ssp=document.getElementById('ssp');
 var vbl=document.getElementById('vbl'),sbl=document.getElementById('sbl');
 var R=document.documentElement,t1,t2,t3,t4,t5;
-var xf=function(u){return fetch(u,{headers:{'X-Requested-With':'firelamp'}});};
+var xf=function(u,o){return fetch(u,Object.assign({headers:{'X-Requested-With':'firelamp'}},o));};
 var ru=(localStorage.getItem('lang')==='ru')||(!localStorage.getItem('lang')&&navigator.language.startsWith('ru'));
 var pullFails=0;
 function dynDesc(sid,val){
@@ -351,7 +351,7 @@ function startOTA(){
   setTimeout(function(){pfil.style.width='88%';},50);
   function pollReboot(){
     var n=0,tid=setInterval(function(){n++;
-      fetch('/info',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+      xf('/info',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
         clearInterval(tid);
         pfil.style.transition='width .4s';pfil.style.width='100%';pfil.style.background='#4ade80';
         btn.textContent=ru?'Готово! ✓':'Done! ✓';btn.style.borderColor='#4ade80';btn.style.color='#4ade80';

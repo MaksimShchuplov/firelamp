@@ -48,6 +48,7 @@
 #define WIFI_RETRY_MS           15000
 #define HTTP_TIMEOUT_MS         8000    // HTTPS request timeout (version check + OTA)
 #define GEMINI_TIMEOUT_MS       15000   // Gemini API response timeout (ESP-side call)
+#define SURPRISE_COOLDOWN_MS    20000   // min interval between /surprise calls (prevents server lock-up)
 #define MDNS_NAME               "firelamp"   // → http://firelamp.local
 #define NVS_COMMIT_DELAY_MS     2500    // defer NVS writes to spare flash endurance
 #define FIRMWARE_URL  "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"

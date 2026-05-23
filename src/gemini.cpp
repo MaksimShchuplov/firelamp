@@ -34,6 +34,13 @@ static void handleGeminiKey() {
 
 static void handleSurprise() {
     if (!isWebRequest()) return;
+    static std::atomic<uint32_t> s_lastCall{0};
+    uint32_t now = millis();
+    uint32_t last = s_lastCall.load(std::memory_order_relaxed);
+    if (last != 0 && now - last < SURPRISE_COOLDOWN_MS) {
+        server.send(429, "application/json", "{\"error\":\"rate_limit\"}"); return;
+    }
+    s_lastCall.store(now, std::memory_order_relaxed);
     Preferences gp;
     gp.begin("gemini", true);
     String apiKey = gp.getString("key", "");

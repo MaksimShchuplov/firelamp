@@ -50,12 +50,16 @@ bool parseIntArg(const char *name, int lo, int hi, int &out) {
     return true;
 }
 
-void sendVal() {
-    char j[96];
-    snprintf(j, sizeof(j),
+void formatState(char *buf, size_t len) {
+    snprintf(buf, len,
              "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f,\"bl\":%d,\"th\":%d,\"upd\":%d}",
              (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
              (float)currentPowerMw / 1000.0f, (int)uiBlend, (int)uiTheme, updatePending ? 1 : 0);
+}
+
+void sendVal() {
+    char j[96];
+    formatState(j, sizeof(j));
     server.send(200, "application/json", j);
     wsPushState();
 }
@@ -172,6 +176,7 @@ static void handleReset() {
 }
 
 static void handleInfo() {
+    if (!isWebRequest()) return;
     char j[768];  // 512 is tight for 32-char escaped SSID + all fields; 768 gives safe headroom
     String ip   = WiFi.localIP().toString();
     String ssid = jsonEscape(WiFi.SSID());
