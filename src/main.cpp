@@ -37,7 +37,7 @@ std::atomic<bool>     updatePending{false};
 
 TaskHandle_t ledTaskHandle = NULL;
 
-char                  lastSurpriseName[16] = "";
+char                  lastSurpriseName[32] = "";
 std::atomic<uint32_t> lastSurpriseAt{0};
 
 std::atomic<bool> prefsDirty{false};

@@ -62,7 +62,7 @@ extern std::atomic<uint32_t> lastPowerCalc;  // written Core 0 (fireEffect) + Co
 // Last applied Gemini effect — used by /state HTTP fallback for browsers that cannot reach WS port 81.
 // Written by surpriseTask (Core 1), read by handleState (Core 1 serviceNetwork). Both same core,
 // preemptive FreeRTOS; lastSurpriseAt release/acquire orders the string write before the timestamp.
-extern char                  lastSurpriseName[16];   // jsonEscaped, null-terminated
+extern char                  lastSurpriseName[32];   // jsonEscaped, null-terminated; 32 fits longest __err_ code
 extern std::atomic<uint32_t> lastSurpriseAt;         // millis() when set; 0 = never
 
 // ---- Task handles ----------------------------------------------------------

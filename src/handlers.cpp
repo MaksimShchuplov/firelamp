@@ -234,7 +234,7 @@ static void handleResetWifi() {
 // /state is read-only; includes the recent surprise name for browsers that
 // cannot reach WS port 81, so pull() delivers the result via HTTP fallback.
 static void handleState() {
-    char j[128];
+    char j[160];
     formatState(j, sizeof(j));
     uint32_t sat = lastSurpriseAt.load(std::memory_order_acquire);
     if (sat > 0 && millis() - sat < SURPRISE_NAME_TTL_MS) {
