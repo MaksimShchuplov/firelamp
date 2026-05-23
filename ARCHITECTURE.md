@@ -30,6 +30,7 @@ src/
   presets.cpp   — preset CRUD (getpresets, savepreset, loadpreset, deletepreset)
   ota.cpp       — OTA update flow + autoUpdateCheck background task
   gemini.cpp    — Gemini AI Surprise Me effect (surprise, setgeminikey, geminikey)
+  ws.cpp        — WebSocket server (port 81): wsSetup(), wsLoop(), wsPushState()
 partitions_ota_4mb.csv   — custom partition table (two 1.75 MB OTA slots + NVS)
 get_version.py           — PlatformIO pre-build script (injects git SHA as version)
 .github/workflows/build.yml  — CI: build → version.json + MD5 → publish to Releases
@@ -46,7 +47,19 @@ All parameters shared between cores use `std::atomic<T>` — this makes atomicit
 
 UI parameters (`uiBright`, `uiContrast`, `uiCooling`, `uiSparking`, `uiBlend`, `uiTheme`, `appliedRaw`, `currentPowerMw`, `updatePending`, `lastPowerCalc`) and `coolMax[ROWS]` are `std::atomic` — written from Core 1 (web handlers / `recalcCooling`), read from Core 0. `seq_cst` stores generate a full `memw` barrier on Xtensa LX7.
 
-`heatPalette` uses a **double-buffer + atomic index flip**: `buildHeatPalette()` writes into `heatPalette[1 - activePal]`, then flips `activePal` with a `seq_cst` store (acts as full memory barrier — ensures all palette stores are visible to Core 0 before the index flip). `fireEffect()` snapshots `activePal` once per frame so a mid-frame flip cannot split palette reads.
+`heatPalette` uses a **double-buffer + atomic index flip**: `buildHeatPalette()` writes into `heatPalette[(activePal & 1) ^ 1]`, then flips `activePal` with a `seq_cst` store (acts as full memory barrier — ensures all palette stores are visible to Core 0 before the index flip). `fireEffect()` snapshots `activePal` once per frame so a mid-frame flip cannot split palette reads.
+
+### WebSocket real-time push
+`ws.cpp` runs a WebSocket server on port `WS_PORT` (81). The server is push-only — incoming messages are ignored.
+
+- `wsSetup()` is called from the `WiFi.GOT_IP` event handler in `network.cpp` (guarded by a `static bool wsStarted` flag so it fires exactly once, even when WiFi connects after the portal timeout). It calls `wsServer.begin()` then stores `wsReady = true` with `memory_order_release`.
+- `wsLoop()` is called from `serviceNetwork()` on Core 1. It guards with `wsReady.load(acquire)` before calling `wsServer.loop()`.
+- `wsPushState()` broadcasts current lamp state JSON to all connected clients. It is called by `sendVal()` (so every HTTP state-mutating handler broadcasts automatically) and directly by `handleSurprise()`.
+- `wsReady` is `std::atomic<bool>` with `store(release)` / `load(acquire)` — ensures `wsServer.begin()` is fully visible before any loop or push runs.
+
+On new client connect, `onWsEvent` sends current state to that client via `sendTXT(num)` so late-connecting browsers are immediately synchronised.
+
+**Browser offline detection** uses two paths: (1) WS `onclose` increments `pullFails` when the connection has been stable (`wsDelay > 3000 ms`); (2) HTTP `/state` poll every 15 s as fallback. Both paths clear `pullFails` on success; `pullFails` is also reset in `ws.onopen`.
 
 ### WiFi & provisioning
 Credentials are **never compiled into the binary**. On first boot the lamp starts AP `FireLamp-Setup` (no password); the user connects and opens `192.168.4.1` to enter credentials via WiFiManager captive portal. Credentials are stored by the ESP32 WiFi driver in the `nvs` flash partition, which OTA never touches — they survive all firmware updates.
@@ -120,6 +133,7 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini API key to NVS (`gemini` namespace); POST body keeps key out of URL/logs |
 | `GET /geminikey` | — | `{"set":true/false}` — check if key is configured |
 | `GET /surprise` | — | ESP calls Gemini 2.5 Flash, applies effect, returns `{"ok","name","b","c","co","sp","bl","th","w"}` |
+| `WS ws://firelamp.local:81/` | — | Push-only WebSocket; server broadcasts state JSON on every change |
 
 ## Hardware Notes
 
