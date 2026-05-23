@@ -33,7 +33,7 @@ void safeBootCheck() {
         }
         esp_deep_sleep_start();
     } else {
-        LOG_WARN("crash %lu/3 — incrementing counter", crashes);
+        LOG_WARN("crash %lu/3 — incrementing counter", (unsigned long)crashes);
         p.putUInt("crashes", crashes);
         p.end();
     }
