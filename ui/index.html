@@ -1,0 +1,64 @@
+<!doctype html><html lang=en><head>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=theme-color content="#0a0503">
+<meta name=referrer content=no-referrer>
+<link rel=icon href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+<title>Fire Lamp</title><link rel=stylesheet href=style.css>
+</head><body>
+<div id=offb class=offb></div>
+<div id=shdim class=shdim></div>
+<div id=sheet class=sheet><div id=shtit class=shtit></div><div id=shmsg class=shmsg></div><div id=shbtns></div></div>
+<div class=amb></div>
+<button id=ibtn class=ibtn aria-label="Help">?</button>
+<div id=mod class=mod role=dialog aria-modal=true aria-label="Help">
+<button id=mcls class=mcls aria-label="Close">&times;</button>
+<div class=mt id=mt1>Brightness</div><div class=md id=md1></div>
+<div class=mt id=mt2>Contrast</div><div class=md id=md2></div>
+<div class=mt id=mt3>Cooling</div><div class=md id=md3></div>
+<div class=mt id=mt4>Sparking</div><div class=md id=md4></div>
+<div class=mt id=mt5>Reset to Default</div><div class=md id=md5></div>
+<div class=mt id=mt6>Check for Update</div><div class=md id=md6></div>
+<div class=mt id=mt7>Reset WiFi</div><div class=md id=md7></div>
+<div class=mt id=mt8>Power</div><div class=md id=md8></div>
+<div class=mt id=mt9>Blend</div><div class=md id=md9></div>
+<div class=mt id=mt10>Theme</div><div class=md id=md10></div>
+<div class=mt id=mt11>Presets</div><div class=md id=md11></div>
+<div class=mt id=mt12>✨ Surprise Me (AI)</div><div class=md id=md12></div>
+<input class=aikey id=aikey type=password placeholder="Gemini API key" autocomplete=off spellcheck=false>
+<button class=aiksave id=aiksave>Save key</button>
+<div id=aikeystatus class=aikeyst></div>
+</div>
+<div class=lang><button id=len class="lbtn act">EN</button><button id=lru class=lbtn>RU</button></div>
+<div class=wrap>
+<div class=kick>Fire Lamp</div>
+<p class=label id=lb>Brightness</p><div class=val id=vb>--</div>
+<input class=bar id=sb type=range min=0 max=100 value=100 aria-labelledby=lb>
+<div class=desc id=db>Full brightness</div>
+<p class=label id=lc>Contrast</p><div class=val id=vc>--</div>
+<input class=bar id=sc type=range min=0 max=100 value=50 aria-labelledby=lc>
+<div class=desc id=dc>Warm balanced</div>
+<p class=label id=lco>Cooling</p><div class=val id=vco>--</div>
+<input class=bar id=sco type=range min=20 max=150 value=45 aria-labelledby=lco>
+<div class=desc id=dco>Tall flames</div>
+<p class=label id=lsp>Sparking</p><div class=val id=vsp>--</div>
+<input class=bar id=ssp type=range min=0 max=255 value=36 aria-labelledby=lsp>
+<div class=desc id=dsp>Calm smoldering</div>
+<p class=label id=lbl>Blend</p><div class=val id=vbl>--</div>
+<input class=bar id=sbl type=range min=0 max=255 value=50 aria-labelledby=lbl>
+<div class=desc id=dbl>Natural fire</div>
+<p class=label id=lth>Theme</p>
+<div class=themes><button class="tbtn act" id=tb0 data-t=0>Fire</button><button class=tbtn id=tb1 data-t=1>Ember</button><button class=tbtn id=tb2 data-t=2>Plasma</button><button class=tbtn id=tb3 data-t=3>Ice</button></div>
+<p class=label id=lpr>Presets</p>
+<div class=presets><button class=prbtn id=pr0 data-slot=0>+</button><button class=prbtn id=pr1 data-slot=1>+</button><button class=prbtn id=pr2 data-slot=2>+</button><button class=prbtn id=pr3 data-slot=3>+</button><button class=prbtn id=pr4 data-slot=4>+</button><button class=prbtn id=pr5 data-slot=5>+</button><button class=prbtn id=pr6 data-slot=6>+</button><button class=prbtn id=pr7 data-slot=7>+</button></div>
+<div class=prein id=prein><input id=prename type=text maxlength=15 autocomplete=off spellcheck=false><button class=pric id=presave>✓</button><button class=pric id=precancel>✗</button></div>
+<button class=reset id=rst>Reset to Default</button>
+<button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
+<div id=vinfo style="font-size:11px;color:#888;margin-top:6px;text-align:center"></div>
+<button class=reset id=rwifi style="margin-top:10px;border-color:#7a1616;color:#f87171">Reset WiFi</button>
+<button class=surprise id=surprise>✨ Surprise Me</button>
+<div class=ainame id=ainame></div>
+<div class=stat><span id=lw>Power:</span> <span id=vw>0.0</span> W</div>
+</div>
+<script src=app.js></script>
+</body></html>
