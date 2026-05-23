@@ -5,9 +5,11 @@ document.getElementById('rwifi').onclick=function(){
       var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;xf('/resetwifi').catch(function(){});
     }}]);
 };
+var otaEls=['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','rst','chk','rwifi','surprise','len','lru'];
+function enableOtaEls(){otaEls.forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=false;});}
 function startOTA(){
   clearInterval(pollTid);
-  ['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','rst','chk','rwifi','surprise','len','lru'].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
+  otaEls.forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
   var btn=document.getElementById('chk'),info=document.getElementById('vinfo');
   btn.textContent=ru?'Прошивка...':'Flashing...';
   btn.style.borderColor='#f59e0b';btn.style.color='#fbbf24';
@@ -28,7 +30,8 @@ function startOTA(){
         setTimeout(function(){location.reload();},2000);
       }).catch(function(){if(n>20){clearInterval(tid);pfil.style.background='#ef4444';
         info.textContent=ru?'Лампа не отвечает. Обновите страницу вручную.':'Lamp not responding. Refresh manually.';
-        btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.disabled=false;
+        enableOtaEls();
+        btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';
         btn.onclick=function(){location.reload();};}});
     },3000);
   }
