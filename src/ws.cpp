@@ -40,3 +40,16 @@ void wsPushState() {
     formatState(j, sizeof(j));
     wsServer.broadcastTXT(j);
 }
+
+void wsPushSurprise(const char *escapedName) {
+    if (!wsReady.load(std::memory_order_acquire)) return;
+    // Buffer: state ~75 B + ,"name":"<name>" up to 128 B + null
+    char j[256];
+    char state[96];
+    formatState(state, sizeof(state));
+    // Splice name field before the closing '}'.
+    int slen = strlen(state);
+    if (slen > 0 && state[slen - 1] == '}') state[slen - 1] = '\0';
+    snprintf(j, sizeof(j), "%s,\"name\":\"%s\"}", state, escapedName);
+    wsServer.broadcastTXT(j);
+}

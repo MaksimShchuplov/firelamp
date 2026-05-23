@@ -84,3 +84,6 @@ void serviceNetwork();
 void wsSetup();
 void wsLoop();
 void wsPushState();
+// Broadcasts state JSON with an added "name" field — used by the async Gemini task
+// to deliver the effect name to all connected browsers via WebSocket.
+void wsPushSurprise(const char *escapedName);

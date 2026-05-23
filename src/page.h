@@ -292,7 +292,7 @@ function updPresetBtns(){presets.forEach(function(pr,i){var b=document.getElemen
 function clearActive(){activePreset=-1;lastAiName='';document.getElementById('ainame').textContent='';updPresetBtns();}
 function fetchPresets(){fetch('/getpresets').then(r=>r.json()).then(function(d){presets=d;updPresetBtns();}).catch(function(){});}
 function deletePreset(s){xf('/deletepreset?slot='+s).then(function(){if(activePreset===s)activePreset=-1;fetchPresets();}).catch(function(){});}
-var pendingSlot=-1,lastAiName='';
+var pendingSlot=-1,lastAiName='',aiPending=false,aiTimeout=null;
 function saveSlot(s){
   pendingSlot=s;
   var inp=document.getElementById('prename');
@@ -416,6 +416,17 @@ function askAI(){
   }).then(function(x){
     if(x.error)throw new Error(x.error);
     pullFails=0;hideOffline();
+    if(x.status==='pending'){
+      aiPending=true;
+      aiTimeout=setTimeout(function(){
+        if(!aiPending)return;
+        aiPending=false;aiTimeout=null;
+        btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
+        nm.style.color='#ef4444';nm.textContent=ru?'⚠ Нет ответа AI':'⚠ AI no response';
+        setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);
+      },25000);
+      return;
+    }
     pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);
     if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
     clearActive();lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';
@@ -423,7 +434,7 @@ function askAI(){
   }).catch(function(e){
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
     var msg=e.message==='no_key'?(ru?'⚠ Укажите ключ в настройках (?)':'⚠ Set API key in settings (?)')
-      :e.message==='rate_limit'?(ru?'⚠ Лимит — подождите минуту':'⚠ Rate limit — wait a moment')
+      :e.message==='rate_limit'?(ru?'⚠ Лимит — подождите немного':'⚠ Rate limit — wait a moment')
       :e.message==='bad_key'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
       :e.message==='parse_failed'?(ru?'⚠ Ошибка ответа AI':'⚠ AI response error')
       :e.message==='fetch_failed'?(ru?'⚠ Нет связи':'⚠ Connection failed')
@@ -449,6 +460,13 @@ pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},5000);
     if(x.th!==undefined)pth(x.th);
     if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
     if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
+    if(x.name!==undefined&&aiPending){
+      aiPending=false;clearTimeout(aiTimeout);aiTimeout=null;
+      var sbtn=document.getElementById('surprise'),snm=document.getElementById('ainame');
+      sbtn.disabled=false;sbtn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
+      if(x.name){clearActive();lastAiName=x.name.substring(0,15);snm.style.color='#fbbf24';snm.textContent=lastAiName+' ✨';}
+      else{snm.style.color='#ef4444';snm.textContent=ru?'⚠ Ошибка AI':'⚠ AI error';setTimeout(function(){snm.textContent='';snm.style.color='#fbbf24';},4000);}
+    }
   }
   function connect(){
     try{ws=new WebSocket('ws://'+location.hostname+':81/');}catch(e){wst=setTimeout(connect,wsDelay);wsDelay=Math.min(wsDelay*2,30000);return;}

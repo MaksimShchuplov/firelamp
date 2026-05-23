@@ -32,22 +32,27 @@ static void handleGeminiKey() {
     server.send(200, "application/json", set ? "{\"set\":true}" : "{\"set\":false}");
 }
 
-static void handleSurprise() {
-    if (!isWebRequest()) return;
-    static std::atomic<uint32_t> s_lastCall{0};
-    uint32_t now = millis();
-    uint32_t last = s_lastCall.load(std::memory_order_relaxed);
-    if (last != 0 && now - last < SURPRISE_COOLDOWN_MS) {
-        server.send(429, "application/json", "{\"error\":\"rate_limit\"}"); return;
-    }
-    s_lastCall.store(now, std::memory_order_relaxed);
+// =============================================================================
+//  Async Surprise Me — runs in a FreeRTOS task on Core 1 so the HTTP server
+//  is not blocked during the Gemini API call (up to GEMINI_TIMEOUT_MS).
+//  Result is delivered to all browsers via wsPushSurprise().
+// =============================================================================
+
+static std::atomic<bool> s_surpriseBusy{false};
+
+static void surpriseTask(void *) {
+    // Inline cleanup: push error via WS, release lock, delete self.
+#define SURPRISE_FAIL(reason) do { \
+    LOG_WARN("Gemini task: " reason); \
+    wsPushSurprise(""); \
+    s_surpriseBusy.store(false, std::memory_order_release); \
+    vTaskDelete(NULL); return; } while (0)
+
     Preferences gp;
     gp.begin("gemini", true);
     String apiKey = gp.getString("key", "");
     gp.end();
-    if (apiKey.length() == 0) {
-        server.send(400, "application/json", "{\"error\":\"no_key\"}"); return;
-    }
+    if (apiKey.length() == 0) SURPRISE_FAIL("no key");
 
     static const char * const kScenes[] = {
         "midnight thunderstorm", "arctic tundra", "volcanic eruption", "deep ocean abyss",
@@ -60,7 +65,7 @@ static void handleSurprise() {
 
     static const char * const kThemeNames[] = {"Fire", "Ember", "Plasma", "Ice"};
     const int curTh = uiTheme;
-    char curState[128];  // max output ~95 bytes ("...th=3(Plasma). Make something strikingly different.")
+    char curState[128];
     snprintf(curState, sizeof(curState),
              "Currently: b=%d c=%d co=%d sp=%d bl=%d th=%d(%s). Make something strikingly different.",
              (int)uiBright, (int)uiContrast, (int)uiCooling,
@@ -99,17 +104,11 @@ static void handleSurprise() {
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-goog-api-key", apiKey);
     int code = http.POST(body);
-    if (code <= 0) {
-        http.end(); server.send(503, "application/json", "{\"error\":\"fetch_failed\"}"); return;
+    if (code <= 0 || (code != 200 && code != 429 && code != 401 && code != 403)) {
+        http.end(); SURPRISE_FAIL("HTTP error");
     }
-    if (code == 429) {
-        http.end(); server.send(429, "application/json", "{\"error\":\"rate_limit\"}"); return;
-    }
-    if (code == 401 || code == 403) {
-        http.end(); server.send(403, "application/json", "{\"error\":\"bad_key\"}"); return;
-    }
-    if (code != 200) {
-        http.end(); server.send(503, "application/json", "{\"error\":\"fetch_failed\"}"); return;
+    if (code == 429 || code == 401 || code == 403) {
+        http.end(); SURPRISE_FAIL("auth/rate error");
     }
     String resp = http.getString();
     http.end();
@@ -125,21 +124,22 @@ static void handleSurprise() {
         int s = p + 7;
         while (s < (int)resp.length() && resp[s] == ' ') s++;
         if (s >= (int)resp.length() || resp[s] != '"') { p++; continue; }
-        s++;  // skip opening quote
+        s++;
         bool inEsc = false;
         for (int j = s; j < (int)resp.length(); j++) {
             char c = resp[j];
             if (inEsc)     { inEsc = false; continue; }
             if (c == '\\') { inEsc = true;  continue; }
-            if (c == '"')  break;   // closing quote — no { in this part
+            if (c == '"')  break;
             if (c == '{')  { ti = j; break; }
         }
         p++;
     }
     if (ti < 0) {
-        LOG_WARN("Gemini: no \"text\" field found. HTTP %d, body len %u", code, (unsigned)resp.length());
-        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
+        LOG_WARN("Gemini: no text field with '{'. HTTP %d, len %u", code, (unsigned)resp.length());
+        SURPRISE_FAIL("parse_failed");
     }
+
     String inner;
     inner.reserve(128);
     {
@@ -154,8 +154,6 @@ static void handleSurprise() {
                     else if (c == 'n')  inner += '\n';
                     else if (c == 't')  inner += '\t';
                     else if (c == 'r')  inner += '\r';
-                    // \uXXXX and other escapes: append literal char (harmless for
-                    // numeric fields; \u in name is uncommon given ASCII-only prompt)
                     else                inner += c;
                 }
                 esc = false; continue;
@@ -164,19 +162,16 @@ static void handleSurprise() {
             if (!started) { if (c == '{') { started = true; depth = 1; inner += c; } continue; }
             inner += c;
             if (c == '"') { inStr = !inStr; continue; }
-            if (inStr) continue;   // braces inside string values don't affect depth
+            if (inStr) continue;
             if      (c == '{') depth++;
             else if (c == '}') { if (--depth == 0) break; }
         }
     }
     if (inner.length() < 10) {
-        LOG_WARN("Gemini: inner JSON too short (%u chars). Partial resp: %.200s",
-                 (unsigned)inner.length(), resp.c_str());
-        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
+        LOG_WARN("Gemini: inner JSON too short (%u chars)", (unsigned)inner.length());
+        SURPRISE_FAIL("parse_failed");
     }
 
-    // Both helpers skip optional whitespace after ':' so they work with
-    // compact ("key":"val") and pretty-printed ("key": "val") inner JSON.
     auto exStr = [&](const char *fld) -> String {
         String s = String("\"") + fld + "\":";
         int i = inner.indexOf(s); if (i < 0) return "";
@@ -184,9 +179,6 @@ static void handleSurprise() {
         while (i < (int)inner.length() && inner[i] == ' ') i++;
         if (i >= (int)inner.length() || inner[i] != '"') return "";
         i++;
-        // Scan for closing '"', skipping '\\' escape pairs so a name that
-        // contained '\"' in the original JSON (unescaped to '"' by the
-        // extractor loop above) doesn't truncate the value prematurely.
         int e = i;
         while (e < (int)inner.length()) {
             if (inner[e] == '\\') { e += 2; continue; }
@@ -209,9 +201,9 @@ static void handleSurprise() {
     int b  = exNum("b"),  cv = exNum("c"),  co = exNum("co");
     int sp = exNum("sp"), bl = exNum("bl"), th = exNum("th");
     if (name.length() == 0 || b < 0) {
-        LOG_WARN("Gemini: missing fields in inner JSON: name=\"%s\" b=%d. inner: %.120s",
+        LOG_WARN("Gemini: missing fields. name=\"%s\" b=%d. inner: %.120s",
                  name.c_str(), b, inner.c_str());
-        server.send(503, "application/json", "{\"error\":\"parse_failed\"}"); return;
+        SURPRISE_FAIL("parse_failed");
     }
 
     if (b  >= 0) setBright(constrain(b,  0, 100));
@@ -224,29 +216,48 @@ static void handleSurprise() {
     updatePowerCalc();
     markDirty();
 
-    // Truncate by Unicode codepoints (same logic as handleSavePreset) to avoid
-    // splitting a multibyte UTF-8 sequence at a byte boundary.
+    // Truncate by Unicode codepoints to avoid splitting multibyte UTF-8 sequences.
     if (name.length() > (unsigned)PRESET_NAME_MAX_LEN) {
         int bytePos = 0, chars = 0;
         while (bytePos < (int)name.length() && chars < PRESET_NAME_MAX_LEN) {
             uint8_t ch = (uint8_t)name[bytePos];
             int seqLen = (ch < 0x80) ? 1 : (ch < 0xC0) ? 1 : (ch < 0xE0) ? 2 : (ch < 0xF0) ? 3 : 4;
             if (bytePos + seqLen > (int)name.length()) break;
-            bytePos += seqLen;
-            chars++;
+            bytePos += seqLen; chars++;
         }
         name = name.substring(0, bytePos);
     }
-    char j[192];
-    snprintf(j, sizeof(j),
-             "{\"ok\":true,\"name\":\"%s\",\"b\":%d,\"c\":%d,\"co\":%d,"
-             "\"sp\":%d,\"bl\":%d,\"th\":%d,\"w\":%.1f}",
-             jsonEscape(name).c_str(),
-             (int)uiBright, (int)uiContrast, (int)uiCooling,
-             (int)uiSparking, (int)uiBlend, (int)uiTheme,
-             (float)currentPowerMw / 1000.0f);
-    server.send(200, "application/json", j);
-    wsPushState();
+
+    wsPushSurprise(jsonEscape(name).c_str());
+    LOG_INFO("Gemini: applied \"%s\"", name.c_str());
+
+#undef SURPRISE_FAIL
+    s_surpriseBusy.store(false, std::memory_order_release);
+    vTaskDelete(NULL);
+}
+
+static void handleSurprise() {
+    if (!isWebRequest()) return;
+    bool expected = false;
+    if (!s_surpriseBusy.compare_exchange_strong(expected, true)) {
+        server.send(429, "application/json", "{\"error\":\"rate_limit\"}"); return;
+    }
+    // Check key synchronously so caller gets the right error without waiting for the task.
+    {
+        Preferences gp;
+        gp.begin("gemini", true);
+        bool hasKey = gp.isKey("key") && gp.getString("key", "").length() > 0;
+        gp.end();
+        if (!hasKey) {
+            s_surpriseBusy.store(false, std::memory_order_release);
+            server.send(400, "application/json", "{\"error\":\"no_key\"}"); return;
+        }
+    }
+    if (xTaskCreatePinnedToCore(surpriseTask, "Surprise", SURPRISE_STACK_BYTES, NULL, 1, NULL, 1) != pdPASS) {
+        s_surpriseBusy.store(false, std::memory_order_release);
+        server.send(503, "application/json", "{\"error\":\"task_failed\"}"); return;
+    }
+    server.send(202, "application/json", "{\"status\":\"pending\"}");
 }
 
 void registerGeminiHandlers() {
