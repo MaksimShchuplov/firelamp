@@ -73,7 +73,7 @@ extern TaskHandle_t ledTaskHandle;   // set in setup(); used for stack watermark
 // trivially grep-able for [ERROR] / [WARN] even without an RTC.
 // logAppend() also writes to an in-memory ring buffer readable via GET /log.
 #define LOG_BUF_LINES 30
-#define LOG_BUF_WIDTH 128
+#define LOG_BUF_WIDTH 192
 extern char        logBuf[LOG_BUF_LINES][LOG_BUF_WIDTH];
 extern int         logHead;
 extern portMUX_TYPE logMux;
