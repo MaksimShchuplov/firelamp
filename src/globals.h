@@ -45,15 +45,18 @@ extern std::atomic<uint8_t>  appliedRaw;
 extern std::atomic<uint32_t> currentPowerMw;  // milliwatts
 extern std::atomic<bool>     updatePending;
 
-// ---- NVS deferred-write state (Core 1 only — never read or write from Core 0) ----
-extern bool     prefsDirty;
-extern uint32_t prefsTouch;
+// ---- NVS deferred-write state (Core 1 only) ------------------------------------
+// prefsDirty/prefsTouch are written by markDirty() — called from HTTP handlers
+// AND from surpriseTask (a separate FreeRTOS task on Core 1). Both tasks share
+// Core 1 under preemptive scheduling, so plain bool is formally UB. Use atomic.
+extern std::atomic<bool> prefsDirty;
+extern uint32_t          prefsTouch;
 // Written from WiFi event callback (Core 0 WiFi task) and read/written from
 // serviceNetwork (Core 1). Must be atomic to avoid a formal data race on LX7.
 extern std::atomic<uint32_t> wifiRetryAt;
 
 // Marks NVS dirty and resets the debounce timer. Call from Core 1 only.
-inline void markDirty() { prefsDirty = true; prefsTouch = millis(); }
+inline void markDirty() { prefsDirty.store(true, std::memory_order_relaxed); prefsTouch = millis(); }
 extern std::atomic<uint32_t> lastPowerCalc;  // written Core 0 (fireEffect) + Core 1 (handlers)
 
 // ---- Task handles ----------------------------------------------------------

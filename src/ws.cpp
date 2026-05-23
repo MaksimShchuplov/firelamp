@@ -6,6 +6,11 @@
 static WebSocketsServer      wsServer(WS_PORT);
 static std::atomic<bool>     wsReady{false};
 
+// Deferred surprise push: surpriseTask writes here, wsLoop() drains on Core 1.
+// Direct broadcastTXT from a FreeRTOS task would race with wsServer.loop().
+static char                  s_surpriseName[128];
+static std::atomic<bool>     s_surprisePending{false};
+
 static void onWsEvent(uint8_t num, WStype_t type, uint8_t *, size_t) {
     // Push-only server: we don't process incoming messages.
     // Send current state to the newly connected client so it is synchronised
@@ -31,6 +36,16 @@ void wsSetup() {
 void wsLoop() {
     if (!wsReady.load(std::memory_order_acquire)) return;
     wsServer.loop();
+    if (s_surprisePending.load(std::memory_order_acquire)) {
+        s_surprisePending.store(false, std::memory_order_relaxed);
+        char j[256];
+        char state[96];
+        formatState(state, sizeof(state));
+        int slen = strlen(state);
+        if (slen > 0 && state[slen - 1] == '}') state[slen - 1] = '\0';
+        snprintf(j, sizeof(j), "%s,\"name\":\"%s\"}", state, s_surpriseName);
+        if (wsServer.connectedClients() > 0) wsServer.broadcastTXT(j);
+    }
 }
 
 void wsPushState() {
@@ -42,14 +57,12 @@ void wsPushState() {
 }
 
 void wsPushSurprise(const char *escapedName) {
-    if (!wsReady.load(std::memory_order_acquire)) return;
-    // Buffer: state ~75 B + ,"name":"<name>" up to 128 B + null
-    char j[256];
-    char state[96];
-    formatState(state, sizeof(state));
-    // Splice name field before the closing '}'.
-    int slen = strlen(state);
-    if (slen > 0 && state[slen - 1] == '}') state[slen - 1] = '\0';
-    snprintf(j, sizeof(j), "%s,\"name\":\"%s\"}", state, escapedName);
-    wsServer.broadcastTXT(j);
+    // Called from surpriseTask (a separate FreeRTOS task on Core 1).
+    // Must NOT call wsServer directly — wsServer.loop() runs in the Arduino
+    // task on the same core; preemptive scheduling would cause a data race.
+    // Instead, copy the name into a static buffer and set a flag that wsLoop()
+    // drains on the next iteration (always from the Arduino task).
+    strncpy(s_surpriseName, escapedName, sizeof(s_surpriseName) - 1);
+    s_surpriseName[sizeof(s_surpriseName) - 1] = '\0';
+    s_surprisePending.store(true, std::memory_order_release);
 }

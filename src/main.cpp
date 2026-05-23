@@ -37,7 +37,7 @@ std::atomic<bool>     updatePending{false};
 
 TaskHandle_t ledTaskHandle = NULL;
 
-bool     prefsDirty  = false;
+std::atomic<bool> prefsDirty{false};
 uint32_t prefsTouch  = 0;
 std::atomic<uint32_t> wifiRetryAt{0};
 std::atomic<uint32_t> lastPowerCalc{0};
