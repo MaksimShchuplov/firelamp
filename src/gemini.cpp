@@ -257,9 +257,9 @@ static void handleSurprise() {
             server.send(400, "application/json", "{\"error\":\"no_key\"}"); return;
         }
     }
-    // Core 0: keeps Core 1 (web server) free during TLS handshake so HTTP
-    // requests (including /state fallback polls) remain responsive.
-    if (xTaskCreatePinnedToCore(surpriseTask, "Surprise", SURPRISE_STACK_BYTES, NULL, 1, NULL, 0) != pdPASS) {
+    // Core 1: same core as serviceNetwork() so buildHeatPalette/recalcCooling
+    // are serialised with HTTP handlers — both are explicitly "Core 1 only, not reentrant".
+    if (xTaskCreatePinnedToCore(surpriseTask, "Surprise", SURPRISE_STACK_BYTES, NULL, 1, NULL, 1) != pdPASS) {
         s_surpriseBusy.store(false, std::memory_order_release);
         server.send(503, "application/json", "{\"error\":\"task_failed\"}"); return;
     }

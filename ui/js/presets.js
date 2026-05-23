@@ -15,7 +15,8 @@ function doSave(){
   var nm=document.getElementById('prename').value.trim();
   if(!nm){document.getElementById('prename').focus();return;}
   document.getElementById('prein').classList.remove('show');
-  xf('/savepreset?slot='+pendingSlot+'&name='+encodeURIComponent(nm)).then(function(){activePreset=pendingSlot;pendingSlot=-1;fetchPresets();}).catch(function(){pendingSlot=-1;});
+  var ac=new AbortController(),to=setTimeout(function(){ac.abort();pendingSlot=-1;},8000);
+  xf('/savepreset?slot='+pendingSlot+'&name='+encodeURIComponent(nm),{signal:ac.signal}).then(function(){clearTimeout(to);activePreset=pendingSlot;pendingSlot=-1;fetchPresets();}).catch(function(){clearTimeout(to);pendingSlot=-1;});
 }
 function cancelSave(){pendingSlot=-1;document.getElementById('prein').classList.remove('show');}
 document.getElementById('presave').onclick=doSave;
