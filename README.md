@@ -11,6 +11,8 @@ ESP32-S3 firmware for an 800-LED WS2812B fire-effect lamp with a web control UI 
 - Realistic fire simulation — cooling, sparking, wind, temporal blending
 - Four color themes: Fire, Ember, Plasma, Ice
 - Responsive web UI served directly from the ESP32 (no app, no cloud)
+- Real-time parameter sync across browser tabs via WebSocket (port 81)
+- **Surprise Me** — Gemini 2.5 Flash AI generates a unique named effect on demand
 - Four saveable parameter presets
 - OTA firmware updates from GitHub Releases — one tap in the UI
 - Automatic rollback on three consecutive crashes
@@ -76,8 +78,11 @@ Open `http://firelamp.local` (or the IP shown on the serial monitor).
 | Blend | 0–255 | Temporal smoothing — lower = sharp flicker, higher = slow glow |
 | Theme | Fire / Ember / Plasma / Ice | Color palette |
 | Presets | 4 slots | Tap to load · Long-press to save or rename |
+| Surprise Me | — | Calls Gemini 2.5 Flash to generate a unique named effect; requires a Gemini API key |
 
 All parameters are saved to flash automatically and restored on next boot.
+
+Multiple browser tabs stay in sync in real time via a WebSocket connection on port 81.
 
 ## OTA Updates
 
