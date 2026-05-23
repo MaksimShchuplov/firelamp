@@ -72,4 +72,4 @@ def build_page(source, target, env):
     else:
         print("build_page.py: src/page.h unchanged")
 
-env.AddPreAction("buildprog", build_page)
+build_page(None, None, env)
