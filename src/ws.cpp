@@ -23,6 +23,9 @@ static void onWsEvent(uint8_t num, WStype_t type, uint8_t *, size_t) {
 void wsSetup() {
     wsServer.begin();
     wsServer.onEvent(onWsEvent);
+    // Ping every 10 s; wait 3 s for pong; drop after 2 missed pongs.
+    // Prevents NAT/router idle-TCP teardown that silently kills WS connections.
+    wsServer.enableHeartbeat(10000, 3000, 2);
     // release ensures all wsServer writes above are visible before wsReady is seen true on Core 1
     wsReady.store(true, std::memory_order_release);
 }

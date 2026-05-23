@@ -433,7 +433,7 @@ function askAI(){
   });
 }
 document.getElementById('surprise').onclick=askAI;
-pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},15000);
+pull();var pollTid=setInterval(function(){if(!document.hidden)pull()},5000);
 (function(){
   var ws,wst,wsDelay=3000;
   function applyState(x){
