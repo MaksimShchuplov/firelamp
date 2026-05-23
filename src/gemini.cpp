@@ -93,8 +93,7 @@ static void surpriseTask(void *) {
 
     String body =
         String("{\"contents\":[{\"parts\":[{\"text\":\"") + jsonEscape(prompt) +
-        "\"}]}],\"generationConfig\":{\"temperature\":1.4,\"maxOutputTokens\":120,"
-        "\"thinkingConfig\":{\"thinkingBudget\":0}}}";
+        "\"}]}],\"generationConfig\":{\"temperature\":1.4,\"maxOutputTokens\":256}}";
 
     WiFiClientSecure client;
     client.setInsecure();
