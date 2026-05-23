@@ -47,8 +47,11 @@
 #define WIFI_PORTAL_TIMEOUT_S   120     // portal auto-closes; fire still runs
 #define WIFI_RETRY_MS           15000
 #define HTTP_TIMEOUT_MS         8000    // HTTPS request timeout (version check + OTA)
-#define GEMINI_TIMEOUT_MS       15000   // Gemini API response timeout (ESP-side call)
-#define SURPRISE_STACK_BYTES    12288   // Gemini task: TLS + HTTPClient + string parsing (~same as UPDCHK)
+#define GEMINI_TIMEOUT_MS          15000  // Gemini API response timeout (ESP-side call)
+#define SURPRISE_STACK_BYTES       12288  // Gemini task: TLS + HTTPClient + string parsing (~same as UPDCHK)
+// How long wsLoop() retries delivering the surprise result to a WS client.
+// Must exceed the browser's aiTimeout (25 s) so the client can reconnect in time.
+#define SURPRISE_DELIVER_TIMEOUT_MS 35000
 #define MDNS_NAME               "firelamp"   // → http://firelamp.local
 #define NVS_COMMIT_DELAY_MS     2500    // defer NVS writes to spare flash endurance
 #define FIRMWARE_URL  "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"

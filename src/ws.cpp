@@ -8,8 +8,10 @@ static std::atomic<bool>     wsReady{false};
 
 // Deferred surprise push: surpriseTask writes here, wsLoop() drains on Core 1.
 // Direct broadcastTXT from a FreeRTOS task would race with wsServer.loop().
-static char                  s_surpriseName[128];
-static std::atomic<bool>     s_surprisePending{false};
+static char                      s_surpriseName[128];
+static std::atomic<bool>         s_surprisePending{false};
+// Timestamp set when surprise is queued; used to expire un-delivered messages.
+static std::atomic<uint32_t>     s_surpriseAt{0};
 
 static void onWsEvent(uint8_t num, WStype_t type, uint8_t *, size_t) {
     // Push-only server: we don't process incoming messages.
@@ -37,14 +39,21 @@ void wsLoop() {
     if (!wsReady.load(std::memory_order_acquire)) return;
     wsServer.loop();
     if (s_surprisePending.load(std::memory_order_acquire)) {
-        s_surprisePending.store(false, std::memory_order_relaxed);
-        char j[256];
-        char state[96];
-        formatState(state, sizeof(state));
-        int slen = strlen(state);
-        if (slen > 0 && state[slen - 1] == '}') state[slen - 1] = '\0';
-        snprintf(j, sizeof(j), "%s,\"name\":\"%s\"}", state, s_surpriseName);
-        if (wsServer.connectedClients() > 0) wsServer.broadcastTXT(j);
+        uint32_t age = millis() - s_surpriseAt.load(std::memory_order_relaxed);
+        if (age > SURPRISE_DELIVER_TIMEOUT_MS) {
+            // No WS client for too long — browser's 25 s aiTimeout will have fired.
+            s_surprisePending.store(false, std::memory_order_relaxed);
+        } else if (wsServer.connectedClients() > 0) {
+            s_surprisePending.store(false, std::memory_order_relaxed);
+            char j[256];
+            char state[96];
+            formatState(state, sizeof(state));
+            int slen = strlen(state);
+            if (slen > 0 && state[slen - 1] == '}') state[slen - 1] = '\0';
+            snprintf(j, sizeof(j), "%s,\"name\":\"%s\"}", state, s_surpriseName);
+            wsServer.broadcastTXT(j);
+        }
+        // No clients yet — leave flag set and retry on next serviceNetwork() tick.
     }
 }
 
@@ -64,5 +73,7 @@ void wsPushSurprise(const char *escapedName) {
     // drains on the next iteration (always from the Arduino task).
     strncpy(s_surpriseName, escapedName, sizeof(s_surpriseName) - 1);
     s_surpriseName[sizeof(s_surpriseName) - 1] = '\0';
+    // Store timestamp before the release-store so wsLoop() sees a valid age.
+    s_surpriseAt.store(millis(), std::memory_order_relaxed);
     s_surprisePending.store(true, std::memory_order_release);
 }
