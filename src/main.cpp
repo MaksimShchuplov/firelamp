@@ -40,6 +40,18 @@ TaskHandle_t ledTaskHandle = NULL;
 char                  lastSurpriseName[32] = "";
 std::atomic<uint32_t> lastSurpriseAt{0};
 
+char        logBuf[LOG_BUF_LINES][LOG_BUF_WIDTH] = {};
+int         logHead = 0;
+portMUX_TYPE logMux = portMUX_INITIALIZER_UNLOCKED;
+
+void logAppend(const char *line) {
+    portENTER_CRITICAL(&logMux);
+    strncpy(logBuf[logHead], line, LOG_BUF_WIDTH - 1);
+    logBuf[logHead][LOG_BUF_WIDTH - 1] = '\0';
+    logHead = (logHead + 1) % LOG_BUF_LINES;
+    portEXIT_CRITICAL(&logMux);
+}
+
 std::atomic<bool> prefsDirty{false};
 std::atomic<uint32_t> prefsTouch{0};
 std::atomic<uint32_t> wifiRetryAt{0};

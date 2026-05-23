@@ -71,9 +71,17 @@ extern TaskHandle_t ledTaskHandle;   // set in setup(); used for stack watermark
 // ---- Structured logging ----------------------------------------------------
 // All log output includes a millisecond timestamp so serial captures are
 // trivially grep-able for [ERROR] / [WARN] even without an RTC.
-#define LOG_ERROR(fmt, ...) Serial.printf("[ERROR] %7lums " fmt "\n", (unsigned long)millis(), ##__VA_ARGS__)
-#define LOG_WARN(fmt, ...)  Serial.printf("[WARN]  %7lums " fmt "\n", (unsigned long)millis(), ##__VA_ARGS__)
-#define LOG_INFO(fmt, ...)  Serial.printf("[INFO]  %7lums " fmt "\n", (unsigned long)millis(), ##__VA_ARGS__)
+// logAppend() also writes to an in-memory ring buffer readable via GET /log.
+#define LOG_BUF_LINES 30
+#define LOG_BUF_WIDTH 128
+extern char        logBuf[LOG_BUF_LINES][LOG_BUF_WIDTH];
+extern int         logHead;
+extern portMUX_TYPE logMux;
+void logAppend(const char *line);
+
+#define LOG_ERROR(fmt, ...) do { char _lb[LOG_BUF_WIDTH]; snprintf(_lb, sizeof(_lb), "[ERROR] %7lums " fmt, (unsigned long)millis(), ##__VA_ARGS__); Serial.println(_lb); logAppend(_lb); } while(0)
+#define LOG_WARN(fmt, ...)  do { char _lb[LOG_BUF_WIDTH]; snprintf(_lb, sizeof(_lb), "[WARN]  %7lums " fmt, (unsigned long)millis(), ##__VA_ARGS__); Serial.println(_lb); logAppend(_lb); } while(0)
+#define LOG_INFO(fmt, ...)  do { char _lb[LOG_BUF_WIDTH]; snprintf(_lb, sizeof(_lb), "[INFO]  %7lums " fmt, (unsigned long)millis(), ##__VA_ARGS__); Serial.println(_lb); logAppend(_lb); } while(0)
 
 // ---- Function declarations (implemented across modules) --------------------
 void buildHeatPalette();
