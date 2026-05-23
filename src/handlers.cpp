@@ -231,9 +231,25 @@ static void handleResetWifi() {
     ESP.restart();
 }
 
+// /state is read-only; includes the recent surprise name for browsers that
+// cannot reach WS port 81, so pull() delivers the result via HTTP fallback.
+static void handleState() {
+    char j[128];
+    formatState(j, sizeof(j));
+    uint32_t sat = lastSurpriseAt.load(std::memory_order_acquire);
+    if (sat > 0 && millis() - sat < SURPRISE_NAME_TTL_MS) {
+        int slen = strlen(j);
+        if (slen > 0 && j[slen - 1] == '}') {
+            snprintf(j + slen - 1, sizeof(j) - (size_t)(slen - 1),
+                     ",\"name\":\"%s\"}", lastSurpriseName);
+        }
+    }
+    server.send(200, "application/json", j);
+}
+
 void registerBasicHandlers() {
     server.on("/",          handleRoot);
-    server.on("/state",     []() { sendVal(); });
+    server.on("/state",     handleState);
     server.on("/setb",      handleSetB);
     server.on("/setc",      handleSetC);
     server.on("/setco",     handleSetCo);

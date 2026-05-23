@@ -59,6 +59,12 @@ extern std::atomic<uint32_t> wifiRetryAt;
 inline void markDirty() { prefsDirty.store(true, std::memory_order_relaxed); prefsTouch.store(millis(), std::memory_order_relaxed); }
 extern std::atomic<uint32_t> lastPowerCalc;  // written Core 0 (fireEffect) + Core 1 (handlers)
 
+// Last applied Gemini effect — used by /state HTTP fallback for browsers that cannot reach WS port 81.
+// Written by surpriseTask (Core 1), read by handleState (Core 1 serviceNetwork). Both same core,
+// preemptive FreeRTOS; lastSurpriseAt release/acquire orders the string write before the timestamp.
+extern char                  lastSurpriseName[16];   // jsonEscaped, null-terminated
+extern std::atomic<uint32_t> lastSurpriseAt;         // millis() when set; 0 = never
+
 // ---- Task handles ----------------------------------------------------------
 extern TaskHandle_t ledTaskHandle;   // set in setup(); used for stack watermark queries
 

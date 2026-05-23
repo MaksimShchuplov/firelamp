@@ -44,6 +44,8 @@ static void surpriseTask(void *) {
     // Inline cleanup: push error via WS, release lock, delete self.
 #define SURPRISE_FAIL(reason) do { \
     LOG_WARN("Gemini task: " reason); \
+    lastSurpriseName[0] = '\0'; \
+    lastSurpriseAt.store(millis(), std::memory_order_release); \
     wsPushSurprise(""); \
     s_surpriseBusy.store(false, std::memory_order_release); \
     vTaskDelete(NULL); return; } while (0)
@@ -228,7 +230,11 @@ static void surpriseTask(void *) {
         name = name.substring(0, bytePos);
     }
 
-    wsPushSurprise(jsonEscape(name).c_str());
+    String esc = jsonEscape(name);
+    strncpy(lastSurpriseName, esc.c_str(), sizeof(lastSurpriseName) - 1);
+    lastSurpriseName[sizeof(lastSurpriseName) - 1] = '\0';
+    lastSurpriseAt.store(millis(), std::memory_order_release);
+    wsPushSurprise(lastSurpriseName);
     LOG_INFO("Gemini: applied \"%s\"", name.c_str());
 
 #undef SURPRISE_FAIL

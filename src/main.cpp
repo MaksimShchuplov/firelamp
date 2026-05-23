@@ -37,6 +37,9 @@ std::atomic<bool>     updatePending{false};
 
 TaskHandle_t ledTaskHandle = NULL;
 
+char                  lastSurpriseName[16] = "";
+std::atomic<uint32_t> lastSurpriseAt{0};
+
 std::atomic<bool> prefsDirty{false};
 std::atomic<uint32_t> prefsTouch{0};
 std::atomic<uint32_t> wifiRetryAt{0};

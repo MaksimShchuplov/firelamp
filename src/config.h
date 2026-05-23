@@ -52,6 +52,9 @@
 // How long wsLoop() retries delivering the surprise result to a WS client.
 // Must exceed the browser's aiTimeout (25 s) so the client can reconnect in time.
 #define SURPRISE_DELIVER_TIMEOUT_MS 35000
+// How long /state HTTP response includes the recent surprise name (HTTP fallback for browsers
+// that can't reach port 81). Must be long enough to cover at least one pull() cycle (5 s).
+#define SURPRISE_NAME_TTL_MS        30000
 #define MDNS_NAME               "firelamp"   // → http://firelamp.local
 #define NVS_COMMIT_DELAY_MS     2500    // defer NVS writes to spare flash endurance
 #define FIRMWARE_URL  "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"
