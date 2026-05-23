@@ -176,7 +176,6 @@ static void handleReset() {
 }
 
 static void handleInfo() {
-    if (!isWebRequest()) return;
     char j[768];  // 512 is tight for 32-char escaped SSID + all fields; 768 gives safe headroom
     String ip   = WiFi.localIP().toString();
     String ssid = jsonEscape(WiFi.SSID());
