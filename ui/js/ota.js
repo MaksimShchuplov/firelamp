@@ -48,6 +48,7 @@ document.getElementById('chk').onclick=function(){
   btn.textContent=ru?'Проверка...':'Checking...';
   btn.disabled=true;
   xf('/checkupdate').then(r=>r.json()).then(x=>{
+    if(x.error){btn.textContent=ru?'Ошибка проверки':'Check failed';btn.disabled=false;return;}
     document.getElementById('vinfo').textContent=(ru?'Текущая: ':'Current: ')+x.current+' → GitHub: '+x.latest;
     if(x.update_available){
       btn.textContent=ru?'Установить обновление ↑':'Install Update ↑';
