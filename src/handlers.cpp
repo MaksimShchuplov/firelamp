@@ -222,7 +222,20 @@ static void handleDebug() {
     server.send(200, "application/json", j);
 }
 
+static String htmlEscape(const char *s) {
+    String r;
+    for (; *s; s++) {
+        if      (*s == '&')  r += F("&amp;");
+        else if (*s == '<')  r += F("&lt;");
+        else if (*s == '>')  r += F("&gt;");
+        else if (*s == '"')  r += F("&quot;");
+        else                 r += *s;
+    }
+    return r;
+}
+
 static void handleLog() {
+    if (!isWebRequest()) return;
     // Snapshot the ring buffer under the spinlock, then build the String outside.
     // Holding portENTER_CRITICAL while calling String::+= (which can realloc) would
     // disable Core 1 interrupts for several milliseconds — long enough to delay UART
@@ -239,7 +252,7 @@ static void handleLog() {
                    "pre{white-space:pre-wrap;word-break:break-all}</style><pre>");
     for (int i = 0; i < LOG_BUF_LINES; i++) {
         int idx = (snapHead + i) % LOG_BUF_LINES;
-        if (snap[idx][0]) { out += snap[idx]; out += '\n'; }
+        if (snap[idx][0]) { out += htmlEscape(snap[idx]); out += '\n'; }
     }
     out += F("</pre><script>setTimeout(()=>location.reload(),5000)</script>");
     server.send(200, "text/html", out);
