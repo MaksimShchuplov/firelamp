@@ -235,7 +235,6 @@ static String htmlEscape(const char *s) {
 }
 
 static void handleLog() {
-    if (!isWebRequest()) return;
     // Snapshot the ring buffer under the spinlock, then build the String outside.
     // Holding portENTER_CRITICAL while calling String::+= (which can realloc) would
     // disable Core 1 interrupts for several milliseconds — long enough to delay UART
