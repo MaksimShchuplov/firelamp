@@ -9,9 +9,16 @@
 // Called from Core 1 only (network handlers / startNetwork). Not reentrant.
 // Double-buffer + memw barrier make the palette flip safe to read from Core 0.
 void buildHeatPalette() {
+    static uint8_t lastContrast = 0xFF;   // 0xFF is out-of-range: forces rebuild on first call
+    static uint8_t lastTheme    = 0xFF;
+    const uint8_t contrast = uiContrast;
+    const uint8_t theme    = uiTheme;
+    if (contrast == lastContrast && theme == lastTheme) return;
+    lastContrast = contrast;
+    lastTheme    = theme;
+
     const uint8_t next  = (activePal.load() & 1) ^ 1;
-    const float   power = 1.0f + ((uiContrast - 50.0f) / 50.0f);
-    const uint8_t theme = uiTheme;            // snapshot atomic once
+    const float   power = 1.0f + ((contrast - 50.0f) / 50.0f);
     for (int i = 0; i < 256; i++) {
         float    n    = powf((float)i / 255.0f, power);
         uint16_t m    = (uint16_t)(n * 255.0f);
