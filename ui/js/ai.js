@@ -20,22 +20,10 @@ function askAI(){
   btn.disabled=true;btn.textContent=ru?'✨ Думаю...':'✨ Thinking...';nm.style.color='#fbbf24';nm.textContent='';
   xf('/surprise').then(function(r){
     if(r.status===429)throw new Error('rate_limit');
-    if(r.status===403)throw new Error('bad_key');
     return r.json();
   }).then(function(x){
     if(x.error)throw new Error(x.error);
     pullFails=0;hideOffline();
-    if(x.status==='pending'){
-      aiPending=true;
-      aiTimeout=setTimeout(function(){
-        if(!aiPending)return;
-        aiPending=false;aiTimeout=null;
-        btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
-        nm.style.color='#ef4444';nm.textContent=ru?'⚠ Нет ответа AI (таймаут)':'⚠ AI no response (timeout)';
-        setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},5000);
-      },32000);
-      return;
-    }
     pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);
     if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
     clearActive();lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';
@@ -44,9 +32,10 @@ function askAI(){
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
     var msg=e.message==='no_key'?(ru?'⚠ Укажите ключ в настройках (?)':'⚠ Set API key in settings (?)')
       :e.message==='rate_limit'?(ru?'⚠ Лимит — подождите немного':'⚠ Rate limit — wait a moment')
-      :e.message==='bad_key'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
+      :e.message==='auth_error'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
+      :e.message==='timeout'?(ru?'⚠ AI не ответил (таймаут)':'⚠ AI timed out')
       :e.message==='parse_failed'?(ru?'⚠ Ошибка ответа AI':'⚠ AI response error')
-      :e.message==='fetch_failed'?(ru?'⚠ Нет связи':'⚠ Connection failed')
+      :e.message==='http_error'?(ru?'⚠ Ошибка сервера Gemini':'⚠ Gemini server error')
       :(ru?'⚠ Ошибка':'⚠ Error');
     nm.style.color='#ef4444';nm.textContent=msg;
     setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);

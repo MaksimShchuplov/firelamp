@@ -37,9 +37,6 @@ std::atomic<bool>     updatePending{false};
 
 TaskHandle_t ledTaskHandle = NULL;
 
-char                  lastSurpriseName[32] = "";
-std::atomic<uint32_t> lastSurpriseAt{0};
-
 char        logBuf[LOG_BUF_LINES][LOG_BUF_WIDTH] = {};
 int         logHead = 0;
 portMUX_TYPE logMux = portMUX_INITIALIZER_UNLOCKED;

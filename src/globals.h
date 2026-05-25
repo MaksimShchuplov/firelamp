@@ -59,12 +59,6 @@ extern std::atomic<uint32_t> wifiRetryAt;
 inline void markDirty() { prefsDirty.store(true, std::memory_order_relaxed); prefsTouch.store(millis(), std::memory_order_relaxed); }
 extern std::atomic<uint32_t> lastPowerCalc;  // written Core 0 (fireEffect) + Core 1 (handlers)
 
-// Last applied Gemini effect — used by /state HTTP fallback for browsers that cannot reach WS port 81.
-// Written by surpriseTask (Core 1), read by handleState (Core 1 serviceNetwork). Both same core,
-// preemptive FreeRTOS; lastSurpriseAt release/acquire orders the string write before the timestamp.
-extern char                  lastSurpriseName[32];   // jsonEscaped, null-terminated; 32 fits longest __err_ code
-extern std::atomic<uint32_t> lastSurpriseAt;         // millis() when set; 0 = never
-
 // ---- Task handles ----------------------------------------------------------
 extern TaskHandle_t ledTaskHandle;   // set in setup(); used for stack watermark queries
 
@@ -101,6 +95,3 @@ void serviceNetwork();
 void wsSetup();
 void wsLoop();
 void wsPushState();
-// Broadcasts state JSON with an added "name" field — used by the async Gemini task
-// to deliver the effect name to all connected browsers via WebSocket.
-void wsPushSurprise(const char *escapedName);

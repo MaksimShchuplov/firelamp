@@ -39,6 +39,7 @@ static void handleGeminiKey() {
 // =============================================================================
 
 static std::atomic<bool> s_surpriseBusy{false};
+static char lastSurpriseName[32] = "";  // set by surpriseBody(), read by handleSurprise()
 
 // Returns nullptr on success, or a short error-code string on failure.
 // All C++ objects (WiFiClientSecure, HTTPClient, String) are locals here —
@@ -227,36 +228,10 @@ static const char *surpriseBody(const String &apiKey) {
     String esc = jsonEscape(name);
     strncpy(lastSurpriseName, esc.c_str(), sizeof(lastSurpriseName) - 1);
     lastSurpriseName[sizeof(lastSurpriseName) - 1] = '\0';
-    lastSurpriseAt.store(millis(), std::memory_order_release);
-    wsPushSurprise(lastSurpriseName);
     LOG_INFO("Gemini: applied \"%s\"", name.c_str());
 
 #undef FAIL
     return nullptr;
-}
-
-static void surpriseTask(void *) {
-    // char array avoids a String heap buffer that vTaskDelete would leak
-    // (vTaskDelete terminates without unwinding, skipping C++ destructors).
-    char apiKey[65] = {};
-    {
-        Preferences gp;
-        gp.begin("gemini", true);
-        String k = gp.getString("key", "");
-        gp.end();
-        strncpy(apiKey, k.c_str(), sizeof(apiKey) - 1);
-    }  // k.~String() runs here, freeing its heap buffer
-
-    const char *err = (apiKey[0] == '\0') ? "no_key" : surpriseBody(apiKey);
-
-    if (err) {
-        LOG_WARN("Gemini task: %s", err);
-        snprintf(lastSurpriseName, sizeof(lastSurpriseName), "__err_%s", err);
-        lastSurpriseAt.store(millis(), std::memory_order_release);
-        wsPushSurprise(lastSurpriseName);
-    }
-    s_surpriseBusy.store(false, std::memory_order_release);
-    vTaskDelete(NULL);
 }
 
 static void handleSurprise() {
@@ -265,24 +240,38 @@ static void handleSurprise() {
     if (!s_surpriseBusy.compare_exchange_strong(expected, true)) {
         server.send(429, "application/json", "{\"error\":\"rate_limit\"}"); return;
     }
-    // Check key synchronously so caller gets the right error without waiting for the task.
+    char apiKey[65] = {};
     {
         Preferences gp;
         gp.begin("gemini", true);
-        bool hasKey = gp.isKey("key") && gp.getString("key", "").length() > 0;
+        String k = gp.getString("key", "");
         gp.end();
-        if (!hasKey) {
-            s_surpriseBusy.store(false, std::memory_order_release);
-            server.send(400, "application/json", "{\"error\":\"no_key\"}"); return;
-        }
+        strncpy(apiKey, k.c_str(), sizeof(apiKey) - 1);
     }
-    // Core 1: same core as serviceNetwork() so buildHeatPalette/recalcCooling
-    // are serialised with HTTP handlers — both are explicitly "Core 1 only, not reentrant".
-    if (xTaskCreatePinnedToCore(surpriseTask, "Surprise", SURPRISE_STACK_BYTES, NULL, 1, NULL, 1) != pdPASS) {
+    if (apiKey[0] == '\0') {
         s_surpriseBusy.store(false, std::memory_order_release);
-        server.send(503, "application/json", "{\"error\":\"task_failed\"}"); return;
+        server.send(400, "application/json", "{\"error\":\"no_key\"}"); return;
     }
-    server.send(202, "application/json", "{\"status\":\"pending\"}");
+    // Blocks up to GEMINI_TIMEOUT_MS while calling the Gemini API.
+    // Core 0 (LEDs) runs uninterrupted. buildHeatPalette/recalcCooling are
+    // Core-1-only and serialised by the HTTP handler context — same as before.
+    const char *err = surpriseBody(apiKey);
+    s_surpriseBusy.store(false, std::memory_order_release);
+    if (err) {
+        server.send(400, "application/json",
+                    String("{\"error\":\"") + err + "\"}"); return;
+    }
+    // Return full state + effect name in one atomic response so the browser
+    // updates sliders and shows the name at the exact moment the lamp changes.
+    char j[160];
+    formatState(j, sizeof(j));
+    int slen = strlen(j);
+    if (slen > 0 && j[slen - 1] == '}') {
+        snprintf(j + slen - 1, sizeof(j) - (size_t)(slen - 1),
+                 ",\"name\":\"%s\"}", lastSurpriseName);
+    }
+    wsPushState();  // notify other connected browsers of the new settings
+    server.send(200, "application/json", j);
 }
 
 void registerGeminiHandlers() {
