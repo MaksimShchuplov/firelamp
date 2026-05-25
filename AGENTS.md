@@ -78,7 +78,7 @@ static void handleXxx() {
 }
 ```
 
-CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/getpresets`, `/geminikey`.
+CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/getpresets`, `/geminikey`.
 
 ## Code style
 
@@ -118,4 +118,4 @@ All state-mutating endpoints require `X-Requested-With: firelamp` header (CSRF).
 | `GET /resetwifi` | — | clear credentials + reboot |
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini key to NVS |
 | `GET /geminikey` | — | `{"set":true/false}` |
-| `GET /surprise` | — | Gemini 2.5 Flash → apply effect → `{ok,name,b,c,co,sp,bl,th,w}` |
+| `GET /surprise` | — | Synchronous Gemini call (blocks ≤15 s, ~2 s with thinking off); HTTP 200 with full state + `"name"`; broadcasts state+name to other browsers via WebSocket |

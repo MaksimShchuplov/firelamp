@@ -29,7 +29,7 @@ src/
   handlers.cpp  — shared utilities + basic handlers (setb/c/co/sp/bl/theme, reset, info, debug)
   presets.cpp   — preset CRUD (getpresets, savepreset, loadpreset, deletepreset)
   ota.cpp       — OTA update flow + autoUpdateCheck background task
-  gemini.cpp    — Gemini AI Surprise Me effect (async FreeRTOS task, surprise, setgeminikey, geminikey)
+  gemini.cpp    — Gemini AI Surprise Me effect (synchronous handler, surprise, setgeminikey, geminikey)
   ws.cpp        — WebSocket server (port 81): wsSetup(), wsLoop(), wsPushState(), wsPushSurprise()
 ui/
   index.html    — HTML structure (opens in browser for preview; link/script tags load source files)
@@ -59,9 +59,9 @@ UI parameters (`uiBright`, `uiContrast`, `uiCooling`, `uiSparking`, `uiBlend`, `
 
 - `wsSetup()` is deferred to Core 1: the `WiFi.GOT_IP` event callback (runs on Core 0 arduino_events_task) sets `wsNeedsStart` atomic flag; `serviceNetwork()` picks it up on the next iteration and calls `wsSetup()` safely from Core 1. This avoids calling non-thread-safe `wsServer` from a Core 0 task.
 - `wsSetup()` calls `wsServer.begin()`, registers `onWsEvent`, enables the heartbeat, then stores `wsReady = true` with `memory_order_release`.
-- `wsLoop()` is called from `serviceNetwork()` on Core 1. It guards with `wsReady.load(acquire)` before calling `wsServer.loop()`, then drains `s_surprisePending` if set.
+- `wsLoop()` is called from `serviceNetwork()` on Core 1. It guards with `wsReady.load(acquire)` before calling `wsServer.loop()`.
 - `wsPushState()` broadcasts current lamp state JSON to all connected clients. Called by `sendVal()` so every HTTP state-mutating handler broadcasts automatically.
-- `wsPushSurprise(escapedName)` is called from `surpriseTask` (a FreeRTOS task on Core 1). It must NOT call `wsServer` directly — that would race with `wsServer.loop()` in the Arduino task. Instead it copies the name into `s_surpriseName` and sets `s_surprisePending` (atomic). `wsLoop()` drains the flag and does the actual broadcast in the Arduino task context.
+- `wsPushSurprise(escapedName)` is called from the synchronous `handleSurprise()` handler (Core 1, Arduino task context — same task as `wsServer.loop()`), so it can call `wsServer.broadcastTXT()` directly. It also caches the name in `s_surpriseName` / `s_surpriseAt` for 60 s so clients that reconnect during that window receive state+name in `onWsEvent`.
 - `wsReady` is `std::atomic<bool>` with `store(release)` / `load(acquire)` — ensures `wsServer.begin()` is fully visible before any loop or push runs.
 
 On new client connect, `onWsEvent` sends current state to that client via `sendTXT(num)` so late-connecting browsers are immediately synchronised.
@@ -80,14 +80,16 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 4. `boot.cpp` counts consecutive hard crashes (panic/watchdog). On the third consecutive crash it calls `Update.rollBack()` + restart, reverting to the previous OTA slot.
 
 ### Surprise Me — Gemini AI effects
-`/surprise` spawns a FreeRTOS task (`surpriseTask`) pinned to Core 1 and returns HTTP 202 immediately — the web server is never blocked. `surpriseTask` calls the Gemini 2.5 Flash API (up to `GEMINI_TIMEOUT_MS` = 15 s), applies the effect, then delivers the result to all browsers via `wsPushSurprise()`. An `std::atomic<bool> s_surpriseBusy` prevents concurrent tasks; callers get HTTP 429 if already busy.
+`/surprise` runs synchronously in the HTTP handler context on Core 1. The call blocks for up to `GEMINI_TIMEOUT_MS` (15 s) while waiting for the Gemini API; Core 0 (LEDs) runs uninterrupted throughout. An `std::atomic<bool> s_surpriseBusy` gate prevents concurrent requests; callers get HTTP 429 if already busy.
 
-**Prompt construction** (runtime, `handleSurprise`):
+**Prompt construction** (`surpriseBody`):
 - A random *scene* is picked from 15 atmospheric moods (e.g. `midnight thunderstorm`, `arctic tundra`, `volcanic eruption`, `bioluminescent cave`) to give each request a creative direction.
 - Current lamp state (`b`, `c`, `co`, `sp`, `bl`, `th`) is injected so Gemini creates something contrasting rather than repeating similar values.
-- `temperature: 1.4`, `maxOutputTokens: 120`, `thinkingBudget: 0` (thinking disabled for speed).
+- `temperature: 1.4`, `maxOutputTokens: 120`, `thinkingConfig.thinkingBudget: 0` — thinking disabled; cuts typical latency from ~15 s to ~2 s.
 
-**Response parsing** (`handleSurprise`): Scans all `"text":` fields in the Gemini JSON response, scanning *inside* each string value for `{`. Takes the **last** match — this skips thinking parts (which precede the actual output) and handles markdown-wrapped responses (` ```json\n{...}``` `). The extracted JSON string is unescaped char-by-char and parsed with simple `indexOf` helpers that tolerate spaces after `:`.
+**HTTP response** (200): full lamp state JSON with an added `"name"` field — the requesting browser updates sliders and shows the effect name the moment the response arrives. `wsPushSurprise(escapedName)` then broadcasts the same state+name to all other connected browsers. The name is cached in `ws.cpp` (`s_surpriseName` / `s_surpriseAt`) for 60 s and replayed to any client that reconnects during that window via `onWsEvent`.
+
+**Response parsing** (`surpriseBody`): Scans all `"text":` fields in the Gemini JSON response, scanning *inside* each string value for `{`. Takes the **last** match — this skips thinking parts (which precede the actual output) and handles markdown-wrapped responses (` ```json\n{...}``` `). The extracted JSON string is unescaped char-by-char and parsed with simple `indexOf` helpers that tolerate spaces after `:`.
 
 **API key** is stored in NVS namespace `gemini`, never compiled into firmware. Sent to ESP via `POST /setgeminikey` (body, not URL) to avoid leaking into logs.
 
@@ -139,7 +141,7 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 | `GET /resetwifi` | — | clear credentials + reboot |
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini API key to NVS (`gemini` namespace); POST body keeps key out of URL/logs |
 | `GET /geminikey` | — | `{"set":true/false}` — check if key is configured |
-| `GET /surprise` | — | Spawns async Gemini task; returns `{"status":"pending"}` (202). Result delivered via WebSocket broadcast with added `"name"` field. |
+| `GET /surprise` | — | Synchronous Gemini call (blocks ≤15 s); HTTP 200 with full state + `"name"`. Also broadcasts state+name to all other connected browsers via WebSocket. |
 | `WS ws://firelamp.local:81/` | — | Push-only WebSocket; server broadcasts state JSON on every change |
 
 ## Hardware Notes

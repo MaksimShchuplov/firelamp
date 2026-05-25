@@ -78,7 +78,7 @@ Open `http://firelamp.local` (or the IP shown on the serial monitor).
 | Blend | 0–255 | Temporal smoothing — lower = sharp flicker, higher = slow glow |
 | Theme | Fire / Ember / Plasma / Ice | Color palette |
 | Presets | 8 slots | Tap to load · Long-press to save or rename |
-| Surprise Me | — | Calls Gemini 2.5 Flash async — returns instantly, result delivered via WebSocket; requires a Gemini API key (stored on device) |
+| Surprise Me | — | Calls Gemini 2.5 Flash — waits ~2 s, returns full state + effect name; other connected browsers update instantly via WebSocket; requires a Gemini API key (stored on device) |
 
 All parameters are saved to flash automatically and restored on next boot.
 

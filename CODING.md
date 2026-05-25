@@ -75,7 +75,7 @@ static void handleXxx() {
 }
 ```
 
-CSRF guard exceptions (read-only, no outbound requests): `/state`, `/info`, `/getpresets`, `/geminikey`.
+CSRF guard exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/getpresets`, `/geminikey`.
 
 ## Code style
 
