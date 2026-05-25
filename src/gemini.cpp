@@ -270,7 +270,8 @@ static void handleSurprise() {
         snprintf(j + slen - 1, sizeof(j) - (size_t)(slen - 1),
                  ",\"name\":\"%s\"}", lastSurpriseName);
     }
-    wsPushState();  // notify other connected browsers of the new settings
+    // Broadcast state+name to all other connected browsers and cache for reconnects.
+    wsPushSurprise(lastSurpriseName);
     server.send(200, "application/json", j);
 }
 

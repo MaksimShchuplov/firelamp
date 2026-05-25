@@ -14,6 +14,7 @@ function applyState(x){
   if(x.bl!==undefined&&ae!==sbl)pbl(x.bl);
   if(x.th!==undefined)pth(x.th);
   if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
+  if(x.name){var nm=document.getElementById('ainame');clearActive();lastAiName=x.name.substring(0,15);nm.style.color='#fbbf24';nm.textContent=lastAiName+' ✨';}
   if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
 }
 function pull(){fetch('/state').then(r=>r.json()).then(x=>{applyState(x);}).catch(()=>{pullFails++;if(pullFails>=3)showOffline();});}
