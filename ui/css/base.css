@@ -5,7 +5,17 @@
 @property --ar2{syntax:'<number>';initial-value:180;inherits:true}
 @property --ag2{syntax:'<number>';initial-value:40;inherits:true}
 @property --ab2{syntax:'<number>';initial-value:8;inherits:true}
-:root{--b:60;--g:calc(var(--b)/100);--ar:255;--ag:120;--ab:20;--ar2:180;--ag2:40;--ab2:8}
+@property --tc1{syntax:'<color>';initial-value:#2a0d04;inherits:true}
+@property --tc2{syntax:'<color>';initial-value:#7a1f06;inherits:true}
+@property --tc3{syntax:'<color>';initial-value:#d6510c;inherits:true}
+@property --tc4{syntax:'<color>';initial-value:#ff8a1f;inherits:true}
+@property --tc5{syntax:'<color>';initial-value:#ffe7b8;inherits:true}
+@property --th2{syntax:'<color>';initial-value:#ffae45;inherits:true}
+@property --th3{syntax:'<color>';initial-value:#ff5e10;inherits:true}
+@property --th4{syntax:'<color>';initial-value:#7a1f00;inherits:true}
+:root{--b:60;--g:calc(var(--b)/100);--ar:255;--ag:120;--ab:20;--ar2:180;--ag2:40;--ab2:8;
+ --tc1:#2a0d04;--tc2:#7a1f06;--tc3:#d6510c;--tc4:#ff8a1f;--tc5:#ffe7b8;
+ --th2:#ffae45;--th3:#ff5e10;--th4:#7a1f00}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 button,input[type=range]{touch-action:manipulation}
 html,body{min-height:100%}
