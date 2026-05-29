@@ -186,8 +186,10 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
         i += s.length();
         while (i < (int)inner.length() && inner[i] == ' ') i++;
         int e = i;
-        while (e < (int)inner.length() && (isdigit((unsigned char)inner[e]) || (e == i && inner[e] == '-'))) e++;
-        return (e > i) ? inner.substring(i, e).toInt() : -1;
+        if (e < (int)inner.length() && inner[e] == '-') e++;
+        int ds = e;  // first digit position; at least one digit required
+        while (e < (int)inner.length() && isdigit((unsigned char)inner[e])) e++;
+        return (e > ds) ? inner.substring(i, e).toInt() : -1;
     };
 
     String name = exStr("name");
