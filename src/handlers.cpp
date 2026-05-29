@@ -99,68 +99,64 @@ static void handleRoot() {
 static void handleSetB() {
     if (!isWebRequest()) return;
     int v;
-    if (parseIntArg("v", 0, 100, v)) { setBright(v); updatePowerCalc(); }
+    if (!parseIntArg("v", 0, 100, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    setBright(v); updatePowerCalc();
     sendVal();
 }
 
 static void handleSetC() {
     if (!isWebRequest()) return;
     int v;
-    if (parseIntArg("v", 0, 100, v)) {
-        if (uiContrast != (uint8_t)v) {
-            uiContrast = (uint8_t)v;
-            buildHeatPalette();
-            markDirty();
-        }
-        updatePowerCalc();
+    if (!parseIntArg("v", 0, 100, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    if (uiContrast != (uint8_t)v) {
+        uiContrast = (uint8_t)v;
+        buildHeatPalette();
+        markDirty();
     }
+    updatePowerCalc();
     sendVal();
 }
 
 static void handleSetCo() {
     if (!isWebRequest()) return;
     int v;
-    if (parseIntArg("v", 20, 150, v)) {
-        uiCooling = (uint8_t)v;
-        markDirty();
-        recalcCooling(); updatePowerCalc();
-    }
+    if (!parseIntArg("v", 20, 150, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    uiCooling = (uint8_t)v;
+    markDirty();
+    recalcCooling(); updatePowerCalc();
     sendVal();
 }
 
 static void handleSetSp() {
     if (!isWebRequest()) return;
     int v;
-    if (parseIntArg("v", 0, 255, v)) {
-        uiSparking = (uint8_t)v;
-        markDirty();
-        updatePowerCalc();
-    }
+    if (!parseIntArg("v", 0, 255, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    uiSparking = (uint8_t)v;
+    markDirty();
+    updatePowerCalc();
     sendVal();
 }
 
 static void handleSetBl() {
     if (!isWebRequest()) return;
     int v;
-    if (parseIntArg("v", 0, 255, v)) {
-        uiBlend = (uint8_t)v;
-        markDirty();
-        updatePowerCalc();
-    }
+    if (!parseIntArg("v", 0, 255, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    uiBlend = (uint8_t)v;
+    markDirty();
+    updatePowerCalc();
     sendVal();
 }
 
 static void handleSetTheme() {
     if (!isWebRequest()) return;
     int v;
-    if (parseIntArg("v", 0, THEME_COUNT - 1, v)) {
-        if (uiTheme != (uint8_t)v) {
-            uiTheme = (uint8_t)v;
-            buildHeatPalette();
-            markDirty();
-        }
-        updatePowerCalc();
+    if (!parseIntArg("v", 0, THEME_COUNT - 1, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    if (uiTheme != (uint8_t)v) {
+        uiTheme = (uint8_t)v;
+        buildHeatPalette();
+        markDirty();
     }
+    updatePowerCalc();
     sendVal();
 }
 
@@ -175,7 +171,6 @@ static void handleReset() {
 }
 
 static void handleInfo() {
-    if (!isWebRequest()) return;
     char j[768];  // 512 is tight for 32-char escaped SSID + all fields; 768 gives safe headroom
     String ip   = WiFi.localIP().toString();
     String ssid = jsonEscape(WiFi.SSID());

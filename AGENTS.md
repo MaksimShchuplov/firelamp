@@ -79,6 +79,7 @@ static void handleXxx() {
 ```
 
 CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/getpresets`, `/geminikey`.
+`/debug` keeps the guard — it exposes SSID, heap stats, and all tuning params.
 
 ## Code style
 
