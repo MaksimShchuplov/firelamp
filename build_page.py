@@ -76,9 +76,9 @@ def build_page(source, target, env):
     # index.html lists individual <link> and <script> tags for browser preview;
     # we collapse them into one <style> and one <script> for the PROGMEM blob.
     html = re.sub(r'(<link rel=stylesheet href=css/[^>]+>\n?)+',
-                  "<style>" + css + "</style>", html, count=1)
+                  lambda m: "<style>" + css + "</style>", html, count=1)
     html = re.sub(r'(<script src=js/[^>]+></script>\n?)+',
-                  "<script>" + js + "</script>", html, count=1)
+                  lambda m: "<script>" + js + "</script>", html, count=1)
 
     page_h = (
         "#pragma once\n"

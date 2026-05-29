@@ -10,7 +10,7 @@
 // so any request that reaches this check with the header set came from our own page.
 [[nodiscard]] bool isWebRequest();
 
-// Parses a bounded integer query arg. Returns false (and sends 400) on failure.
+// Parses a bounded integer query arg. Returns false on failure; caller sends the error response.
 [[nodiscard]] bool parseIntArg(const char *name, int lo, int hi, int &out);
 
 // JSON string escaping.
