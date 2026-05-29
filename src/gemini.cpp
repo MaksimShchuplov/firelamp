@@ -84,7 +84,8 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
         "\"thinkingConfig\":{\"thinkingBudget\":0}}}";
 
     WiFiClientSecure client;
-    client.setCACert(GTS_ROOT_R1);
+    client.setCACertBundle(x509_crt_bundle_start,
+                           (size_t)(x509_crt_bundle_end - x509_crt_bundle_start));
     HTTPClient http;
     http.setTimeout(GEMINI_TIMEOUT_MS);
     // Pass the key via x-goog-api-key header rather than a URL query parameter so
