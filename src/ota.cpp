@@ -5,12 +5,9 @@
 #include <Update.h>
 #include "globals.h"
 #include "net_helpers.h"
+#include "certs.h"
 
 // Fetches version.json from GitHub. Caches result for VERSION_CACHE_MS. Returns false on error.
-// TLS note: setInsecure() skips CA verification; firmware integrity is instead guaranteed
-// by the MD5 hash embedded in version.json (checked by Update.setMD5 before flashing).
-// To enable full TLS verification replace setInsecure() with setCACert() pointing to the
-// GitHub root CA (DigiCert Global Root CA / G2) stored in a separate header.
 static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *outBusy = nullptr) {
     static String            s_ver, s_md5;
     static uint32_t          s_buildN = 0, s_at = 0;
@@ -36,7 +33,7 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *o
     }
 
     WiFiClientSecure client;
-    client.setInsecure();
+    client.setCACert(DIGICERT_GLOBAL_ROOT_CA);
     HTTPClient http;
     http.setTimeout(HTTP_TIMEOUT_MS);
     http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
@@ -119,7 +116,7 @@ static void handleUpdate() {
     server.send(200, "text/plain", "Update starting...");
     server.client().flush();
     server.client().stop();
-    WiFiClientSecure client; client.setInsecure();
+    WiFiClientSecure client; client.setCACert(DIGICERT_GLOBAL_ROOT_CA);
     httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     LOG_INFO("OTA → %s  md5: %s", ver.c_str(), md5.c_str());
     t_httpUpdate_return r = httpUpdate.update(client, FIRMWARE_URL);

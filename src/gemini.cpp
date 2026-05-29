@@ -4,6 +4,7 @@
 #include <Preferences.h>
 #include "globals.h"
 #include "net_helpers.h"
+#include "certs.h"
 
 static void handleSetGeminiKey() {
     if (!isWebRequest()) return;
@@ -83,7 +84,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
         "\"thinkingConfig\":{\"thinkingBudget\":0}}}";
 
     WiFiClientSecure client;
-    client.setInsecure();
+    client.setCACert(GTS_ROOT_R1);
     HTTPClient http;
     http.setTimeout(GEMINI_TIMEOUT_MS);
     // Pass the key via x-goog-api-key header rather than a URL query parameter so
