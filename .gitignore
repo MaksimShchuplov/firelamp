@@ -4,3 +4,5 @@
 *.bin
 *.elf
 src/page.h
+__pycache__/
+*.pyc
