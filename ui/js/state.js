@@ -4,7 +4,13 @@ function pc(n){ps(0,100,vc,sc,n);}
 function pco(n){ps(20,150,vco,sco,n);}
 function psp(n){ps(0,255,vsp,ssp,n);}
 function pbl(n){ps(0,255,vbl,sbl,n);}
-function pth(n){for(var i=0;i<4;i++)document.getElementById('tb'+i).classList.toggle('act',i===n);}
+var kAmb=[[255,120,20,180,40,8],[180,30,10,80,10,3],[160,20,240,80,8,140],[20,100,230,8,50,170]];
+function pth(n){
+  for(var i=0;i<4;i++)document.getElementById('tb'+i).classList.toggle('act',i===n);
+  var t=kAmb[n]||kAmb[0];
+  R.style.setProperty('--ar',t[0]);R.style.setProperty('--ag',t[1]);R.style.setProperty('--ab',t[2]);
+  R.style.setProperty('--ar2',t[3]);R.style.setProperty('--ag2',t[4]);R.style.setProperty('--ab2',t[5]);
+}
 function applyState(x){
   pullFails=0;hideOffline();
   var ae=document.activeElement;
