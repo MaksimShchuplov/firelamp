@@ -20,7 +20,7 @@ pio device monitor --baud 115200        # serial output
 | New constant / limit | `src/config.h` |
 | New shared variable | `src/globals.h` + `src/main.cpp` |
 | Fire physics / palette | `src/fire.cpp` |
-| Web UI (HTML/CSS/JS) | `src/page.h` |
+| Web UI (HTML/CSS/JS) | `ui/index.html`, `ui/css/*.css`, `ui/js/*.js` — edit sources, not generated `src/page.h` |
 | WiFi startup / mDNS | `src/network.cpp` |
 | OTA / version check | `src/ota.cpp` |
 | AI Surprise Me effect | `src/gemini.cpp` |
@@ -93,7 +93,7 @@ CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/
 `COLUMNS 20` · `ROWS 40` · `NUM_LEDS 800` · `PRESET_COUNT 8` · `THEME_COUNT 4`
 `BRIGHT_DEFAULT 100` · `CONTRAST_DEFAULT 50` · `COOLING_DEFAULT 45` · `SPARKING_DEFAULT 36`
 `BLEND_DEFAULT 50` · `THEME_DEFAULT 0` (0=Fire 1=Ember 2=Plasma 3=Ice)
-`NVS_COMMIT_DELAY_MS 2500` · `GEMINI_TIMEOUT_MS 15000` · `UPDCHK_STACK_BYTES 12288`
+`NVS_COMMIT_DELAY_MS 2500` · `GEMINI_TIMEOUT_MS 10000` · `UPDCHK_STACK_BYTES 12288`
 
 ## HTTP API
 

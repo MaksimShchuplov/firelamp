@@ -4,7 +4,6 @@
 
 ESP32-S3 firmware for an 800-LED WS2812B fire-effect lamp with a web control UI and OTA updates over Wi-Fi.
 
-![UI screenshot](docs/screenshot.png)
 
 ## Features
 
