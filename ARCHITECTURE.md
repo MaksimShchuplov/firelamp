@@ -66,7 +66,7 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 ### OTA update flow
 1. On WiFi connect, `autoUpdateCheck` task fires after 8 s, fetches `version.json`, sets `updatePending` flag. Browser sees `"upd":1` in `/state` and shows a silent badge.
 2. Browser calls `/checkupdate` → ESP fetches `version.json` (cached 60 s) and compares SHA against `FIRMWARE_VERSION`.
-3. Browser calls `/update` (with `X-Requested-With: firelamp` CSRF header) → ESP sets MD5 from `version.json`, sends HTTP 200, closes the connection, then calls `httpUpdate.update()` synchronously. After success the ESP reboots automatically. UI polls `/info` every 3 s until lamp responds, then auto-reloads.
+3. Browser calls `/update` (with `X-Requested-With: firelamp` CSRF header) → ESP flushes pending NVS writes, sends HTTP 200, closes the connection, then downloads `firmware.bin` via `HTTPClient` + streams it to `Update.writeStream()`. `Update.setMD5()` is called **after** `Update.begin()` (begin resets the expected hash). After success the ESP reboots automatically. UI polls `/info` every 3 s until lamp responds, then auto-reloads.
 4. `boot.cpp` counts consecutive hard crashes (panic/watchdog). On the third consecutive crash it calls `Update.rollBack()` + restart, reverting to the previous OTA slot.
 
 ### Surprise Me — Gemini AI effects
