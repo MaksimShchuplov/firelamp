@@ -9,4 +9,7 @@ pull();var wsLive=false,pollTid=setInterval(function(){if(!document.hidden&&!wsL
     ws.onerror=function(){};
   }
   connect();
+  document.addEventListener('visibilitychange',function(){
+    if(!document.hidden&&!wsLive&&!wst){clearTimeout(wst);wsDelay=3000;connect();}
+  });
 })();

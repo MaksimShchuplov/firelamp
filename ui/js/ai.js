@@ -18,7 +18,9 @@ document.getElementById('aiksave').onclick=function(){
 function askAI(){
   var btn=document.getElementById('surprise'),nm=document.getElementById('ainame');
   btn.disabled=true;btn.textContent=ru?'✨ Думаю...':'✨ Thinking...';nm.style.color='#fbbf24';nm.textContent='';
-  xf('/surprise').then(function(r){
+  var ac=new AbortController(),to=setTimeout(function(){ac.abort();},18000);
+  xf('/surprise',{signal:ac.signal}).then(function(r){
+    clearTimeout(to);
     if(r.status===429)throw new Error('rate_limit');
     return r.json();
   }).then(function(x){
@@ -30,11 +32,12 @@ function askAI(){
     clearActive();lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){
+    clearTimeout(to);
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
-    var msg=e.message==='no_key'?(ru?'⚠ Укажите ключ в настройках (?)':'⚠ Set API key in settings (?)')
+    var msg=(e.name==='AbortError'||e.message==='timeout')?(ru?'⚠ AI не ответил (таймаут)':'⚠ AI timed out')
+      :e.message==='no_key'?(ru?'⚠ Укажите ключ в настройках (?)':'⚠ Set API key in settings (?)')
       :e.message==='rate_limit'?(ru?'⚠ Лимит — подождите немного':'⚠ Rate limit — wait a moment')
       :e.message==='auth_error'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
-      :e.message==='timeout'?(ru?'⚠ AI не ответил (таймаут)':'⚠ AI timed out')
       :e.message==='parse_failed'?(ru?'⚠ Ошибка ответа AI':'⚠ AI response error')
       :e.message==='http_error'?(ru?'⚠ Ошибка сервера Gemini':'⚠ Gemini server error')
       :(ru?'⚠ Ошибка':'⚠ Error');
