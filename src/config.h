@@ -47,7 +47,7 @@
 #define WIFI_PORTAL_TIMEOUT_S   120     // portal auto-closes; fire still runs
 #define WIFI_RETRY_MS           15000
 #define HTTP_TIMEOUT_MS         8000    // HTTPS request timeout (version check + OTA)
-#define GEMINI_TIMEOUT_MS          15000  // Gemini API response timeout (ESP-side call)
+#define GEMINI_TIMEOUT_MS          10000  // Gemini API response timeout (ESP-side call)
 #define MDNS_NAME               "firelamp"   // → http://firelamp.local
 #define NVS_COMMIT_DELAY_MS     2500    // defer NVS writes to spare flash endurance
 #define FIRMWARE_URL  "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"

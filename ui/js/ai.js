@@ -17,10 +17,12 @@ document.getElementById('aiksave').onclick=function(){
 };
 function askAI(){
   var btn=document.getElementById('surprise'),nm=document.getElementById('ainame');
-  btn.disabled=true;btn.textContent=ru?'✨ Думаю...':'✨ Thinking...';nm.style.color='#fbbf24';nm.textContent='';
-  var ac=new AbortController(),to=setTimeout(function(){ac.abort();},18000);
+  btn.disabled=true;nm.style.color='#fbbf24';nm.textContent='';
+  var elapsed=0,etid=setInterval(function(){elapsed++;btn.textContent=(ru?'✨ Думаю ':'✨ Thinking ')+elapsed+'s…';},1000);
+  btn.textContent=ru?'✨ Думаю 0s…':'✨ Thinking 0s…';
+  var ac=new AbortController(),to=setTimeout(function(){ac.abort();},13000);
   xf('/surprise',{signal:ac.signal}).then(function(r){
-    clearTimeout(to);
+    clearTimeout(to);clearInterval(etid);
     if(r.status===429)throw new Error('rate_limit');
     return r.json();
   }).then(function(x){
@@ -32,7 +34,7 @@ function askAI(){
     clearActive();lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){
-    clearTimeout(to);
+    clearTimeout(to);clearInterval(etid);
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
     var msg=(e.name==='AbortError'||e.message==='timeout')?(ru?'⚠ AI не ответил (таймаут)':'⚠ AI timed out')
       :e.message==='no_key'?(ru?'⚠ Укажите ключ в настройках (?)':'⚠ Set API key in settings (?)')
