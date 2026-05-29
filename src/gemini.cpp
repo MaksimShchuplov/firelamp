@@ -37,14 +37,9 @@ static void handleGeminiKey() {
 // =============================================================================
 
 static std::atomic<bool> s_surpriseBusy{false};
-static char lastSurpriseName[32] = "";  // set by surpriseBody(), read by handleSurprise()
 
 // Returns nullptr on success, or a short error-code string on failure.
-// All C++ objects (WiFiClientSecure, HTTPClient, String) are locals here —
-// their destructors free mbedTLS contexts when this function returns, before
-// vTaskDelete() is called. The original design called vTaskDelete() inside
-// SURPRISE_FAIL, skipping destructors and leaking ~32 KB of TLS heap per call.
-static const char *surpriseBody(const String &apiKey) {
+static const char *surpriseBody(const String &apiKey, char *outName, size_t nameLen) {
 #define FAIL(code) return (code)
 
     static const char * const kScenes[] = {
@@ -226,8 +221,8 @@ static const char *surpriseBody(const String &apiKey) {
     }
 
     String esc = jsonEscape(name);
-    strncpy(lastSurpriseName, esc.c_str(), sizeof(lastSurpriseName) - 1);
-    lastSurpriseName[sizeof(lastSurpriseName) - 1] = '\0';
+    strncpy(outName, esc.c_str(), nameLen - 1);
+    outName[nameLen - 1] = '\0';
     LOG_INFO("Gemini: applied \"%s\"", name.c_str());
 
 #undef FAIL
@@ -255,7 +250,8 @@ static void handleSurprise() {
     // Blocks up to GEMINI_TIMEOUT_MS while calling the Gemini API.
     // Core 0 (LEDs) runs uninterrupted. buildHeatPalette/recalcCooling are
     // Core-1-only and serialised by the HTTP handler context — same as before.
-    const char *err = surpriseBody(apiKey);
+    char surpriseName[32] = {};
+    const char *err = surpriseBody(apiKey, surpriseName, sizeof(surpriseName));
     s_surpriseBusy.store(false, std::memory_order_release);
     if (err) {
         server.send(400, "application/json",
@@ -268,7 +264,7 @@ static void handleSurprise() {
     int slen = strlen(j);
     if (slen > 0 && j[slen - 1] == '}') {
         snprintf(j + slen - 1, sizeof(j) - (size_t)(slen - 1),
-                 ",\"name\":\"%s\"}", lastSurpriseName);
+                 ",\"name\":\"%s\"}", surpriseName);
     }
     server.send(200, "application/json", j);
 }

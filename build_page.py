@@ -26,7 +26,7 @@ JS_FILES = [
     "js/presets.js",
     "js/ota.js",
     "js/ai.js",
-    "js/ws.js",
+    "js/poll.js",
 ]
 
 def read(path):
