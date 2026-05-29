@@ -251,7 +251,7 @@ static void handleSurprise() {
     // Blocks up to GEMINI_TIMEOUT_MS while calling the Gemini API.
     // Core 0 (LEDs) runs uninterrupted. buildHeatPalette/recalcCooling are
     // Core-1-only and serialised by the HTTP handler context — same as before.
-    char surpriseName[32] = {};
+    char surpriseName[PRESET_NAME_MAX_LEN * 4 + 1] = {};
     const char *err = surpriseBody(apiKey, surpriseName, sizeof(surpriseName));
     s_surpriseBusy.store(false, std::memory_order_release);
     if (err) {

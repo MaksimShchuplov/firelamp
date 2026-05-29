@@ -33,11 +33,32 @@ def read(path):
     with open(path, encoding="utf-8") as f:
         return f.read()
 
+def _css_strip_decl_space(s):
+    # Remove the space after ':' in property declarations, but not inside quoted strings.
+    out, i, n = [], 0, len(s)
+    in_str, qc = False, ''
+    while i < n:
+        c = s[i]
+        if in_str:
+            out.append(c)
+            if c == '\\' and i + 1 < n:
+                i += 1; out.append(s[i])
+            elif c == qc:
+                in_str = False
+        elif c in ('"', "'"):
+            in_str, qc = True, c; out.append(c)
+        elif c == ':' and i + 1 < n and s[i + 1] == ' ':
+            out.append(':'); i += 1  # skip the space
+        else:
+            out.append(c)
+        i += 1
+    return ''.join(out)
+
 def minify_css(s):
     s = re.sub(r'/\*.*?\*/', '', s, flags=re.DOTALL)
     s = re.sub(r'\s+', ' ', s)
     s = re.sub(r'\s*([{};,])\s*', r'\1', s)
-    s = re.sub(r': ', ':', s)
+    s = _css_strip_decl_space(s)
     return s.strip()
 
 def minify_js(s):

@@ -16,8 +16,9 @@ function doSave(){
   var nm=document.getElementById('prename').value.trim();
   if(!nm){document.getElementById('prename').focus();return;}
   document.getElementById('prein').classList.remove('show');
+  var slot=pendingSlot;
   var ac=new AbortController(),to=setTimeout(function(){ac.abort();pendingSlot=-1;},8000);
-  xf('/savepreset?slot='+pendingSlot+'&name='+encodeURIComponent(nm),{signal:ac.signal}).then(function(){clearTimeout(to);activePreset=pendingSlot;pendingSlot=-1;fetchPresets();}).catch(function(){clearTimeout(to);pendingSlot=-1;});
+  xf('/savepreset?slot='+slot+'&name='+encodeURIComponent(nm),{signal:ac.signal}).then(function(){clearTimeout(to);activePreset=slot;pendingSlot=-1;fetchPresets();}).catch(function(){clearTimeout(to);pendingSlot=-1;});
 }
 function cancelSave(){pendingSlot=-1;document.getElementById('prein').classList.remove('show');}
 document.getElementById('presave').onclick=doSave;
@@ -32,7 +33,7 @@ document.getElementById('prename').addEventListener('keydown',function(e){if(e.k
          {label:ru?'Удалить пресет':'Delete preset',cls:'danger',fn:function(){deletePreset(s);}}]);
     }else saveSlot(s);
   },600);}
-  function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(function(r){if(!r.ok)throw new Error('http_'+r.status);return r.json();}).then(function(x){var ae=document.activeElement;if(ae!==sb)pb(x.b);if(ae!==sc)pc(x.c);if(ae!==sco)pco(x.co);if(ae!==ssp)psp(x.sp);if(ae!==sbl)pbl(x.bl);pth(x.th);if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}else saveSlot(s);}}
+  function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(function(r){if(!r.ok)throw new Error('http_'+r.status);return r.json();}).then(function(x){pullFails=0;hideOffline();var ae=document.activeElement;if(ae!==sb)pb(x.b);if(ae!==sc)pc(x.c);if(ae!==sco)pco(x.co);if(ae!==ssp)psp(x.sp);if(ae!==sbl)pbl(x.bl);pth(x.th);if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}else saveSlot(s);}}
   b.addEventListener('touchstart',onStart,{passive:false});
   b.addEventListener('touchend',onEnd,{passive:false});
   b.addEventListener('touchmove',function(){if(pt){clearTimeout(pt);pt=null;}},{passive:true});

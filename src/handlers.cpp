@@ -123,9 +123,12 @@ static void handleSetCo() {
     if (!isWebRequest()) return;
     int v;
     if (!parseIntArg("v", 20, 150, v)) { sendInvalid(); return; }
-    uiCooling = (uint8_t)v;
-    markDirty();
-    recalcCooling(); updatePowerCalc();
+    if (uiCooling != (uint8_t)v) {
+        uiCooling = (uint8_t)v;
+        recalcCooling();
+        markDirty();
+    }
+    updatePowerCalc();
     sendVal();
 }
 
@@ -133,8 +136,10 @@ static void handleSetSp() {
     if (!isWebRequest()) return;
     int v;
     if (!parseIntArg("v", 0, 255, v)) { sendInvalid(); return; }
-    uiSparking = (uint8_t)v;
-    markDirty();
+    if (uiSparking != (uint8_t)v) {
+        uiSparking = (uint8_t)v;
+        markDirty();
+    }
     updatePowerCalc();
     sendVal();
 }
@@ -143,8 +148,10 @@ static void handleSetBl() {
     if (!isWebRequest()) return;
     int v;
     if (!parseIntArg("v", 0, 255, v)) { sendInvalid(); return; }
-    uiBlend = (uint8_t)v;
-    markDirty();
+    if (uiBlend != (uint8_t)v) {
+        uiBlend = (uint8_t)v;
+        markDirty();
+    }
     updatePowerCalc();
     sendVal();
 }

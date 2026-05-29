@@ -44,7 +44,7 @@ function ul(){
  document.getElementById('aiksave').textContent=ru?'Сохранить ключ':'Save key';
  document.getElementById('aikey').placeholder=ru?'Ключ Gemini API':'Gemini API key';
  var ks=document.getElementById('aikeystatus');
- if(ks.textContent){var isOk=ks.style.color==='rgb(74, 222, 128)';ks.textContent=isOk?(ru?'Ключ сохранён ✓':'Key saved ✓'):(ru?'Ключ не задан':'No key set');}
+ if(ks.textContent){var kst=ks.dataset.ks;if(kst==='ok')ks.textContent=ru?'Ключ сохранён ✓':'Key saved ✓';else if(kst==='notset')ks.textContent=ru?'Ключ не задан':'No key set';}
  var sp2=document.getElementById('surprise');if(sp2&&!sp2.disabled)sp2.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
  var vi=document.getElementById('vinfo');if(vi.textContent==='● Доступно обновление'||vi.textContent==='● Update available'){vi.textContent=ru?'● Доступно обновление':'● Update available';}
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';
@@ -59,6 +59,7 @@ document.getElementById('ibtn').onclick=function(){
     var s=document.getElementById('aikeystatus');
     s.textContent=x.set?(ru?'Ключ сохранён ✓':'Key saved ✓'):(ru?'Ключ не задан':'No key set');
     s.style.color=x.set?'#4ade80':'#f87171';
+    s.dataset.ks=x.set?'ok':'notset';
   }).catch(function(){});
 };
 document.getElementById('mcls').onclick=function(){document.getElementById('mod').classList.remove('show')};

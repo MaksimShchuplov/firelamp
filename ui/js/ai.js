@@ -5,12 +5,12 @@ document.getElementById('aiksave').onclick=function(){
   var s=document.getElementById('aikeystatus');
   b.disabled=true;
   fetch('/setgeminikey',{method:'POST',headers:{'X-Requested-With':'firelamp','Content-Type':'application/x-www-form-urlencoded'},body:'key='+encodeURIComponent(v)}).then(r=>r.json()).then(function(x){
-    if(x.ok){document.getElementById('aikey').value='';s.textContent=ru?'Ключ сохранён ✓':'Key saved ✓';s.style.color='#4ade80';}
-    else{s.textContent=ru?'Ошибка сохранения':'Save failed';s.style.color='#f87171';}
+    if(x.ok){document.getElementById('aikey').value='';s.textContent=ru?'Ключ сохранён ✓':'Key saved ✓';s.style.color='#4ade80';s.dataset.ks='ok';}
+    else{s.textContent=ru?'Ошибка сохранения':'Save failed';s.style.color='#f87171';s.dataset.ks='error';}
     b.textContent=x.ok?'✓':'✗';
     setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';b.disabled=false;},1500);
   }).catch(function(){
-    s.textContent=ru?'Ошибка сети':'Network error';s.style.color='#f87171';
+    s.textContent=ru?'Ошибка сети':'Network error';s.style.color='#f87171';s.dataset.ks='error';
     b.textContent='✗';
     setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';b.disabled=false;},1500);
   });

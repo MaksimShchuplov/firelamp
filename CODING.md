@@ -107,8 +107,7 @@ Each step is one file. Read only that file.
 ## UI conventions (ui/js/)
 
 - All UI text goes through `ul()` in `lang.js` for EN/RU switching. Add both languages.
-- `xf(url)` — fetch with CSRF header. Use for all mutating calls.
-- `xfc(url)` — same, with offline detection. Use for slider debounce calls.
+- `xf(url)` — fetch with CSRF header. Use for all mutating calls (sliders, presets, OTA, etc.).
 - `pb/pc/pco/psp/pbl/pth(n)` — apply server value to UI (`state.js`). Add `pfo(n)` for new params.
 - Slider debounce: 120 ms timeout; declare timer variable in `globals.js`, handler in `sliders.js`.
 - `dynDesc('sid', val)` — maps value range to description text from `DD` table in `globals.js`.

@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
-#include <HTTPUpdate.h>
 #include <Update.h>
 #include "globals.h"
 #include "net_helpers.h"
@@ -112,17 +111,40 @@ static void handleUpdate() {
         else
             LOG_WARN("OTA pre-flush: NVS write failed — settings may not persist after update");
     }
-    Update.setMD5(md5.c_str());
     server.send(200, "text/plain", "Update starting...");
     server.client().flush();
     server.client().stop();
-    WiFiClientSecure client; client.setCACert(DIGICERT_GLOBAL_ROOT_CA);
-    httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
+    WiFiClientSecure dlClient;
+    dlClient.setCACert(DIGICERT_GLOBAL_ROOT_CA);
+    HTTPClient http;
+    http.setTimeout(HTTP_TIMEOUT_MS);
+    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     LOG_INFO("OTA → %s  md5: %s", ver.c_str(), md5.c_str());
-    t_httpUpdate_return r = httpUpdate.update(client, FIRMWARE_URL);
-    if (r == HTTP_UPDATE_FAILED)
-        LOG_ERROR("OTA failed (%d): %s",
-                  httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+    if (!http.begin(dlClient, FIRMWARE_URL)) {
+        LOG_ERROR("OTA: http.begin failed"); return;
+    }
+    int code = http.GET();
+    if (code != 200) {
+        LOG_ERROR("OTA firmware fetch: HTTP %d", code);
+        http.end(); return;
+    }
+    int fwSize = http.getSize();
+    if (!Update.begin(fwSize > 0 ? (size_t)fwSize : UPDATE_SIZE_UNKNOWN)) {
+        LOG_ERROR("OTA Update.begin: %s", Update.errorString());
+        http.end(); return;
+    }
+    // setMD5 must be called AFTER begin() — begin() resets the expected hash.
+    Update.setMD5(md5.c_str());
+    size_t written = Update.writeStream(*http.getStreamPtr());
+    http.end();
+    if (!Update.end()) {
+        LOG_ERROR("OTA Update.end: %s", Update.errorString());
+        return;
+    }
+    LOG_INFO("OTA written %u bytes — rebooting", (unsigned)written);
+    delay(100);
+    ESP.restart();
 }
 
 static void autoUpdateCheck(void *) {

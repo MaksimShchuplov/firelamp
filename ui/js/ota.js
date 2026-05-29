@@ -5,7 +5,7 @@ document.getElementById('rwifi').onclick=function(){
       var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;xf('/resetwifi').catch(function(){});
     }}]);
 };
-var otaEls=['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','rst','chk','rwifi','surprise','len','lru'];
+var otaEls=['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','rst','chk','rwifi','surprise','ibtn','len','lru'];
 function enableOtaEls(){otaEls.forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=false;});}
 function startOTA(){
   clearInterval(pollTid);
@@ -27,9 +27,9 @@ function startOTA(){
           // Lamp still alive — OTA flash may have failed silently (200 was already sent).
           // Keep polling; give up at n>10 (~30 s) and show failure.
           if(n>10){clearInterval(tid);pfil.style.background='#ef4444';
-            info.textContent=ru?'Обновление не удалось. Попробуйте снова.':'Update failed. Please try again.';
+            info.textContent=ru?'Обновление не удалось. Обновите страницу.':'Update failed. Refresh the page to try again.';
             enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);
-            btn.textContent=ru?'Попробовать снова':'Try again';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';
+            btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';
             btn.onclick=function(){location.reload();};}
           return;
         }
