@@ -2,11 +2,11 @@ pull();var wsLive=false,pollTid=setInterval(function(){if(!document.hidden&&!wsL
 (function(){
   var ws,wst,wsDelay=3000;
   function connect(){
-    try{ws=new WebSocket('ws://'+location.hostname+':81/');}catch(e){wst=setTimeout(connect,wsDelay);wsDelay=Math.min(wsDelay*2,30000);return;}
+    try{ws=new WebSocket('ws://'+location.hostname+':81/');}catch(e){clearTimeout(wst);wst=setTimeout(connect,wsDelay);wsDelay=Math.min(wsDelay*2,30000);return;}
     ws.onopen=function(){wsLive=true;wsDelay=3000;pullFails=0;hideOffline();};
     ws.onmessage=function(e){try{applyState(JSON.parse(e.data));}catch(err){}};
-    ws.onclose=function(){wsLive=false;clearTimeout(wst);wst=setTimeout(connect,wsDelay);wsDelay=Math.min(wsDelay*2,30000);if(wsDelay>3000){pullFails++;if(pullFails>=3)showOffline();}};
-    ws.onerror=function(){ws.close();};
+    ws.onclose=function(){wsLive=false;clearTimeout(wst);if(wsDelay>3000){pullFails++;if(pullFails>=3)showOffline();}wst=setTimeout(connect,wsDelay);wsDelay=Math.min(wsDelay*2,30000);};
+    ws.onerror=function(){};
   }
   connect();
 })();

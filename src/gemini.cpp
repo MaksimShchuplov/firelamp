@@ -183,6 +183,7 @@ static const char *surpriseBody(const String &apiKey) {
             if (inner[e] == '"')  break;
             e++;
         }
+        if (e >= (int)inner.length()) return "";  // unterminated string or backslash at end
         return (e > i) ? inner.substring(i, e) : "";
     };
     auto exNum = [&](const char *fld) -> int {

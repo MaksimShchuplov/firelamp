@@ -24,8 +24,9 @@ function askAI(){
   }).then(function(x){
     if(x.error)throw new Error(x.error);
     pullFails=0;hideOffline();
-    pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);
-    if(x.w!==undefined)document.getElementById('vw').textContent=x.w.toFixed(1);
+    var ae=document.activeElement;
+    if(ae!==sb)pb(x.b);if(ae!==sc)pc(x.c);if(ae!==sco)pco(x.co);if(ae!==ssp)psp(x.sp);if(ae!==sbl)pbl(x.bl);pth(x.th);
+    if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);
     clearActive();lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){
@@ -38,7 +39,8 @@ function askAI(){
       :e.message==='http_error'?(ru?'⚠ Ошибка сервера Gemini':'⚠ Gemini server error')
       :(ru?'⚠ Ошибка':'⚠ Error');
     nm.style.color='#ef4444';nm.textContent=msg;
-    setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';},4000);
+    if(aiNmTid)clearTimeout(aiNmTid);
+    aiNmTid=setTimeout(function(){nm.textContent='';nm.style.color='#fbbf24';aiNmTid=null;},4000);
   });
 }
 document.getElementById('surprise').onclick=askAI;

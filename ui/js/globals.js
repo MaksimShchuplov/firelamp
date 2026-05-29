@@ -19,4 +19,4 @@ var R=document.documentElement,t1,t2,t3,t4,t5;
 var xf=function(u,o){return fetch(u,Object.assign({headers:{'X-Requested-With':'firelamp'}},o));};
 var ru=(localStorage.getItem('lang')==='ru')||(!localStorage.getItem('lang')&&navigator.language.startsWith('ru'));
 var pullFails=0;
-var pendingSlot=-1,lastAiName='';
+var pendingSlot=-1,lastAiName='',aiNmTid=null;
