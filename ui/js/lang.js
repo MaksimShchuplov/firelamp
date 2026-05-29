@@ -46,6 +46,7 @@ function ul(){
  var ks=document.getElementById('aikeystatus');
  if(ks.textContent){var isOk=ks.style.color==='rgb(74, 222, 128)';ks.textContent=isOk?(ru?'Ключ сохранён ✓':'Key saved ✓'):(ru?'Ключ не задан':'No key set');}
  var sp2=document.getElementById('surprise');if(sp2&&!sp2.disabled)sp2.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
+ var vi=document.getElementById('vinfo');if(vi.textContent==='● Доступно обновление'||vi.textContent==='● Update available'){vi.textContent=ru?'● Доступно обновление':'● Update available';}
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';
  dynAll();
 }

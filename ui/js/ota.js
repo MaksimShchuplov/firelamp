@@ -31,6 +31,7 @@ function startOTA(){
       }).catch(function(){if(n>20){clearInterval(tid);pfil.style.background='#ef4444';
         info.textContent=ru?'Лампа не отвечает. Обновите страницу вручную.':'Lamp not responding. Refresh manually.';
         enableOtaEls();
+        pollTid=setInterval(function(){if(!document.hidden)pull();},5000);
         btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';
         btn.onclick=function(){location.reload();};}});
     },3000);

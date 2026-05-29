@@ -12,6 +12,7 @@ function saveSlot(s){
   setTimeout(function(){inp.focus();inp.select();},200);
 }
 function doSave(){
+  if(pendingSlot<0)return;
   var nm=document.getElementById('prename').value.trim();
   if(!nm){document.getElementById('prename').focus();return;}
   document.getElementById('prein').classList.remove('show');
@@ -31,7 +32,7 @@ document.getElementById('prename').addEventListener('keydown',function(e){if(e.k
          {label:ru?'Удалить пресет':'Delete preset',cls:'danger',fn:function(){deletePreset(s);}}]);
     }else saveSlot(s);
   },600);}
-  function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(function(r){if(!r.ok)throw new Error('http_'+r.status);return r.json();}).then(function(x){pb(x.b);pc(x.c);pco(x.co);psp(x.sp);pbl(x.bl);pth(x.th);if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}else saveSlot(s);}}
+  function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(function(r){if(!r.ok)throw new Error('http_'+r.status);return r.json();}).then(function(x){var ae=document.activeElement;if(ae!==sb)pb(x.b);if(ae!==sc)pc(x.c);if(ae!==sco)pco(x.co);if(ae!==ssp)psp(x.sp);if(ae!==sbl)pbl(x.bl);pth(x.th);if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}else saveSlot(s);}}
   b.addEventListener('touchstart',onStart,{passive:false});
   b.addEventListener('touchend',onEnd,{passive:false});
   b.addEventListener('touchmove',function(){if(pt){clearTimeout(pt);pt=null;}},{passive:true});
