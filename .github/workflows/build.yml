@@ -45,8 +45,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade platformio pytest
 
-      - name: Run tests
+      - name: Run Python tests
         run: pytest test/ -v --tb=short
+
+      - name: Run JS tests
+        run: node test/test_ui.js
 
       - name: Build Firmware
         run: pio run -e esp32s3
