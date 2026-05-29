@@ -19,7 +19,7 @@
 // Formats current lamp state into buf as JSON {b,c,co,sp,w,bl,th,upd}.
 void formatState(char *buf, size_t len);
 
-// Sends current lamp state as JSON {b,c,co,sp,w,bl,th,upd} + broadcasts via WS.
+// Sends current lamp state as JSON {b,c,co,sp,w,bl,th,upd}.
 void sendVal();
 
 // Writes all 6 UI params to NVS via the global prefs handle. Returns true on success.

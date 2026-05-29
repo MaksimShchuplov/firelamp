@@ -121,9 +121,11 @@ void updatePowerCalc() {
 void fireEffect() {
     applyBrightness();  // runs on Core 0, safe alongside FastLED.show()
 
-    // 1. Cooling
+    // 1. Cooling — snapshot atomic array once to avoid 40 seq_cst loads in the inner loop
+    uint8_t coolSnap[ROWS];
+    for (int y = 0; y < ROWS; y++) coolSnap[y] = coolMax[y];
     for (int y = 0; y < ROWS; y++) {
-        const uint8_t cmax = coolMax[y];
+        const uint8_t cmax = coolSnap[y];
         for (int x = 0; x < COLUMNS; x++)
             heat[y][x] = qsub8(heat[y][x], random8(cmax));
     }

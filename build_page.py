@@ -37,6 +37,7 @@ def minify_css(s):
     s = re.sub(r'/\*.*?\*/', '', s, flags=re.DOTALL)
     s = re.sub(r'\s+', ' ', s)
     s = re.sub(r'\s*([{};,])\s*', r'\1', s)
+    s = re.sub(r': ', ':', s)
     return s.strip()
 
 def minify_js(s):
