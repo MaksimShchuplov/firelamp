@@ -3,7 +3,7 @@ PlatformIO pre-build script.
 Assembles src/page.h from ui/ source files.
 Edit files in ui/; never edit src/page.h directly.
 """
-import os
+import os, re
 Import("env")  # noqa: F821 — injected by PlatformIO SCons
 
 CSS_FILES = [
@@ -33,20 +33,47 @@ def read(path):
     with open(path, encoding="utf-8") as f:
         return f.read()
 
+def minify_css(s):
+    s = re.sub(r'/\*.*?\*/', '', s, flags=re.DOTALL)
+    s = re.sub(r'\s+', ' ', s)
+    s = re.sub(r'\s*([{};,])\s*', r'\1', s)
+    return s.strip()
+
+def minify_js(s):
+    out, i, n = [], 0, len(s)
+    while i < n:
+        if s[i:i+2] == '/*':
+            j = s.find('*/', i + 2)
+            i = (j + 2) if j >= 0 else n
+        elif s[i:i+2] == '//':
+            j = s.find('\n', i + 2)
+            i = (j + 1) if j >= 0 else n
+        elif s[i] in ('"', "'", '`'):
+            q = s[i]; out.append(q); i += 1
+            while i < n:
+                c = s[i]; out.append(c); i += 1
+                if c == '\\' and i < n:
+                    out.append(s[i]); i += 1
+                elif c == q:
+                    break
+        else:
+            out.append(s[i]); i += 1
+    lines = ''.join(out).splitlines()
+    return ' '.join(l.strip() for l in lines if l.strip())
+
 def build_page(source, target, env):
     root   = env["PROJECT_DIR"]
     ui     = os.path.join(root, "ui")
     out    = os.path.join(root, "src", "page.h")
 
-    css = "".join(read(os.path.join(ui, p)) for p in CSS_FILES).rstrip()
-    js  = "".join(read(os.path.join(ui, p)) for p in JS_FILES).rstrip()
+    css = minify_css("".join(read(os.path.join(ui, p)) for p in CSS_FILES))
+    js  = minify_js ("".join(read(os.path.join(ui, p)) for p in JS_FILES))
 
     html = read(os.path.join(ui, "index.html"))
 
     # Replace multi-link/script placeholders with single inlined blocks.
     # index.html lists individual <link> and <script> tags for browser preview;
     # we collapse them into one <style> and one <script> for the PROGMEM blob.
-    import re
     html = re.sub(r'(<link rel=stylesheet href=css/[^>]+>\n?)+',
                   "<style>" + css + "</style>", html, count=1)
     html = re.sub(r'(<script src=js/[^>]+></script>\n?)+',
