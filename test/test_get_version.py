@@ -103,6 +103,23 @@ class TestBuildNumber:
         recorded, _ = _run()
         assert _defines(recorded)['BUILD_N'] == 0
 
+    def test_build_n_defaults_to_zero_when_env_is_empty_string(self):
+        # Some CI wrappers set GITHUB_RUN_NUMBER='' rather than leaving it unset.
+        # os.environ.get('GITHUB_RUN_NUMBER', '0') returns '' not '0' in that case,
+        # so int('') would raise ValueError without the `or '0'` guard.
+        env_patch = dict(os.environ)
+        env_patch['GITHUB_RUN_NUMBER'] = ''
+        recorded = {}
+        mock_env = MagicMock()
+        mock_env.Append.side_effect = lambda **kw: recorded.update(kw)
+        def _chk(cmd, **kw): return b'abc1234'
+        ns = {'Import': lambda *a: None, 'subprocess': subprocess, 'sys': sys, 'os': os, 'env': mock_env}
+        with patch.object(subprocess, 'check_output', _chk), \
+             patch.dict(os.environ, env_patch, clear=True):
+            src = _GV.read_text(encoding='utf-8')
+            exec(compile(src, str(_GV), 'exec'), ns)  # noqa: S102
+        assert _defines(recorded)['BUILD_N'] == 0
+
     def test_build_n_large_value(self):
         recorded, _ = _run(run_number_env=9999)
         assert _defines(recorded)['BUILD_N'] == 9999

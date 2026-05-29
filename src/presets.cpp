@@ -32,6 +32,9 @@ static void handleGetPresets() {
         if (i > 0) GPCAT(',');
         snprintf(k, sizeof k, "p%dn", i);
         String nm = p.getString(k, "");
+        // Strip control chars from names written by old firmware before JSON escaping.
+        for (int ci = (int)nm.length() - 1; ci >= 0; ci--)
+            if ((uint8_t)nm[ci] < 0x20) nm.remove(ci, 1);
         // Escape for JSON — names may contain backslashes or quotes from old firmware.
         nm.replace("\\", "\\\\");
         nm.replace("\"", "\\\"");
@@ -65,6 +68,9 @@ static void handleSavePreset() {
     name.trim();
     name.replace("\\", "");    // strip backslashes so stored names are always JSON-safe
     name.replace("\"", "'");   // replace double-quotes before truncating to avoid split surrogates
+    // Strip embedded control chars (0x01–0x1F); unescaped controls produce invalid JSON.
+    for (int i = (int)name.length() - 1; i >= 0; i--)
+        if ((uint8_t)name[i] < 0x20) name.remove(i, 1);
     if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
     // Truncate by Unicode codepoints, not bytes, to avoid splitting multibyte UTF-8 sequences
     // (e.g. Cyrillic = 2 bytes/char; naive byte-slice would store invalid UTF-8 in NVS).

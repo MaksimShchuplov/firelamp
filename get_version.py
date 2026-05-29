@@ -16,7 +16,7 @@ except Exception as e:
 
 # 0 for local builds; CI sets GITHUB_RUN_NUMBER (monotonically increasing).
 # Used to decide update availability: GitHub build_n > BUILD_N → update exists.
-build_n = int(os.environ.get('GITHUB_RUN_NUMBER', '0'))
+build_n = int(os.environ.get('GITHUB_RUN_NUMBER') or '0')
 
 env.Append(CPPDEFINES=[
     ("FIRMWARE_VERSION", f'\\"{sha}\\"'),

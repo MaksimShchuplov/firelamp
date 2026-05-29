@@ -21,14 +21,24 @@ function startOTA(){
   info.textContent=ru?'Скачивание... Не закрывайте страницу.':'Downloading... Do not close this page.';
   setTimeout(function(){pfil.style.width='88%';},50);
   function pollReboot(){
-    var n=0,tid=setInterval(function(){n++;
+    var n=0,wentOffline=false,tid=setInterval(function(){n++;
       xf('/info',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+        if(!wentOffline){
+          // Lamp still alive — OTA flash may have failed silently (200 was already sent).
+          // Keep polling; give up at n>10 (~30 s) and show failure.
+          if(n>10){clearInterval(tid);pfil.style.background='#ef4444';
+            info.textContent=ru?'Обновление не удалось. Попробуйте снова.':'Update failed. Please try again.';
+            enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);
+            btn.textContent=ru?'Попробовать снова':'Try again';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';
+            btn.onclick=function(){location.reload();};}
+          return;
+        }
         clearInterval(tid);
         pfil.style.transition='width .4s';pfil.style.width='100%';pfil.style.background='#4ade80';
         btn.textContent=ru?'Готово! ✓':'Done! ✓';btn.style.borderColor='#4ade80';btn.style.color='#4ade80';
         info.textContent=(ru?'Обновлено до ':'Updated to ')+d.version;
         setTimeout(function(){location.reload();},2000);
-      }).catch(function(){if(n>20){clearInterval(tid);pfil.style.background='#ef4444';
+      }).catch(function(){wentOffline=true;if(n>20){clearInterval(tid);pfil.style.background='#ef4444';
         info.textContent=ru?'Лампа не отвечает. Обновите страницу вручную.':'Lamp not responding. Refresh manually.';
         enableOtaEls();
         pollTid=setInterval(function(){if(!document.hidden)pull();},5000);

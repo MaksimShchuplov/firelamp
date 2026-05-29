@@ -255,7 +255,13 @@ static void handleSurprise() {
     const char *err = surpriseBody(apiKey, surpriseName, sizeof(surpriseName));
     s_surpriseBusy.store(false, std::memory_order_release);
     if (err) {
-        server.send(400, "application/json",
+        int code = 400;
+        if      (strcmp(err, "rate_limit")  == 0) code = 429;
+        else if (strcmp(err, "timeout")     == 0) code = 504;
+        else if (strcmp(err, "http_error")  == 0) code = 502;
+        else if (strcmp(err, "parse_failed")== 0) code = 502;
+        else if (strcmp(err, "auth_error")  == 0) code = 401;
+        server.send(code, "application/json",
                     String("{\"error\":\"") + err + "\"}"); return;
     }
     // Return full state + effect name in one atomic response so the browser
