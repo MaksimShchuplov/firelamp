@@ -32,8 +32,7 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *o
     }
 
     WiFiClientSecure client;
-    client.setCACertBundle(x509_crt_bundle_start,
-                           (size_t)(x509_crt_bundle_end - x509_crt_bundle_start));
+    client.setCACert(GITHUB_CAS);
     HTTPClient http;
     http.setTimeout(HTTP_TIMEOUT_MS);
     http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
@@ -117,8 +116,7 @@ static void handleUpdate() {
     server.client().stop();
 
     WiFiClientSecure dlClient;
-    dlClient.setCACertBundle(x509_crt_bundle_start,
-                             (size_t)(x509_crt_bundle_end - x509_crt_bundle_start));
+    dlClient.setCACert(GITHUB_CAS);
     HTTPClient http;
     http.setTimeout(HTTP_TIMEOUT_MS);
     http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
