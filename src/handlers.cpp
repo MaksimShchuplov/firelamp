@@ -61,7 +61,6 @@ void sendVal() {
     char j[96];
     formatState(j, sizeof(j));
     server.send(200, "application/json", j);
-    wsPushState();
 }
 
 // Uses the always-open global prefs handle (opened in startNetwork).

@@ -4,10 +4,6 @@
 #include "globals.h"
 #include "net_helpers.h"
 
-// Set by the WiFi GOT_IP event callback (Core-0 arduino_events_task); consumed by
-// serviceNetwork() on Core-1 so wsSetup() always runs on the same core as wsLoop().
-static std::atomic<bool> wsNeedsStart{false};
-
 void startNetwork() {
     prefs.begin("lamp", false);
     // "bright2": key renamed from "bright" after gamma curve change to force
@@ -42,10 +38,6 @@ void startNetwork() {
         } else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
             LOG_INFO("WiFi connected — IP %s  RSSI %d dBm",
                      WiFi.localIP().toString().c_str(), WiFi.RSSI());
-            // Schedule wsSetup() for Core-1 via serviceNetwork() so the
-            // WebSocketsServer is always initialised on the same core that runs it.
-            static bool wsStarted = false;
-            if (!wsStarted) { wsNeedsStart.store(true, std::memory_order_release); wsStarted = true; }
         }
     });
 
@@ -76,18 +68,7 @@ void startNetwork() {
 }
 
 void serviceNetwork() {
-    if (wsNeedsStart.load(std::memory_order_acquire)) {
-        wsNeedsStart.store(false, std::memory_order_relaxed);
-        wsSetup();
-    }
     server.handleClient();
-    wsLoop();
-
-    static uint32_t lastWsPush = 0;
-    if (millis() - lastWsPush >= WS_PUSH_INTERVAL_MS) {
-        lastWsPush = millis();
-        wsPushState();
-    }
 
     if (prefsDirty.load(std::memory_order_relaxed) && millis() - prefsTouch.load(std::memory_order_relaxed) > NVS_COMMIT_DELAY_MS) {
         if (flushPrefs()) {

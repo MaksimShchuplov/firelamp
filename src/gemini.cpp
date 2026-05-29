@@ -33,9 +33,7 @@ static void handleGeminiKey() {
 }
 
 // =============================================================================
-//  Async Surprise Me — runs in a FreeRTOS task on Core 1 so the HTTP server
-//  is not blocked during the Gemini API call (up to GEMINI_TIMEOUT_MS).
-//  Result is delivered to all browsers via wsPushSurprise().
+//  Surprise Me — synchronous handler on Core 1; blocks up to GEMINI_TIMEOUT_MS.
 // =============================================================================
 
 static std::atomic<bool> s_surpriseBusy{false};
@@ -272,8 +270,6 @@ static void handleSurprise() {
         snprintf(j + slen - 1, sizeof(j) - (size_t)(slen - 1),
                  ",\"name\":\"%s\"}", lastSurpriseName);
     }
-    // Broadcast state+name to all other connected browsers and cache for reconnects.
-    wsPushSurprise(lastSurpriseName);
     server.send(200, "application/json", j);
 }
 

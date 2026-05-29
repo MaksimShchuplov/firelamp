@@ -92,7 +92,3 @@ void markBootSuccess();
 void startNetwork();
 void serviceNetwork();
 
-void wsSetup();
-void wsLoop();
-void wsPushState();
-void wsPushSurprise(const char *escapedName);
