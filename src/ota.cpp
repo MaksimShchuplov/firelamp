@@ -117,7 +117,7 @@ static void handleUpdate() {
     server.client().flush();
     server.client().stop();
     WiFiClientSecure client; client.setCACert(DIGICERT_GLOBAL_ROOT_CA);
-    httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     LOG_INFO("OTA → %s  md5: %s", ver.c_str(), md5.c_str());
     t_httpUpdate_return r = httpUpdate.update(client, FIRMWARE_URL);
     if (r == HTTP_UPDATE_FAILED)

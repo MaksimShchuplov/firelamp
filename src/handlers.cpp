@@ -79,6 +79,8 @@ bool flushPrefs() {
 //  HTTP HANDLERS
 // =============================================================================
 
+static void sendInvalid() { server.send(400, "application/json", "{\"error\":\"invalid\"}"); }
+
 static void handleRoot() {
     server.sendHeader("X-Content-Type-Options", "nosniff");
     server.sendHeader("X-Frame-Options", "SAMEORIGIN");
@@ -99,7 +101,7 @@ static void handleRoot() {
 static void handleSetB() {
     if (!isWebRequest()) return;
     int v;
-    if (!parseIntArg("v", 0, 100, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    if (!parseIntArg("v", 0, 100, v)) { sendInvalid(); return; }
     setBright(v); updatePowerCalc();
     sendVal();
 }
@@ -107,7 +109,7 @@ static void handleSetB() {
 static void handleSetC() {
     if (!isWebRequest()) return;
     int v;
-    if (!parseIntArg("v", 0, 100, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    if (!parseIntArg("v", 0, 100, v)) { sendInvalid(); return; }
     if (uiContrast != (uint8_t)v) {
         uiContrast = (uint8_t)v;
         buildHeatPalette();
@@ -120,7 +122,7 @@ static void handleSetC() {
 static void handleSetCo() {
     if (!isWebRequest()) return;
     int v;
-    if (!parseIntArg("v", 20, 150, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    if (!parseIntArg("v", 20, 150, v)) { sendInvalid(); return; }
     uiCooling = (uint8_t)v;
     markDirty();
     recalcCooling(); updatePowerCalc();
@@ -130,7 +132,7 @@ static void handleSetCo() {
 static void handleSetSp() {
     if (!isWebRequest()) return;
     int v;
-    if (!parseIntArg("v", 0, 255, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    if (!parseIntArg("v", 0, 255, v)) { sendInvalid(); return; }
     uiSparking = (uint8_t)v;
     markDirty();
     updatePowerCalc();
@@ -140,7 +142,7 @@ static void handleSetSp() {
 static void handleSetBl() {
     if (!isWebRequest()) return;
     int v;
-    if (!parseIntArg("v", 0, 255, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    if (!parseIntArg("v", 0, 255, v)) { sendInvalid(); return; }
     uiBlend = (uint8_t)v;
     markDirty();
     updatePowerCalc();
@@ -150,7 +152,7 @@ static void handleSetBl() {
 static void handleSetTheme() {
     if (!isWebRequest()) return;
     int v;
-    if (!parseIntArg("v", 0, THEME_COUNT - 1, v)) { server.send(400, "application/json", "{\"error\":\"invalid\"}"); return; }
+    if (!parseIntArg("v", 0, THEME_COUNT - 1, v)) { sendInvalid(); return; }
     if (uiTheme != (uint8_t)v) {
         uiTheme = (uint8_t)v;
         buildHeatPalette();
