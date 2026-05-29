@@ -17,7 +17,7 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 | OTA / version check | `ota.cpp` only |
 | AI Surprise Me | `gemini.cpp` only |
 | Preset CRUD | `presets.cpp` only |
-| WebSocket push state | `ws.cpp` only |
+| Browser poll / offline detection | `ui/js/poll.js` + `ui/js/state.js` |
 | Cross-module signature | `net_helpers.h` + the one relevant `.cpp` |
 
 Never read all files. Never read UI files for C++ changes. `src/page.h` is generated — edit `ui/` sources instead.
@@ -29,7 +29,6 @@ handlers.cpp  →  registerBasicHandlers()   — setb/c/co/sp/bl/theme, reset, i
 presets.cpp   →  registerPresetHandlers()  — getpresets, savepreset, loadpreset, deletepreset
 ota.cpp       →  registerOtaHandlers()     — checkupdate, update; plus startAutoUpdateTask()
 gemini.cpp    →  registerGeminiHandlers()  — surprise, setgeminikey, geminikey
-ws.cpp        →  wsSetup() / wsLoop() / wsPushState() — WebSocket server, port 81
 network.cpp   →  startNetwork() / serviceNetwork() — no handlers, just wiring
 ```
 
@@ -44,10 +43,9 @@ Declared in `net_helpers.h`, implemented in `handlers.cpp`:
 bool   isWebRequest();                             // CSRF guard — call at top of mutating handlers
 bool   parseIntArg(const char*, int lo, int hi, int&); // parse + range-check a query param
 String jsonEscape(const String&);                  // escape for JSON string value
-void   sendVal();                                  // send current lamp state as JSON + broadcast WS
+void   sendVal();                                  // send current lamp state as JSON
 bool   flushPrefs();                               // write 6 UI params to NVS
 inline void markDirty();                           // in globals.h — mark NVS dirty, reset debounce
-void   wsPushState();                              // in ws.cpp — broadcast state to all WS clients
 ```
 
 ## Concurrency rules — never break these
@@ -57,8 +55,6 @@ void   wsPushState();                              // in ws.cpp — broadcast st
 - `windDir[]`, `windTarget[]`, `lastWindChange` — Core 0 only. Never read/write from Core 1.
 - `buildHeatPalette()` — Core 1 only. Double-buffer + seq_cst flip keeps Core 0 safe.
 - `recalcCooling()` — Core 1 only. Writes `coolMax[]` (atomic array, read Core 0).
-- `wsPushState()` — Core 1 only (called from network handlers / `sendVal()`). Never call from Core 0.
-- `wsReady` (`std::atomic<bool>`) — written once with `store(release)` in `wsSetup()`; always read with `load(acquire)` in `wsLoop()` and `wsPushState()`.
 
 ## HTTP handler pattern
 

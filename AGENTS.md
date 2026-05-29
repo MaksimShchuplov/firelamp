@@ -118,4 +118,4 @@ All state-mutating endpoints require `X-Requested-With: firelamp` header (CSRF).
 | `GET /resetwifi` | — | clear credentials + reboot |
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini key to NVS |
 | `GET /geminikey` | — | `{"set":true/false}` |
-| `GET /surprise` | — | Synchronous Gemini call (blocks ≤15 s, ~2 s with thinking off); HTTP 200 with full state + `"name"`; broadcasts state+name to other browsers via WebSocket |
+| `GET /surprise` | — | Synchronous Gemini call (blocks ≤10 s, ~2 s with thinking off); HTTP 200 with full state + `"name"` |
