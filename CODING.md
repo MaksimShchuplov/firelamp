@@ -92,7 +92,7 @@ Checklist (in order):
 3. `main.cpp` — add definition `std::atomic<uint8_t> uiFoo{FOO_DEFAULT};`
 4. `handlers.cpp` — add `handleSetFoo()` + wire in `registerBasicHandlers()`
 5. `handlers.cpp:flushPrefs()` — add `prefs.putUChar("foo", uiFoo)`
-6. `network.cpp:startNetwork()` — load + clamp from NVS
+6. `network.cpp:loadSettings()` — load + clamp from NVS
 7. `handlers.cpp:sendVal()` — add field to JSON response
 8. `fire.cpp` — use `uiFoo` in simulation
 9. `ui/js/globals.js` — add DOM ref and debounce timer variable

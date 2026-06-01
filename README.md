@@ -73,7 +73,7 @@ Open `http://firelamp.local` (or the IP shown on the serial monitor).
 | Contrast | 0–100 | Palette shift — low = yellows/white, high = deep reds |
 | Cooling | 20–150 | How quickly heat dissipates upward — lower = taller flames |
 | Sparking | 0–255 | Ignition rate at the base |
-| Blend | 0–255 | Temporal smoothing — lower = sharp flicker, higher = slow glow |
+| Blend | 0–255 | Temporal smoothing — lower = frozen glow, higher = sharp flicker |
 | Theme | Fire / Ember / Plasma / Ice | Color palette |
 | Presets | 8 slots | Tap to load · Long-press to save or rename |
 | Surprise Me | — | Calls Gemini 2.5 Flash — waits ~2 s, returns full state + effect name; requires a Gemini API key (stored on device) |

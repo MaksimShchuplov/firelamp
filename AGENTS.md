@@ -91,9 +91,9 @@ CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/
 ## Key constants (src/config.h)
 
 `COLUMNS 20` · `ROWS 40` · `NUM_LEDS 800` · `PRESET_COUNT 8` · `THEME_COUNT 4`
-`BRIGHT_DEFAULT 100` · `CONTRAST_DEFAULT 50` · `COOLING_DEFAULT 45` · `SPARKING_DEFAULT 36`
+`BRIGHT_DEFAULT 100` · `CONTRAST_DEFAULT 50` · `COOLING_DEFAULT 46` · `SPARKING_DEFAULT 26`
 `BLEND_DEFAULT 50` · `THEME_DEFAULT 0` (0=Fire 1=Ember 2=Plasma 3=Ice)
-`NVS_COMMIT_DELAY_MS 2500` · `GEMINI_TIMEOUT_MS 10000` · `UPDCHK_STACK_BYTES 12288`
+`NVS_COMMIT_DELAY_MS 2500` · `GEMINI_TIMEOUT_MS 25000` · `UPDCHK_STACK_BYTES 12288`
 
 ## HTTP API
 
@@ -119,4 +119,4 @@ All state-mutating endpoints require `X-Requested-With: firelamp` header (CSRF).
 | `GET /resetwifi` | — | clear credentials + reboot |
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini key to NVS |
 | `GET /geminikey` | — | `{"set":true/false}` |
-| `GET /surprise` | — | Synchronous Gemini call (blocks ≤10 s, ~2 s with thinking off); HTTP 200 with full state + `"name"` |
+| `GET /surprise` | — | Synchronous Gemini call (blocks ≤25 s, ~2 s with thinking off); HTTP 200 with full state + `"name"` |

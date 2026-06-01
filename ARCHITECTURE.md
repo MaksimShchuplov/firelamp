@@ -43,7 +43,7 @@ get_version.py           — PlatformIO pre-build script: injects git SHA as FIR
 ## Architecture
 
 ### Dual-core split
-- **Core 0** — `LEDTask` (pinned): `updateWind()` → `fireEffect()` → `FastLED.show()`, loops with 1 ms yield.
+- **Core 0** — `LEDTask` (pinned): `updateWind()` → `fireEffect()` → `FastLED.show()`, loops with 1 ms yield. If the `isBooting` flag is true, `fireEffect()` renders a pulsing loading bar instead of full fire physics to prevent stuttering while WiFi connects.
 - **Core 1** — Arduino `loop()`: `serviceNetwork()` polls the web server and deferred NVS writes.
 
 ### Shared-state concurrency
@@ -59,6 +59,8 @@ The browser polls `/state` every 5 s (`poll.js`). The poll is skipped while the 
 **Browser offline detection**: `pullFails` increments on each failed `/state` fetch; `showOffline()` fires at 3 consecutive failures (~15 s). Any successful poll or slider call resets `pullFails` and calls `hideOffline()`.
 
 ### WiFi & provisioning
+The lamp features an **instant boot** architecture: `LEDTask` starts immediately from `setup()` using the last saved palette, providing light within milliseconds of power-on. A pulsing progress bar masks the heavy WiFi radio interrupts while `startNetwork()` joins the network in the background on Core 1.
+
 Credentials are **never compiled into the binary**. On first boot the lamp starts AP `FireLamp-Setup` (no password); the user connects and opens `192.168.4.1` to enter credentials via WiFiManager captive portal. Credentials are stored by the ESP32 WiFi driver in the `nvs` flash partition, which OTA never touches — they survive all firmware updates.
 
 The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in the router DHCP table.
@@ -70,7 +72,7 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 4. `boot.cpp` counts consecutive hard crashes (panic/watchdog). On the third consecutive crash it calls `Update.rollBack()` + restart, reverting to the previous OTA slot.
 
 ### Surprise Me — Gemini AI effects
-`/surprise` runs synchronously in the HTTP handler context on Core 1. The call blocks for up to `GEMINI_TIMEOUT_MS` (10 s) while waiting for the Gemini API; Core 0 (LEDs) runs uninterrupted throughout. An `std::atomic<bool> s_surpriseBusy` gate prevents concurrent requests; callers get HTTP 429 if already busy.
+`/surprise` runs synchronously in the HTTP handler context on Core 1. The call blocks for up to `GEMINI_TIMEOUT_MS` (25 s) while waiting for the Gemini API; Core 0 (LEDs) runs uninterrupted throughout. An `std::atomic<bool> s_surpriseBusy` gate prevents concurrent requests; callers get HTTP 429 if already busy.
 
 **Prompt construction** (`surpriseBody`):
 - A random *scene* is picked from 15 atmospheric moods (e.g. `midnight thunderstorm`, `arctic tundra`, `volcanic eruption`, `bioluminescent cave`) to give each request a creative direction.
@@ -79,7 +81,7 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 
 **HTTP response** (200): full lamp state JSON with an added `"name"` field — the requesting browser updates sliders and shows the effect name the moment the response arrives. Other open browsers see the updated state on their next 5 s poll (name field not included in `/state`).
 
-**Response parsing** (`surpriseBody`): Scans all `"text":` fields in the Gemini JSON response, scanning *inside* each string value for `{`. Takes the **last** match — this skips thinking parts (which precede the actual output) and handles markdown-wrapped responses (` ```json\n{...}``` `). The extracted JSON string is unescaped char-by-char and parsed with simple `indexOf` helpers that tolerate spaces after `:`.
+**Response parsing** (`surpriseBody`): The JSON response is parsed entirely using the `ArduinoJson` library, ensuring robust extraction of the `"name"` and physical parameters without complex hand-rolled string slicing.
 
 **API key** is stored in NVS namespace `gemini`, never compiled into firmware. Sent to ESP via `POST /setgeminikey` (body, not URL) to avoid leaking into logs.
 
@@ -131,7 +133,7 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 | `GET /resetwifi` | — | clear credentials + reboot |
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini API key to NVS (`gemini` namespace); POST body keeps key out of URL/logs |
 | `GET /geminikey` | — | `{"set":true/false}` — check if key is configured |
-| `GET /surprise` | — | Synchronous Gemini call (blocks ≤10 s); HTTP 200 with full state + `"name"` |
+| `GET /surprise` | — | Synchronous Gemini call (blocks ≤25 s); HTTP 200 with full state + `"name"` |
 
 ## Hardware Notes
 
