@@ -84,7 +84,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
         "\"thinkingConfig\":{\"thinkingBudget\":0}}}";
 
     WiFiClientSecure client;
-    client.setCACert(GTS_ROOT_R1);
+    client.setCACertBundle(x509_crt_bundle_start);
     HTTPClient http;
     http.setTimeout(GEMINI_TIMEOUT_MS);
     // Pass the key via x-goog-api-key header rather than a URL query parameter so
@@ -93,7 +93,11 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-goog-api-key", apiKey);
     int code = http.POST(body);
-    if (code <= 0) { http.end(); FAIL("timeout"); }
+    if (code <= 0) {
+        LOG_ERROR("Gemini: HTTP POST failed, code: %d (%s)", code, http.errorToString(code).c_str());
+        http.end();
+        FAIL("timeout");
+    }
     if (code == 429) { http.end(); FAIL("rate_limit"); }
     if (code == 401 || code == 403) { http.end(); FAIL("auth_error"); }
     if (code != 200) {
