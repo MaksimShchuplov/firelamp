@@ -119,6 +119,24 @@ void updatePowerCalc() {
 }
 
 void fireEffect() {
+    if (isBooting.load(std::memory_order_relaxed)) {
+        // Simple LED progress bar filling from bottom to top while WiFi connects
+        CRGB color = heatPalette[activePal.load(std::memory_order_relaxed) & 1][192];
+        color.fadeLightBy(beatsin8(45, 0, 160)); // gentle pulse
+        int t = millis() / 100;
+        int rowsToFill = (t >= ROWS) ? ROWS : t;
+        
+        FastLED.clear();
+        for (int y = 0; y < rowsToFill; y++) {
+            const int base = (ROWS - 1 - y) * COLUMNS;
+            for (int x = 0; x < COLUMNS; x++) {
+                leds[base + x] = color;
+            }
+        }
+        applyBrightness();
+        return;
+    }
+
     applyBrightness();  // runs on Core 0, safe alongside FastLED.show()
 
     // 1. Cooling — snapshot atomic array once with relaxed order to avoid 40 seq_cst loads (memw on LX7) in the inner loop

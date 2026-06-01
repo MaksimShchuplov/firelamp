@@ -53,6 +53,7 @@ std::atomic<bool> prefsDirty{false};
 std::atomic<uint32_t> prefsTouch{0};
 std::atomic<uint32_t> wifiRetryAt{0};
 std::atomic<uint32_t> lastPowerCalc{0};
+std::atomic<bool> isBooting{true};
 
 // =============================================================================
 //  SETUP / LOOP
@@ -101,6 +102,7 @@ void setup() {
     }
     
     startNetwork(); // joins WiFi → starts web server (non-blocking)
+    isBooting.store(false, std::memory_order_relaxed);
     markBootSuccess();  // firmware initialised without crashing — cancel OTA rollback
 }
 
