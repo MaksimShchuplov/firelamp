@@ -371,8 +371,17 @@ static void handleFlashDone() {
     ESP.restart();
 }
 
+static void handleManifest() {
+    server.sendHeader("Cache-Control", "public, max-age=86400");
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "application/manifest+json", "");
+    server.sendContent_P(MANIFEST_JSON);
+    server.sendContent("");
+}
+
 void registerBasicHandlers() {
     server.on("/",          handleRoot);
+    server.on("/manifest.json", handleManifest);
     server.on("/state",     handleState);
     server.on("/setb",      handleSetB);
     server.on("/setc",      handleSetC);
