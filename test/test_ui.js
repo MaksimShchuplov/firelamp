@@ -148,14 +148,14 @@ describe('dynDesc lookup logic', () => {
     assert.equal(lookup('sb',  0,  'en'), 'Off');
     assert.equal(lookup('sco', 20, 'en'), 'Very tall flames');
     assert.equal(lookup('ssp', 0,  'en'), 'Calm smoldering');
-    assert.equal(lookup('sbl', 0,  'en'), 'Sharp flicker');
+    assert.equal(lookup('sbl', 0,  'en'), 'Frozen glow');
   });
 
   test('exact upper boundary returns correct label', () => {
     assert.equal(lookup('sb',  100, 'en'), 'Full brightness');
     assert.equal(lookup('sco', 150, 'en'), 'Quick embers');
     assert.equal(lookup('ssp', 255, 'en'), 'Raging maximum');
-    assert.equal(lookup('sbl', 255, 'en'), 'Frozen glow');
+    assert.equal(lookup('sbl', 255, 'en'), 'Sharp flicker');
   });
 
   test('mid-bucket values return correct labels', () => {
