@@ -18,19 +18,16 @@ void safeBootCheck() {
     uint32_t crashes = p.getUInt("crashes", 0) + 1;
     if (crashes >= 3) {
         LOG_ERROR("boot loop detected — rolling back firmware");
-        p.putUInt("crashes", 0);
         p.end();
-        if (Update.canRollBack()) {
-            if (Update.rollBack()) {
-                ESP.restart();
-            }
-            // rollBack() returned false — flash write error. Fall through to halt.
-            LOG_ERROR("rollBack() failed — halting. Reflash via USB.");
-        } else {
-            // No rollback slot available — halt to avoid a permanent crash loop.
-            // User must reflash via USB.
-            LOG_ERROR("canRollBack() = false — halting. Reflash via USB.");
+        // Do NOT reset the counter here. If rollback or ESP.restart() never happen
+        // (flash error, no slot), the counter stays >= 3 so the next power-on crash
+        // also halts immediately rather than silently looping.
+        // The rolled-back firmware (or a manually re-flashed image) will call
+        // markBootSuccess() on a clean boot, which resets the counter to 0.
+        if (Update.canRollBack() && Update.rollBack()) {
+            ESP.restart();
         }
+        LOG_ERROR("rollback failed or unavailable — halting. Reflash via USB.");
         esp_deep_sleep_start();
     } else {
         LOG_WARN("crash %lu/3 — incrementing counter", (unsigned long)crashes);

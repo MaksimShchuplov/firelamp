@@ -23,10 +23,10 @@ function pth(n){
 function applyState(x){
   pullFails=0;hideOffline();
   var ae=document.activeElement;
-  if(ae!==sb)pb(x.b);
-  if(ae!==sc)pc(x.c);
-  if(ae!==sco)pco(x.co);
-  if(ae!==ssp)psp(x.sp);
+  if(x.b!==undefined&&ae!==sb)pb(x.b);
+  if(x.c!==undefined&&ae!==sc)pc(x.c);
+  if(x.co!==undefined&&ae!==sco)pco(x.co);
+  if(x.sp!==undefined&&ae!==ssp)psp(x.sp);
   if(x.bl!==undefined&&ae!==sbl)pbl(x.bl);
   if(x.th!==undefined)pth(x.th);
   if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);
