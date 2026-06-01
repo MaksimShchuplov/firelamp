@@ -5,7 +5,7 @@
 #include "globals.h"
 #include "net_helpers.h"
 #include "certs.h"
-
+#include <ArduinoJson.h>
 static void handleSetGeminiKey() {
     if (!isWebRequest()) return;
     const String &k = server.arg("key");
@@ -62,33 +62,29 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
              kThemeNames[curTh < 4 ? curTh : 0]);
 
     static const char kPromptBase[] =
-        "You design fire effects for an 800-LED cylinder lamp (20 col \xc3\x97 40 rows, WS2812B). "
-        "The LED cylinder is 125 mm diameter 1260 mm tall, inside a frosted glass globe 190 mm wide "
-        "1380 mm tall \xe2\x80\x94 like a giant floor lamp. Frosted glass diffuses light beautifully.\n"
+        "You design fire effects for an 800-LED cylinder lamp.\n"
         "Parameters:\n"
-        "b = brightness 0-100 (0=off, 100=full; gamma 2.2 curve)\n"
-        "c = palette contrast 0-100 (0=yellows+whites, 50=warm balanced, 100=deep reds only)\n"
-        "co = cooling 20-150 (20=very tall flames, 45=tall, 105=medium height, 150=quick embers)\n"
-        "sp = sparking 0-255 (0=calm smoldering, 36=steady flame, 160=active fire, 255=raging inferno)\n"
-        "bl = temporal blend 0-255 (0=sharp flicker, 50=natural fire, 200=slow motion, 255=frozen glow; sweet spot 30-80)\n"
-        "th = theme 0-3 (0=Fire red/orange/white, 1=Ember deep dark red, 2=Plasma purple/magenta/white, 3=Ice blue/cyan/white)\n"
-        "Create an unusual, evocative effect inspired by the scene: ";
+        "b = brightness 0-100\n"
+        "c = contrast 0-100 (0=yellow/white, 50=warm, 100=deep red)\n"
+        "co = cooling 20-150 (20=tall flames, 150=quick embers)\n"
+        "sp = sparking 0-255 (0=calm, 255=raging)\n"
+        "bl = blend 0-255 (0=sharp flicker, 50=natural, 200=slow motion)\n"
+        "th = theme 0-3 (0=Fire, 1=Ember, 2=Plasma, 3=Ice)\n"
+        "Create an unusual effect inspired by the scene: ";
 
-    String prompt = String(kPromptBase) + scene + ". " + curState + " Short name max 10 chars (fits small button). "
-        "Respond ONLY with valid JSON, no markdown: "
+    String prompt = String(kPromptBase) + scene + ". " + curState + " Short name max 10 chars. "
+        "Respond ONLY with valid JSON: "
         "{\"name\":\"...\",\"b\":N,\"c\":N,\"co\":N,\"sp\":N,\"bl\":N,\"th\":N}";
 
     String body =
         String("{\"contents\":[{\"parts\":[{\"text\":\"") + jsonEscape(prompt) +
         "\"}]}],\"generationConfig\":{\"temperature\":1.4,\"maxOutputTokens\":120,"
-        "\"thinkingConfig\":{\"thinkingBudget\":0}}}";
+        "\"thinkingConfig\":{\"thinkingBudget\":0},\"responseMimeType\":\"application/json\"}}";
 
     WiFiClientSecure client;
     client.setCACertBundle(x509_crt_bundle_start);
     HTTPClient http;
     http.setTimeout(GEMINI_TIMEOUT_MS);
-    // Pass the key via x-goog-api-key header rather than a URL query parameter so
-    // it does not appear in ESP-IDF HTTP debug logs or server-side access logs.
     http.begin(client, "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-goog-api-key", apiKey);
@@ -109,99 +105,37 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
     String resp = http.getString();
     http.end();
 
-    // Find the last "text" part that contains '{' — the actual model output.
-    // Scanning inside each string value handles markdown-wrapped responses like
-    // ```json\n{...}```. Taking the last match skips thinking parts (which
-    // precede the real answer) even when they contain '{'.
-    int ti = -1;
-    for (int p = 0; ; ) {
-        p = resp.indexOf("\"text\":", p);
-        if (p < 0) break;
-        int s = p + 7;
-        while (s < (int)resp.length() && resp[s] == ' ') s++;
-        if (s >= (int)resp.length() || resp[s] != '"') { p++; continue; }
-        s++;
-        bool inEsc = false;
-        for (int j = s; j < (int)resp.length(); j++) {
-            char c = resp[j];
-            if (inEsc)     { inEsc = false; continue; }
-            if (c == '\\') { inEsc = true;  continue; }
-            if (c == '"')  break;
-            if (c == '{')  { ti = j; break; }
-        }
-        p++;
-    }
-    if (ti < 0) {
-        LOG_WARN("Gemini: no text field with '{'. HTTP %d, len %u", code, (unsigned)resp.length());
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, resp);
+    if (error) {
+        LOG_WARN("Gemini: top-level JSON parse failed: %s", error.c_str());
         FAIL("parse_failed");
     }
 
-    String inner;
-    inner.reserve(128);
-    {
-        bool esc = false, started = false, inStr = false;
-        int depth = 0;
-        for (int i = ti; i < (int)resp.length(); i++) {
-            char c = resp[i];
-            if (esc) {
-                if (started) {
-                    if      (c == '"')  inner += '"';
-                    else if (c == '\\') inner += '\\';
-                    else if (c == 'n')  inner += '\n';
-                    else if (c == 't')  inner += '\t';
-                    else if (c == 'r')  inner += '\r';
-                    else                inner += c;
-                }
-                esc = false; continue;
-            }
-            if (c == '\\') { esc = true; continue; }
-            if (!started) { if (c == '{') { started = true; depth = 1; inner += c; } continue; }
-            inner += c;
-            if (c == '"') { inStr = !inStr; continue; }
-            if (inStr) continue;
-            if      (c == '{') depth++;
-            else if (c == '}') { if (--depth == 0) break; }
-        }
-    }
-    if (inner.length() < 10) {
-        LOG_WARN("Gemini: inner JSON too short (%u chars)", (unsigned)inner.length());
+    // Gemini API wraps the response in candidates[0].content.parts[0].text
+    const char* innerText = doc["candidates"][0]["content"]["parts"][0]["text"];
+    if (!innerText) {
+        LOG_WARN("Gemini: missing candidates[0].content.parts[0].text");
         FAIL("parse_failed");
     }
 
-    auto exStr = [&](const char *fld) -> String {
-        String s = String("\"") + fld + "\":";
-        int i = inner.indexOf(s); if (i < 0) return "";
-        i += s.length();
-        while (i < (int)inner.length() && inner[i] == ' ') i++;
-        if (i >= (int)inner.length() || inner[i] != '"') return "";
-        i++;
-        int e = i;
-        while (e < (int)inner.length()) {
-            if (inner[e] == '\\') { e += 2; continue; }
-            if (inner[e] == '"')  break;
-            e++;
-        }
-        if (e >= (int)inner.length()) return "";  // unterminated string or backslash at end
-        return (e > i) ? inner.substring(i, e) : "";
-    };
-    auto exNum = [&](const char *fld) -> int {
-        String s = String("\"") + fld + "\":";
-        int i = inner.indexOf(s); if (i < 0) return -1;
-        i += s.length();
-        while (i < (int)inner.length() && inner[i] == ' ') i++;
-        int e = i;
-        if (e < (int)inner.length() && inner[e] == '-') e++;
-        int ds = e;  // first digit position; at least one digit required
-        while (e < (int)inner.length() && isdigit((unsigned char)inner[e])) e++;
-        return (e > ds) ? inner.substring(i, e).toInt() : -1;
-    };
+    JsonDocument innerDoc;
+    error = deserializeJson(innerDoc, innerText);
+    if (error) {
+        LOG_WARN("Gemini: inner JSON parse failed: %s. Text: %.50s", error.c_str(), innerText);
+        FAIL("parse_failed");
+    }
 
-    String name = exStr("name");
-    int b  = exNum("b"),  cv = exNum("c"),  co = exNum("co");
-    int sp = exNum("sp"), bl = exNum("bl"), th = exNum("th");
+    String name = innerDoc["name"] | "";
+    int b  = innerDoc["b"] | -1;
+    int cv = innerDoc["c"] | -1;
+    int co = innerDoc["co"] | -1;
+    int sp = innerDoc["sp"] | -1;
+    int bl = innerDoc["bl"] | -1;
+    int th = innerDoc["th"] | -1;
+
     if (name.length() == 0 || b < 0) {
-        LOG_WARN("Gemini: missing fields. name=\"%s\" b=%d. inner: %.40s",
-                 name.c_str(), b, inner.c_str());
+        LOG_WARN("Gemini: missing fields. name=\"%s\" b=%d", name.c_str(), b);
         FAIL("parse_failed");
     }
 

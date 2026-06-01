@@ -239,10 +239,6 @@ static String htmlEscape(const char *s) {
 }
 
 static void handleLog() {
-    // Snapshot the ring buffer under the spinlock, then build the String outside.
-    // Holding portENTER_CRITICAL while calling String::+= (which can realloc) would
-    // disable Core 1 interrupts for several milliseconds — long enough to delay UART
-    // and LwIP timer callbacks.
     static char snap[LOG_BUF_LINES][LOG_BUF_WIDTH];
     int  snapHead;
     portENTER_CRITICAL(&logMux);
@@ -250,15 +246,21 @@ static void handleLog() {
     snapHead = logHead;
     portEXIT_CRITICAL(&logMux);
 
-    String out = F("<!doctype html><meta name='viewport' content='width=device-width'>"
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", "");
+    server.sendContent(F("<!doctype html><meta name='viewport' content='width=device-width'>"
                    "<style>body{background:#111;color:#ccc;font:13px monospace;padding:8px}"
-                   "pre{white-space:pre-wrap;word-break:break-all}</style><pre>");
+                   "pre{white-space:pre-wrap;word-break:break-all}</style><pre>"));
+                   
     for (int i = 0; i < LOG_BUF_LINES; i++) {
         int idx = (snapHead + i) % LOG_BUF_LINES;
-        if (snap[idx][0]) { out += htmlEscape(snap[idx]); out += '\n'; }
+        if (snap[idx][0]) {
+            server.sendContent(htmlEscape(snap[idx]));
+            server.sendContent("\n");
+        }
     }
-    out += F("</pre><script>setTimeout(()=>location.reload(),5000)</script>");
-    server.send(200, "text/html", out);
+    server.sendContent(F("</pre><script>setTimeout(()=>location.reload(),5000)</script>"));
+    server.sendContent("");
 }
 
 static void handleResetWifi() {

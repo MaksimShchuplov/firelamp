@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "net_helpers.h"
 
-void startNetwork() {
+void loadSettings() {
     prefs.begin("lamp", false);
     // "bright2": key renamed from "bright" after gamma curve change to force
     // NVS re-read on existing devices; keep as-is to preserve field settings.
@@ -25,6 +25,9 @@ void startNetwork() {
     applyBrightness();
     buildHeatPalette();
     recalcCooling();
+}
+
+void startNetwork() {
 
     WiFi.setHostname(MDNS_NAME);
     WiFi.setSleep(false);

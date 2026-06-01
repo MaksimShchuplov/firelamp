@@ -89,6 +89,7 @@ void updateWind();
 void safeBootCheck();
 void markBootSuccess();
 
+void loadSettings();
 void startNetwork();
 void serviceNetwork();
 

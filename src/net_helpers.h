@@ -34,3 +34,4 @@ void registerPresetHandlers();  // presets.cpp:  getpresets, savepreset, loadpre
 void registerOtaHandlers();     // ota.cpp:      checkupdate, update
 void startAutoUpdateTask();     // ota.cpp:      launch background version-check FreeRTOS task
 void registerGeminiHandlers();  // gemini.cpp:   surprise, setgeminikey, geminikey
+void loadSettings();

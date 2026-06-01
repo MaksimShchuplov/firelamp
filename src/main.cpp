@@ -75,7 +75,7 @@ void setup() {
     std::fill(std::begin(windDir),    std::end(windDir),    0.0f);
     std::fill(std::begin(windTarget), std::end(windTarget), 0.0f);
 
-    startNetwork();   // loads NVS → builds palette → joins WiFi → starts web server
+    loadSettings();   // loads NVS → builds palette
 
     BaseType_t ok = xTaskCreatePinnedToCore(
         [](void *) {
@@ -99,6 +99,8 @@ void setup() {
         LOG_ERROR("LEDTask creation failed (heap?) — rebooting");
         ESP.restart();
     }
+    
+    startNetwork(); // joins WiFi → starts web server (non-blocking)
     markBootSuccess();  // firmware initialised without crashing — cancel OTA rollback
 }
 
