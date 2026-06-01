@@ -20,7 +20,8 @@ static unsigned long lastReconnectAttempt = 0;
 void mqttPublishState() {
     if (!mqttClient.connected() || mqT.length() == 0) return;
     char j[128];
-    snprintf(j, sizeof(j), "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"bl\":%d,\"th\":%d}",
+    snprintf(j, sizeof(j), "{\"state\":\"%s\",\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"bl\":%d,\"th\":%d}",
+             uiBright > 0 ? "ON" : "OFF",
              (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking, (int)uiBlend, (int)uiTheme);
     String topic = mqT + "/state";
     mqttClient.publish(topic.c_str(), j);
@@ -46,7 +47,26 @@ void initMqtt() {
             DeserializationError err = deserializeJson(doc, s);
             if (!err) {
                 bool changed = false;
-                if (doc.containsKey("b"))  { int v = doc["b"]; setBright(constrain(v, 0, 100)); changed = true; }
+                static uint8_t last_b = 100;
+
+                if (doc.containsKey("state")) {
+                    String st = doc["state"];
+                    if (st == "OFF" && uiBright > 0) {
+                        last_b = uiBright;
+                        setBright(0);
+                        changed = true;
+                    } else if (st == "ON" && uiBright == 0) {
+                        setBright(last_b > 0 ? last_b : 100);
+                        changed = true;
+                    }
+                }
+
+                if (doc.containsKey("b"))  { 
+                    int v = doc["b"]; 
+                    setBright(constrain(v, 0, 100)); 
+                    if (v > 0) last_b = v; // remember last non-zero brightness
+                    changed = true; 
+                }
                 if (doc.containsKey("c"))  { uiContrast = constrain((int)doc["c"], 0, 100); changed = true; }
                 if (doc.containsKey("co")) { uiCooling = constrain((int)doc["co"], 20, 150); recalcCooling(); changed = true; }
                 if (doc.containsKey("sp")) { uiSparking = constrain((int)doc["sp"], 0, 255); changed = true; }
