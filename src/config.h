@@ -26,8 +26,8 @@
 // ---- Brightness ------------------------------------------------------------
 #define BRIGHT_DEFAULT      100     // 0..100, until UI / NVS overrides
 #define CONTRAST_DEFAULT    50
-#define COOLING_DEFAULT     45
-#define SPARKING_DEFAULT    36
+#define COOLING_DEFAULT     46
+#define SPARKING_DEFAULT    26
 #define BRIGHT_GAMMA        2.2f    // perceptual curve on the slider
 #define BRIGHT_FLOOR        4       // min stable raw PWM on WS2812B
 #define BRIGHT_DITHER_ON    16      // enable BINARY_DITHER above this raw value

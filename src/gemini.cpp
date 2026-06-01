@@ -68,7 +68,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
         "c = contrast 0-100 (0=yellow/white, 50=warm, 100=deep red)\n"
         "co = cooling 20-150 (20=tall flames, 150=quick embers)\n"
         "sp = sparking 0-255 (0=calm, 255=raging)\n"
-        "bl = blend 0-255 (0=sharp flicker, 50=natural, 200=slow motion)\n"
+        "bl = blend 0-255 (0=frozen/slow, 50=natural, 255=sharp flicker)\n"
         "th = theme 0-3 (0=Fire, 1=Ember, 2=Plasma, 3=Ice)\n"
         "Create an unusual effect inspired by the scene: ";
 

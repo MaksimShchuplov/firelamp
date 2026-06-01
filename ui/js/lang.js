@@ -34,7 +34,7 @@ function ul(){
  document.getElementById('mt8').textContent=ru?'Потребление':'Power';
  document.getElementById('md8').textContent=ru?'Расчётное потребление в ваттах на основе текущего цвета и яркости каждого светодиода. Обновляется каждые 8 секунд.':'Estimated power draw in watts based on the current colour and brightness of each LED. Updates every 8 seconds.';
  document.getElementById('mt9').textContent=ru?'Плавность':'Blend';
- document.getElementById('md9').textContent=ru?'Временное сглаживание кадров. 0 = резкое мерцание, 255 = медленное свечение. Оптимальный диапазон 30–80.':'Temporal blend per frame. 0 = sharp flicker, 255 = slow soft glow. Sweet spot 30–80.';
+ document.getElementById('md9').textContent=ru?'Временное сглаживание кадров. 0 = застывшее свечение, 255 = резкое мерцание. Оптимальный диапазон 30–80.':'Temporal blend per frame. 0 = frozen glow, 255 = sharp flicker. Sweet spot 30–80.';
  document.getElementById('mt10').textContent=ru?'Тема цвета':'Color Theme';
  document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (тёмно-красный), Плазма (пурпурный), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
  document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
