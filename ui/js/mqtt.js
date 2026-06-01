@@ -26,7 +26,9 @@ function loadMqtt(){
     if(x.ip) document.getElementById('mqip').value=x.ip;
     if(x.pt) document.getElementById('mqpt').value=x.pt;
     if(x.u) document.getElementById('mqu').value=x.u;
-    if(x.p) document.getElementById('mqp').value=x.p;
+    // Password is write-only on the server; show a placeholder when one is saved.
+    var pf=document.getElementById('mqp');
+    pf.placeholder=x.p_set?(ru?'Сохранён (введите для замены)':'Saved (enter to replace)'):'';
     if(x.t) document.getElementById('mqt').value=x.t;
   }).catch(()=>{});
 }

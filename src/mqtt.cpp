@@ -71,7 +71,7 @@ void initMqtt() {
                 if (doc.containsKey("co")) { uiCooling = constrain((int)doc["co"], 20, 150); recalcCooling(); changed = true; }
                 if (doc.containsKey("sp")) { uiSparking = constrain((int)doc["sp"], 0, 255); changed = true; }
                 if (doc.containsKey("bl")) { uiBlend = constrain((int)doc["bl"], 0, 255); changed = true; }
-                if (doc.containsKey("th")) { uiTheme = constrain((int)doc["th"], 0, 3); changed = true; }
+                if (doc.containsKey("th")) { uiTheme = constrain((int)doc["th"], 0, THEME_COUNT - 1); changed = true; }
                 
                 if (changed) {
                     buildHeatPalette();
@@ -116,15 +116,31 @@ void serviceMqtt() {
 
 static void handleSetMqtt() {
     if (!isWebRequest()) return;
+
+    String ip = server.arg("ip");
+    String u  = server.arg("u");
+    String pw = server.arg("p");
+    String t  = server.arg("t");
+    if (t.length() == 0) t = "firelamp";
+
+    int pt = server.arg("pt").toInt();
+    if (pt <= 0 || pt > 65535) pt = 1883;
+
+    // Clamp strings to sane lengths to avoid NVS exhaustion
+    if (ip.length() > 64) ip = ip.substring(0, 64);
+    if (u.length()  > 64) u  = u.substring(0, 64);
+    if (pw.length() > 64) pw = pw.substring(0, 64);
+    if (t.length()  > 64) t  = t.substring(0, 64);
+
     Preferences p;
     p.begin("mqtt", false);
-    p.putString("ip", server.arg("ip"));
-    p.putInt("pt", server.arg("pt").toInt());
-    p.putString("u", server.arg("u"));
-    p.putString("p", server.arg("p"));
-    p.putString("t", server.arg("t"));
+    p.putString("ip", ip);
+    p.putInt("pt", pt);
+    p.putString("u", u);
+    if (pw.length() > 0) p.putString("p", pw);  // empty means "keep existing"
+    p.putString("t", t);
     p.end();
-    
+
     server.send(200, "application/json", "{\"ok\":true}");
     mqttClient.disconnect();
     initMqtt();
@@ -133,16 +149,17 @@ static void handleSetMqtt() {
 static void handleGetMqtt() {
     Preferences p;
     p.begin("mqtt", true);
-    String ip = p.getString("ip", "");
-    int pt = p.getInt("pt", 1883);
-    String u = p.getString("u", "");
-    String pw = p.getString("p", "");
-    String t = p.getString("t", "firelamp");
+    String ip    = p.getString("ip", "");
+    int    pt    = p.getInt("pt", 1883);
+    String u     = p.getString("u", "");
+    bool   hasPw = p.isKey("p") && p.getString("p", "").length() > 0;
+    String t     = p.getString("t", "firelamp");
     p.end();
-    
-    char buf[512];
-    snprintf(buf, sizeof(buf), "{\"ip\":\"%s\",\"pt\":%d,\"u\":\"%s\",\"p\":\"%s\",\"t\":\"%s\"}",
-             jsonEscape(ip).c_str(), pt, jsonEscape(u).c_str(), jsonEscape(pw).c_str(), jsonEscape(t).c_str());
+
+    // Password is write-only: return only whether it's set, not the value.
+    char buf[256];
+    snprintf(buf, sizeof(buf), "{\"ip\":\"%s\",\"pt\":%d,\"u\":\"%s\",\"p_set\":%s,\"t\":\"%s\"}",
+             jsonEscape(ip).c_str(), pt, jsonEscape(u).c_str(), hasPw ? "true" : "false", jsonEscape(t).c_str());
     server.send(200, "application/json", buf);
 }
 

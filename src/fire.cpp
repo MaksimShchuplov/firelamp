@@ -137,6 +137,25 @@ void fireEffect() {
         return;
     }
 
+    if (isUpdating.load(std::memory_order_relaxed)) {
+        const uint8_t pct    = otaProgress.load(std::memory_order_relaxed);
+        const uint8_t filled = (uint8_t)(((uint32_t)pct * ROWS) / 100);
+        const CRGB   *pal    = heatPalette[activePal.load(std::memory_order_relaxed) & 1];
+        FastLED.clear();
+        for (int y = 0; y < filled; y++) {
+            const int base = (ROWS - 1 - y) * COLUMNS;
+            for (int x = 0; x < COLUMNS; x++) leds[base + x] = pal[200];
+        }
+        if (filled < ROWS) {
+            const int base = (ROWS - 1 - filled) * COLUMNS;
+            CRGB tip = pal[240];
+            tip.fadeLightBy(beatsin8(80, 0, 150));
+            for (int x = 0; x < COLUMNS; x++) leds[base + x] = tip;
+        }
+        applyBrightness();
+        return;
+    }
+
     applyBrightness();  // runs on Core 0, safe alongside FastLED.show()
 
     // 1. Cooling — snapshot atomic array once with relaxed order to avoid 40 seq_cst loads (memw on LX7) in the inner loop

@@ -53,7 +53,9 @@ std::atomic<bool> prefsDirty{false};
 std::atomic<uint32_t> prefsTouch{0};
 std::atomic<uint32_t> wifiRetryAt{0};
 std::atomic<uint32_t> lastPowerCalc{0};
-std::atomic<bool> isBooting{true};
+std::atomic<bool>    isBooting{true};
+std::atomic<bool>    isUpdating{false};
+std::atomic<uint8_t> otaProgress{0};
 
 // =============================================================================
 //  SETUP / LOOP

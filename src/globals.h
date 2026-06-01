@@ -59,6 +59,8 @@ extern std::atomic<uint32_t> wifiRetryAt;
 inline void markDirty() { prefsDirty.store(true, std::memory_order_relaxed); prefsTouch.store(millis(), std::memory_order_relaxed); }
 extern std::atomic<uint32_t> lastPowerCalc;  // written Core 0 (fireEffect) + Core 1 (handlers)
 extern std::atomic<bool>     isBooting;      // true while WiFi is connecting
+extern std::atomic<bool>     isUpdating;     // true while OTA firmware is streaming to flash
+extern std::atomic<uint8_t>  otaProgress;    // 0-100 during OTA download
 
 // ---- Task handles ----------------------------------------------------------
 extern TaskHandle_t ledTaskHandle;   // set in setup(); used for stack watermark queries

@@ -115,6 +115,9 @@ static void handleUpdate() {
     server.client().flush();
     server.client().stop();
 
+    otaProgress.store(0, std::memory_order_relaxed);
+    isUpdating.store(true, std::memory_order_relaxed);
+
     WiFiClientSecure dlClient;
     dlClient.setCACertBundle(x509_crt_bundle_start);
     HTTPClient http;
@@ -122,22 +125,45 @@ static void handleUpdate() {
     http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     LOG_INFO("OTA → %s  md5: %s", ver.c_str(), md5.c_str());
     if (!http.begin(dlClient, FIRMWARE_URL)) {
-        LOG_ERROR("OTA: http.begin failed"); return;
+        LOG_ERROR("OTA: http.begin failed");
+        isUpdating.store(false, std::memory_order_relaxed);
+        return;
     }
     int code = http.GET();
     if (code != 200) {
         LOG_ERROR("OTA firmware fetch: HTTP %d", code);
-        http.end(); return;
+        http.end();
+        isUpdating.store(false, std::memory_order_relaxed);
+        return;
     }
     int fwSize = http.getSize();
     if (!Update.begin(fwSize > 0 ? (size_t)fwSize : UPDATE_SIZE_UNKNOWN)) {
         LOG_ERROR("OTA Update.begin: %s", Update.errorString());
-        http.end(); return;
+        http.end();
+        isUpdating.store(false, std::memory_order_relaxed);
+        return;
     }
     // setMD5 must be called AFTER begin() — begin() resets the expected hash.
     Update.setMD5(md5.c_str());
-    size_t written = Update.writeStream(*http.getStreamPtr());
+
+    // Stream in 512-byte chunks so the LEDTask on Core 0 gets a tick between
+    // flash writes and otaProgress stays fresh for the progress bar.
+    WiFiClient *stream = http.getStreamPtr();
+    size_t written = 0;
+    uint8_t buf[512];
+    while (Update.remaining() > 0) {
+        size_t toRead = min(sizeof(buf), Update.remaining());
+        size_t n = stream->readBytes(buf, toRead);
+        if (n == 0) break;
+        if (Update.write(buf, n) != n) break;
+        written += n;
+        if (fwSize > 0)
+            otaProgress.store((uint8_t)(written * 100UL / (size_t)fwSize), std::memory_order_relaxed);
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
     http.end();
+    isUpdating.store(false, std::memory_order_relaxed);
+
     if (!Update.end()) {
         LOG_ERROR("OTA Update.end: %s", Update.errorString());
         return;
