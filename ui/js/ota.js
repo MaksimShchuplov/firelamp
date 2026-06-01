@@ -22,7 +22,8 @@ function startOTA(){
   setTimeout(function(){pfil.style.width='88%';},50);
   function pollReboot(){
     var n=0,wentOffline=false,tid=setInterval(function(){n++;
-      xf('/info',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+      var ac=new AbortController(),to=setTimeout(function(){ac.abort();},2000);
+      xf('/info',{cache:'no-store',signal:ac.signal}).then(function(r){clearTimeout(to);return r.json();}).then(function(d){
         if(!wentOffline){
           // Lamp still alive — OTA flash may have failed silently (200 was already sent).
           // Keep polling; give up at n>10 (~30 s) and show failure.
