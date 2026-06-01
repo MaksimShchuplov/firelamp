@@ -89,6 +89,17 @@ The UI checks for updates against the [latest GitHub Release](https://github.com
 3. The lamp downloads and flashes the new firmware, then reboots automatically
 4. The UI shows a progress bar and reloads when the lamp is back online
 
+### Manual firmware recovery
+
+If OTA is unavailable (e.g. after a bad update), you can flash firmware directly from your browser over the local network — no USB required:
+
+1. Download `firmware.bin` from the [latest release](https://github.com/MaksimShchuplov/firelamp/releases/latest)
+2. Open **http://firelamp.local/flash**
+3. Select the file and click **Upload**
+4. The lamp installs the firmware and reboots automatically
+
+This page bypasses the TLS connection to GitHub entirely — the file travels only over your local Wi-Fi.
+
 ## Configuration
 
 All tuneable constants are in [`src/config.h`](src/config.h). Key values:
