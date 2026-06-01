@@ -65,12 +65,12 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
         "You design fire effects for an 800-LED cylinder lamp.\n"
         "Parameters:\n"
         "b = brightness 0-100\n"
-        "c = contrast 0-100 (0=yellow/white, 50=warm, 100=deep red)\n"
-        "co = cooling 20-150 (20=tall flames, 150=quick embers)\n"
-        "sp = sparking 0-255 (0=calm, 255=raging)\n"
-        "bl = blend 0-255 (0=frozen/slow, 50=natural, 255=sharp flicker)\n"
+        "c = contrast 0-100 (20=yellowish, 50=warm, 90=deep red)\n"
+        "co = cooling 20-150 (40=tall fire, 100=short sparks, avoid <30 to prevent solid columns)\n"
+        "sp = sparking 0-255 (20=calm, 120=active, 255=raging)\n"
+        "bl = blend 0-255 (20=slow, 50=natural, 200=sharp flicker)\n"
         "th = theme 0-3 (0=Fire, 1=Ember, 2=Plasma, 3=Ice)\n"
-        "Create an unusual effect inspired by the scene: ";
+        "Create an unusual but aesthetically pleasing effect inspired by the scene: ";
 
     String prompt = String(kPromptBase) + scene + ". " + curState + " Short name max 10 chars. "
         "Respond ONLY with valid JSON: "
@@ -78,7 +78,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
 
     String body =
         String("{\"contents\":[{\"parts\":[{\"text\":\"") + jsonEscape(prompt) +
-        "\"}]}],\"generationConfig\":{\"temperature\":1.4,\"maxOutputTokens\":120,"
+        "\"}]}],\"generationConfig\":{\"temperature\":1.1,\"maxOutputTokens\":120,"
         "\"thinkingConfig\":{\"thinkingBudget\":0},\"responseMimeType\":\"application/json\"}}";
 
     WiFiClientSecure client;
