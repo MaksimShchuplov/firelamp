@@ -3,6 +3,7 @@
 #include <ESPmDNS.h>
 #include "globals.h"
 #include "net_helpers.h"
+#include "mqtt.h"
 
 void loadSettings() {
     prefs.begin("lamp", false);
@@ -28,6 +29,7 @@ void loadSettings() {
 }
 
 void startNetwork() {
+    initMqtt();
 
     WiFi.setHostname(MDNS_NAME);
     WiFi.setSleep(false);
@@ -64,6 +66,7 @@ void startNetwork() {
     registerPresetHandlers();
     registerOtaHandlers();
     registerGeminiHandlers();
+    registerMqttHandlers();
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
     static const char *hdrs[] = {"X-Requested-With"};
     server.collectHeaders(hdrs, 1);
@@ -81,6 +84,8 @@ void serviceNetwork() {
             prefsTouch.store(millis(), std::memory_order_relaxed);
         }
     }
+
+    serviceMqtt();
 
     if (WiFi.status() != WL_CONNECTED && millis() - wifiRetryAt > WIFI_RETRY_MS) {
         wifiRetryAt = millis();

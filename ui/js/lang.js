@@ -41,10 +41,15 @@ function ul(){
  document.getElementById('md11').textContent=ru?'До 8 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы сохранить в слот или удалить.':'Up to 8 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to save or delete.';
  document.getElementById('mt12').textContent=ru?'✨ Удиви меня (ИИ)':'✨ Surprise Me (AI)';
  document.getElementById('md12').textContent=ru?'Gemini AI придумает уникальный эффект пламени. Вставьте API-ключ Gemini ниже — он сохранится в памяти лампы и будет работать с любого устройства.':'Gemini AI designs a unique flame effect each time. Paste your Gemini API key below — it is stored on the lamp and works from any device.';
+ document.getElementById('mt13').textContent=ru?'MQTT Сервер':'MQTT Server';
+ document.getElementById('md13').textContent=ru?'Подключение к брокеру умного дома (например, Home Assistant). Лампа публикует статус в топик [Base Topic]/state и слушает [Base Topic]/set':'Connect to Smart Home broker (e.g. Home Assistant). Lamp publishes to [Base Topic]/state and listens to [Base Topic]/set';
  document.getElementById('aiksave').textContent=ru?'Сохранить ключ':'Save key';
  document.getElementById('aikey').placeholder=ru?'Ключ Gemini API':'Gemini API key';
+ document.getElementById('mqsave').textContent=ru?'Сохранить MQTT':'Save MQTT';
  var ks=document.getElementById('aikeystatus');
- if(ks.textContent){var kst=ks.dataset.ks;if(kst==='ok')ks.textContent=ru?'Ключ сохранён ✓':'Key saved ✓';else if(kst==='notset')ks.textContent=ru?'Ключ не задан':'No key set';}
+ if(ks.dataset.ks==='ok')ks.textContent=ru?'Ключ сохранён ✓':'Key saved ✓';
+ else if(ks.dataset.ks==='notset')ks.textContent=ru?'Ключ не задан':'No key set';
+ else if(ks.dataset.ks==='error')ks.textContent=ru?'Ошибка':'Error';
  var sp2=document.getElementById('surprise');if(sp2&&!sp2.disabled)sp2.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
  var vi=document.getElementById('vinfo');if(vi.textContent==='● Доступно обновление'||vi.textContent==='● Update available'){vi.textContent=ru?'● Доступно обновление':'● Update available';}
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';

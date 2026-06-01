@@ -37,9 +37,17 @@
 <div class=mt id=mt10>Theme</div><div class=md id=md10></div>
 <div class=mt id=mt11>Presets</div><div class=md id=md11></div>
 <div class=mt id=mt12>✨ Surprise Me (AI)</div><div class=md id=md12></div>
-<input class=aikey id=aikey type=password placeholder="Gemini API key" autocomplete=off spellcheck=false>
-<button class=aiksave id=aiksave>Save key</button>
-<div id=aikeystatus class=aikeyst></div>
+<input class=txtin id=aikey type=password placeholder="Gemini API key" autocomplete=off spellcheck=false>
+<button class=btnsave id=aiksave>Save key</button>
+<div id=aikeystatus class=statustxt></div>
+<div class=mt id=mt13>MQTT Server (Smart Home)</div><div class=md id=md13></div>
+<input class=txtin id=mqip type=text placeholder="Broker IP (e.g. 192.168.1.10)" autocomplete=off spellcheck=false>
+<input class=txtin id=mqpt type=number placeholder="Port (1883)" autocomplete=off style="margin-top:4px">
+<input class=txtin id=mqu type=text placeholder="Username (optional)" autocomplete=off spellcheck=false style="margin-top:4px">
+<input class=txtin id=mqp type=password placeholder="Password (optional)" autocomplete=off spellcheck=false style="margin-top:4px">
+<input class=txtin id=mqt type=text placeholder="Base Topic (e.g. firelamp)" autocomplete=off spellcheck=false style="margin-top:4px">
+<button class=btnsave id=mqsave>Save MQTT</button>
+<div id=mqst class=statustxt></div>
 </div>
 <div class=lang><button id=len class="lbtn act">EN</button><button id=lru class=lbtn>RU</button></div>
 <div class=wrap>
@@ -80,5 +88,6 @@
 <script src=js/presets.js></script>
 <script src=js/ota.js></script>
 <script src=js/ai.js></script>
+<script src=js/mqtt.js></script>
 <script src=js/poll.js></script>
 </body></html>

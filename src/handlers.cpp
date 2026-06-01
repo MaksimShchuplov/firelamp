@@ -4,6 +4,7 @@
 #include "globals.h"
 #include "net_helpers.h"
 #include "page.h"
+#include "mqtt.h"
 
 // =============================================================================
 //  SHARED UTILITIES
@@ -62,6 +63,7 @@ void sendVal() {
     char j[96];
     formatState(j, sizeof(j));
     server.send(200, "application/json", j);
+    mqttPublishState();
 }
 
 // Uses the always-open global prefs handle (opened in startNetwork).
