@@ -62,7 +62,8 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
              kThemeNames[curTh < 4 ? curTh : 0]);
 
     static const char kPromptBase[] =
-        "You design fire effects for an 800-LED cylinder lamp.\n"
+        "You design fire effects for a physical LED lamp. It is a 125mm diameter metal cylinder "
+        "wrapped with a 20-column by 40-row matrix of 800 WS2812B LEDs.\n"
         "Parameters:\n"
         "b = brightness 0-100\n"
         "c = contrast 0-100 (20=yellowish, 50=warm, 90=deep red)\n"
