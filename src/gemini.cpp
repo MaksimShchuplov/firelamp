@@ -141,11 +141,16 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
             char c = resp[i];
             if (esc) {
                 if (started) {
-                    if      (c == '"')  inner += '"';
+                    // An escaped '"' in the outer Gemini JSON layer is a string
+                    // delimiter in the inner JSON — toggle inStr so '{' and '}'
+                    // inside string values don't corrupt the brace depth counter.
+                    if      (c == '"')  { inner += '"'; inStr = !inStr; }
                     else if (c == '\\') inner += '\\';
                     else if (c == 'n')  inner += '\n';
                     else if (c == 't')  inner += '\t';
                     else if (c == 'r')  inner += '\r';
+                    else if (c == 'b')  inner += '\b';
+                    else if (c == 'f')  inner += '\f';
                     else                inner += c;
                 }
                 esc = false; continue;
