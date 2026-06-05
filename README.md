@@ -10,9 +10,11 @@ ESP32-S3 firmware for an 800-LED WS2812B fire-effect lamp with a web control UI 
 - Realistic fire simulation — cooling, sparking, wind, temporal blending
 - Four color themes: Fire, Ember, Plasma, Ice
 - Responsive web UI served directly from the ESP32 (no app, no cloud)
+- **Installable PWA** — add to home screen on iOS / Android; works offline (cached UI, offline banner)
+- **MQTT integration** — subscribe/publish compatible with Home Assistant and any MQTT broker
 - **Surprise Me** — Gemini 2.5 Flash AI generates a unique named effect on demand
 - Eight saveable parameter presets
-- OTA firmware updates from GitHub Releases — one tap in the UI
+- OTA firmware updates from GitHub Releases — one tap in the UI; LED strip shows download progress
 - Automatic rollback on three consecutive crashes
 - Wi-Fi provisioning via captive portal — credentials never compiled in
 
@@ -79,6 +81,49 @@ Open `http://firelamp.local` (or the IP shown on the serial monitor).
 | Surprise Me | — | Calls Gemini 2.5 Flash — waits ~2 s, returns full state + effect name; requires a Gemini API key (stored on device) |
 
 All parameters are saved to flash automatically and restored on next boot.
+
+## MQTT
+
+Configure a broker in the settings modal (gear icon → MQTT tab):
+
+| Setting | Default | Notes |
+|---------|---------|-------|
+| Broker IP | — | IPv4 address of your MQTT broker |
+| Port | 1883 | Standard MQTT port |
+| Username / Password | — | Leave blank for anonymous; password is write-only (never returned by the API) |
+| Topic prefix | `firelamp` | Base for all topics |
+
+The lamp subscribes to **`<prefix>/set`** and publishes to **`<prefix>/state`**.
+
+**Supported `set` payload fields (JSON):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `state` | `"ON"` / `"OFF"` | Power — OFF saves brightness and sets to 0; ON restores it |
+| `b` | 0–100 | Brightness |
+| `c` | 0–100 | Contrast |
+| `co` | 20–150 | Cooling |
+| `sp` | 0–255 | Sparking |
+| `bl` | 0–255 | Blend |
+| `th` | 0–3 | Theme (0=Fire 1=Ember 2=Plasma 3=Ice) |
+
+Example Home Assistant `configuration.yaml`:
+
+```yaml
+mqtt:
+  light:
+    - name: "Fire Lamp"
+      state_topic: "firelamp/state"
+      command_topic: "firelamp/set"
+      brightness_state_topic: "firelamp/state"
+      brightness_command_topic: "firelamp/set"
+      brightness_value_template: "{{ value_json.b }}"
+      brightness_command_template: '{"b": {{ value }} }'
+      on_off_command_topic: "firelamp/set"
+      payload_on: '{"state":"ON"}'
+      payload_off: '{"state":"OFF"}'
+      state_value_template: "{{ value_json.state }}"
+```
 
 ## OTA Updates
 

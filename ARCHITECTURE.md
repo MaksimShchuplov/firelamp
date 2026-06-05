@@ -26,14 +26,16 @@ src/
   fire.cpp      — palette, brightness/gamma, wind, fire simulation
   boot.cpp      — crash-counter boot-loop detection + OTA rollback
   network.cpp   — startNetwork() + serviceNetwork() only; calls registerXxx()
-  handlers.cpp  — shared utilities + basic handlers (setb/c/co/sp/bl/theme, reset, info, debug)
+  handlers.cpp  — shared utilities + basic handlers (setb/c/co/sp/bl/theme, reset, info, debug, sw.js)
   presets.cpp   — preset CRUD (getpresets, savepreset, loadpreset, deletepreset)
   ota.cpp       — OTA update flow + autoUpdateCheck background task
   gemini.cpp    — Gemini AI Surprise Me effect (synchronous handler, surprise, setgeminikey, geminikey)
+  mqtt.cpp      — MQTT client (PubSubClient): connect/reconnect, subscribe firelamp/set, publish firelamp/state
+  mqtt.h        — mqttPublishState(), initMqtt(), serviceMqtt(), registerMqttHandlers()
 ui/
   index.html    — HTML structure (opens in browser for preview; link/script tags load source files)
   css/          — 8 CSS files (base, sliders, buttons, modal, themes, presets, sheet, ai)
-  js/           — 9 JS files (globals, ui, lang, state, sliders, presets, ota, ai, poll)
+  js/           — 10 JS files (globals, ui, lang, state, sliders, presets, ota, ai, mqtt, poll)
 partitions_ota_4mb.csv   — custom partition table (two 1.75 MB OTA slots + NVS)
 build_page.py            — PlatformIO pre-build script: assembles ui/ files into src/page.h
 get_version.py           — PlatformIO pre-build script: injects git SHA as FIRMWARE_VERSION
@@ -51,12 +53,16 @@ All parameters shared between cores use `std::atomic<T>` — this makes atomicit
 
 UI parameters (`uiBright`, `uiContrast`, `uiCooling`, `uiSparking`, `uiBlend`, `uiTheme`, `appliedRaw`, `currentPowerMw`, `updatePending`, `lastPowerCalc`) and `coolMax[ROWS]` are `std::atomic` — written from Core 1 (web handlers / `recalcCooling`), read from Core 0. `seq_cst` stores generate a full `memw` barrier on Xtensa LX7.
 
+`isBooting`, `isUpdating`, and `otaProgress` are `std::atomic` flags that gate two alternative `fireEffect()` render modes: a pulsing boot progress bar (set true in `setup()`, cleared after `startNetwork()` returns) and an OTA download progress bar (set true in `handleUpdate()` just before the firmware stream begins, cleared immediately after `http.end()`). Both are written Core 1, read Core 0.
+
 `heatPalette` uses a **double-buffer + atomic index flip**: `buildHeatPalette()` writes into `heatPalette[(activePal & 1) ^ 1]`, then flips `activePal` with a `seq_cst` store (acts as full memory barrier — ensures all palette stores are visible to Core 0 before the index flip). `fireEffect()` snapshots `activePal` once per frame so a mid-frame flip cannot split palette reads.
 
 ### Browser state sync
 The browser polls `/state` every 5 s (`poll.js`). The poll is skipped while the tab is hidden (`document.hidden`); a `visibilitychange` listener in `state.js` triggers an immediate poll on tab restore. During OTA, `ota.js` clears the poll interval (`clearInterval(pollTid)`) so no stale requests interfere with the reboot wait.
 
 **Browser offline detection**: `pullFails` increments on each failed `/state` fetch; `showOffline()` fires at 3 consecutive failures (~15 s). Any successful poll or slider call resets `pullFails` and calls `hideOffline()`.
+
+**PWA / Service Worker**: The lamp is installable as a home-screen app on iOS and Android. A Service Worker served from `GET /sw.js` (PROGMEM, `Cache-Control: no-cache`) uses a network-first, cache-fallback strategy. On install the SW pre-caches `/`. When the lamp is off and the user opens the PWA, the navigation request falls back to the cached page so the UI renders (and shows the offline banner) instead of a blank screen. API requests (`/state`, `/setb`, …) are not intercepted on failure — they reject normally so the existing offline-banner logic fires. The SW scope is `/` (`Service-Worker-Allowed: /` header).
 
 ### WiFi & provisioning
 The lamp features an **instant boot** architecture: `LEDTask` starts immediately from `setup()` using the last saved palette, providing light within milliseconds of power-on. A pulsing progress bar masks the heavy WiFi radio interrupts while `startNetwork()` joins the network in the background on Core 1.
@@ -68,7 +74,7 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 ### OTA update flow
 1. On WiFi connect, `autoUpdateCheck` task fires after 8 s, fetches `version.json`, sets `updatePending` flag. Browser sees `"upd":1` in `/state` and shows a silent badge.
 2. Browser calls `/checkupdate` → ESP fetches `version.json` (cached 60 s) and compares SHA against `FIRMWARE_VERSION`.
-3. Browser calls `/update` (with `X-Requested-With: firelamp` CSRF header) → ESP flushes pending NVS writes, sends HTTP 200, closes the connection, then downloads `firmware.bin` via `HTTPClient` + streams it to `Update.writeStream()`. `Update.setMD5()` is called **after** `Update.begin()` (begin resets the expected hash). After success the ESP reboots automatically. UI polls `/info` every 3 s until lamp responds, then auto-reloads.
+3. Browser calls `/update` (with `X-Requested-With: firelamp` CSRF header) → ESP flushes pending NVS writes, sends HTTP 200, closes the connection, then downloads `firmware.bin` via `HTTPClient`. Firmware is streamed in 512-byte chunks with a 1 ms `vTaskDelay` between each write so Core 0 (LEDs) stays responsive and `otaProgress` (0–100) stays fresh for the progress bar. `Update.setMD5()` is called **after** `Update.begin()` (begin resets the expected hash). While `isUpdating` is true `fireEffect()` renders a bottom-up fill bar using the current theme palette instead of fire. After the stream completes `isUpdating` is cleared and the ESP reboots. UI polls `/info` every 3 s until lamp responds, then auto-reloads.
 4. `boot.cpp` counts consecutive hard crashes (panic/watchdog). On the third consecutive crash it calls `Update.rollBack()` + restart, reverting to the previous OTA slot.
 
 ### Surprise Me — Gemini AI effects
@@ -85,8 +91,22 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 
 **API key** is stored in NVS namespace `gemini`, never compiled into firmware. Sent to ESP via `POST /setgeminikey` (body, not URL) to avoid leaking into logs.
 
+### MQTT
+
+`mqtt.cpp` integrates the lamp as a Home Assistant–compatible MQTT device using the **PubSubClient** library.
+
+**Config** is stored in the `mqtt` NVS namespace (`ip`, `pt`, `u`, `p`, `t`). Password is write-only: `GET /getmqtt` returns `p_set: true/false` but never the plaintext value. Sending `p=-` clears a saved password. All string fields are clamped to 64 chars at write time to prevent NVS exhaustion.
+
+**Topics** (default prefix `firelamp`, configurable):
+- `firelamp/set` — subscribed; accepts a JSON payload with any subset of `state` (ON/OFF), `b`, `c`, `co`, `sp`, `bl`, `th`. State OFF saves the current brightness and sets it to 0; ON restores it.
+- `firelamp/state` — published after every received command and on reconnect; mirrors the full lamp state.
+
+**Reconnect loop** in `serviceMqtt()` retries every 5 s with a random `clientId` (`firelamp-<hex>`) to avoid broker session collisions. `initMqtt()` is called once at boot and again after each `POST /setmqtt` to apply new credentials without a reboot.
+
 ### NVS persistence
 UI parameters (`bright2`, `contrast`, `cooling`, `sparking`, `blend`, `theme`) are written to the `lamp` NVS namespace after 2.5 s of inactivity (`NVS_COMMIT_DELAY_MS`) to avoid flash wear from slider dragging.
+
+MQTT credentials are written immediately on `POST /setmqtt` (not deferred) since they are set infrequently.
 
 The boot-loop crash counter uses a separate `boot` NVS namespace so it never shares an open `Preferences` handle with the UI params.
 
@@ -134,6 +154,9 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini API key to NVS (`gemini` namespace); POST body keeps key out of URL/logs |
 | `GET /geminikey` | — | `{"set":true/false}` — check if key is configured |
 | `GET /surprise` | — | Synchronous Gemini call (blocks ≤25 s); HTTP 200 with full state + `"name"` |
+| `POST /setmqtt` | `ip,pt,u,p,t` | save MQTT broker config; `p=-` clears stored password |
+| `GET /getmqtt` | — | `{"ip","pt","u","p_set":bool,"t"}` — password never returned |
+| `GET /sw.js` | — | Service Worker script (no CSRF required; `Cache-Control: no-cache`) |
 
 ## Hardware Notes
 
