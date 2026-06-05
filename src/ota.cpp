@@ -159,6 +159,8 @@ static void handleUpdate() {
         written += n;
         if (fwSize > 0)
             otaProgress.store((uint8_t)(written * 100UL / (size_t)fwSize), std::memory_order_relaxed);
+        else
+            otaProgress.store((uint8_t)((millis() / 300) % 101), std::memory_order_relaxed);
         vTaskDelay(pdMS_TO_TICKS(1));
     }
     http.end();

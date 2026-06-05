@@ -28,7 +28,7 @@ function loadMqtt(){
     if(x.u) document.getElementById('mqu').value=x.u;
     // Password is write-only on the server; show a placeholder when one is saved.
     var pf=document.getElementById('mqp');
-    pf.placeholder=x.p_set?(ru?'Сохранён (введите для замены)':'Saved (enter to replace)'):'';
+    pf.placeholder=x.p_set?(ru?'Сохранён (введите для замены, - для удаления)':'Saved (enter to replace, - to clear)'):'';
     if(x.t) document.getElementById('mqt').value=x.t;
   }).catch(()=>{});
 }

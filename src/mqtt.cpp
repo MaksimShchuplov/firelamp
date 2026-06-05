@@ -40,11 +40,8 @@ void initMqtt() {
     if (mqIp.length() > 0) {
         mqttClient.setServer(mqIp.c_str(), mqPt);
         mqttClient.setCallback([](char* topic, byte* payload, unsigned int length) {
-            String s = "";
-            for(unsigned int i=0; i<length; i++) s += (char)payload[i];
-            
             JsonDocument doc;
-            DeserializationError err = deserializeJson(doc, s);
+            DeserializationError err = deserializeJson(doc, payload, length);
             if (!err) {
                 bool changed = false;
                 static uint8_t last_b = 100;
@@ -137,7 +134,8 @@ static void handleSetMqtt() {
     p.putString("ip", ip);
     p.putInt("pt", pt);
     p.putString("u", u);
-    if (pw.length() > 0) p.putString("p", pw);  // empty means "keep existing"
+    if (pw == "-")        p.remove("p");          // "-" is the explicit "clear password" sentinel
+    else if (pw.length() > 0) p.putString("p", pw);
     p.putString("t", t);
     p.end();
 
