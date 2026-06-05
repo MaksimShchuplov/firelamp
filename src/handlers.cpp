@@ -381,9 +381,34 @@ static void handleManifest() {
     server.sendContent("");
 }
 
+// Network-first, cache-fallback SW. Navigation requests (page load while lamp is
+// off) are served from cache; API calls fall through so existing offline detection works.
+static const char SW_JS[] PROGMEM =
+    "const C='fl-v1';"
+    "self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.add('/'))));"
+    "self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k))))));"
+    "self.addEventListener('fetch',e=>{"
+      "if(e.request.method!=='GET')return;"
+      "e.respondWith(fetch(e.request).then(r=>{"
+        "if(r.ok)caches.open(C).then(c=>c.put(e.request,r.clone()));"
+        "return r;"
+      "}).catch(()=>e.request.mode==='navigate'?caches.match('/'):Promise.reject()));"
+    "});";
+
+static void handleServiceWorker() {
+    // No-cache so the browser always revalidates the SW for version bumps.
+    server.sendHeader("Cache-Control", "no-cache");
+    server.sendHeader("Service-Worker-Allowed", "/");
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "application/javascript", "");
+    server.sendContent_P(SW_JS);
+    server.sendContent("");
+}
+
 void registerBasicHandlers() {
     server.on("/",          handleRoot);
     server.on("/manifest.json", handleManifest);
+    server.on("/sw.js",    handleServiceWorker);
     server.on("/state",     handleState);
     server.on("/setb",      handleSetB);
     server.on("/setc",      handleSetC);

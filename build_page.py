@@ -26,6 +26,7 @@ JS_FILES = [
     "js/presets.js",
     "js/ota.js",
     "js/ai.js",
+    "js/mqtt.js",
     "js/poll.js",
 ]
 
