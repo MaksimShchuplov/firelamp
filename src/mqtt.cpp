@@ -157,7 +157,8 @@ static void handleGetMqtt() {
     p.end();
 
     // Password is write-only: return only whether it's set, not the value.
-    char buf[256];
+    // ip/u/t are <=64 raw; jsonEscape can double each, so 512 covers the worst case.
+    char buf[512];
     snprintf(buf, sizeof(buf), "{\"ip\":\"%s\",\"pt\":%d,\"u\":\"%s\",\"p_set\":%s,\"t\":\"%s\"}",
              jsonEscape(ip).c_str(), pt, jsonEscape(u).c_str(), hasPw ? "true" : "false", jsonEscape(t).c_str());
     server.send(200, "application/json", buf);
