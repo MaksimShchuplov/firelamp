@@ -33,7 +33,7 @@ document.getElementById('prename').addEventListener('keydown',function(e){if(e.k
          {label:ru?'Удалить пресет':'Delete preset',cls:'danger',fn:function(){deletePreset(s);}}]);
     }else saveSlot(s);
   },600);}
-  function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(function(r){if(!r.ok)throw new Error('http_'+r.status);return r.json();}).then(function(x){pullFails=0;hideOffline();var ae=document.activeElement;if(ae!==sb)pb(x.b);if(ae!==sc)pc(x.c);if(ae!==sco)pco(x.co);if(ae!==ssp)psp(x.sp);if(ae!==sbl)pbl(x.bl);pth(x.th);if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}else saveSlot(s);}}
+  function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(function(r){if(!r.ok)throw new Error('http_'+r.status);return r.json();}).then(function(x){applyState(x);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}else saveSlot(s);}}
   b.addEventListener('touchstart',onStart,{passive:false});
   b.addEventListener('touchend',onEnd,{passive:false});
   b.addEventListener('touchmove',function(){if(pt){clearTimeout(pt);pt=null;}},{passive:true});

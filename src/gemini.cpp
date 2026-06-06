@@ -194,8 +194,8 @@ static void handleSurprise() {
     // Core-1-only and serialised by the HTTP handler context — same as before.
     char surpriseName[PRESET_NAME_MAX_LEN * 4 + 1] = {};
     const char *err = surpriseBody(apiKey, surpriseName, sizeof(surpriseName));
-    s_surpriseBusy.store(false, std::memory_order_release);
     if (err) {
+        s_surpriseBusy.store(false, std::memory_order_release);
         int code = 400;
         if      (strcmp(err, "rate_limit")  == 0) code = 429;
         else if (strcmp(err, "timeout")     == 0) code = 504;
@@ -205,8 +205,10 @@ static void handleSurprise() {
         server.send(code, "application/json",
                     String("{\"error\":\"") + err + "\"}"); return;
     }
-    // Return full state + effect name in one atomic response so the browser
-    // updates sliders and shows the name at the exact moment the lamp changes.
+    // Build response while still holding s_surpriseBusy so formatState() reads
+    // the same atomic values that surpriseBody() just wrote — releasing the gate
+    // first would let a concurrent Core 1 preemption overwrite them before the
+    // JSON snapshot is taken.
     char j[160];
     formatState(j, sizeof(j));
     int slen = strlen(j);
@@ -214,6 +216,7 @@ static void handleSurprise() {
         snprintf(j + slen - 1, sizeof(j) - (size_t)(slen - 1),
                  ",\"name\":\"%s\"}", surpriseName);
     }
+    s_surpriseBusy.store(false, std::memory_order_release);
     server.send(200, "application/json", j);
 }
 

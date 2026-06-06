@@ -27,10 +27,7 @@ function askAI(){
     return r.json();
   }).then(function(x){
     if(x.error)throw new Error(x.error);
-    pullFails=0;hideOffline();
-    var ae=document.activeElement;
-    if(ae!==sb)pb(x.b);if(ae!==sc)pc(x.c);if(ae!==sco)pco(x.co);if(ae!==ssp)psp(x.sp);if(ae!==sbl)pbl(x.bl);pth(x.th);
-    if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);
+    applyState(x);
     if(aiNmTid){clearTimeout(aiNmTid);aiNmTid=null;}clearActive();lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){

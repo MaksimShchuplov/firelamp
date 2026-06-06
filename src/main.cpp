@@ -96,9 +96,9 @@ void setup() {
         "LEDTask", LEDTASK_STACK_BYTES, NULL, 1, &ledTaskHandle, 0   // pinned to Core 0
     );
     if (ok != pdPASS) {
-        // Firmware is valid; the failure is a runtime resource issue (heap).
-        // Mark boot success so the crash counter is not incremented on restart.
-        markBootSuccess();
+        // Do NOT call markBootSuccess() here — the firmware didn't fully initialise.
+        // Leaving the OTA rollback watchdog armed lets the bootloader roll back a
+        // bad OTA image that consistently fails LEDTask creation (heap exhaustion).
         LOG_ERROR("LEDTask creation failed (heap?) — rebooting");
         ESP.restart();
     }

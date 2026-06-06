@@ -40,11 +40,13 @@ bool parseIntArg(const char *name, int lo, int hi, int &out) {
     if (!server.hasArg(name)) return false;
     const String &s = server.arg(name);
     if (s.isEmpty()) return false;
-    // Reject obviously non-numeric strings before toInt() silently returns 0.
-    bool hasDigit = false;
-    for (unsigned i = (s[0] == '-') ? 1 : 0; i < s.length(); i++)
-        if (isdigit(s[i])) { hasDigit = true; break; }
-    if (!hasDigit) return false;
+    // Require the string to be exactly [-]digit+ so that inputs like
+    // '12abc', '--5', or '0x10' are rejected rather than silently coerced
+    // by toInt()'s first-valid-prefix behaviour.
+    unsigned i = (s[0] == '-') ? 1 : 0;
+    if (i >= s.length()) return false;  // lone '-' with no digits
+    for (; i < s.length(); i++)
+        if (!isdigit((unsigned char)s[i])) return false;
     long v = s.toInt();
     if (v < lo || v > hi) return false;
     out = (int)v;

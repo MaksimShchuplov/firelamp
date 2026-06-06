@@ -218,3 +218,43 @@ describe('dynDesc lookup logic', () => {
     }
   });
 });
+
+// ===========================================================================
+// xf() header-merge logic — extracted from globals.js for unit testing.
+// The real xf() wraps fetch(); here we test only the header-building step
+// so no DOM or network is required.
+// ===========================================================================
+
+function mergeXfHeaders(o) {
+  return Object.assign({'X-Requested-With': 'firelamp'}, o && o.headers);
+}
+
+describe('xf() header merging', () => {
+  test('CSRF header is present when called with no options', () => {
+    const h = mergeXfHeaders(undefined);
+    assert.equal(h['X-Requested-With'], 'firelamp');
+  });
+
+  test('CSRF header is present when options has no headers key', () => {
+    const h = mergeXfHeaders({ method: 'POST' });
+    assert.equal(h['X-Requested-With'], 'firelamp');
+  });
+
+  test('caller headers are merged and preserved alongside CSRF', () => {
+    const h = mergeXfHeaders({ headers: { 'Content-Type': 'application/json' } });
+    assert.equal(h['X-Requested-With'], 'firelamp');
+    assert.equal(h['Content-Type'], 'application/json');
+  });
+
+  test('caller cannot accidentally drop CSRF by passing empty headers', () => {
+    const h = mergeXfHeaders({ headers: {} });
+    assert.equal(h['X-Requested-With'], 'firelamp');
+  });
+
+  test('options object is not mutated', () => {
+    const opts = { headers: { 'Content-Type': 'text/plain' } };
+    mergeXfHeaders(opts);
+    assert.deepEqual(Object.keys(opts.headers), ['Content-Type'],
+      'original options.headers should not gain X-Requested-With');
+  });
+});

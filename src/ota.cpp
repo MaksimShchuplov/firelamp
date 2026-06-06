@@ -67,6 +67,14 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *o
     return true;
 }
 
+// Returns true when the remote build is newer than the running firmware.
+// Uses monotonic build numbers when both sides are CI builds (build_n > 0);
+// falls back to SHA inequality for locally-flashed firmware (BUILD_N == 0).
+static bool isNewerBuild(uint32_t remoteBuildN, const String &remoteVer) {
+    return (remoteBuildN > 0 && BUILD_N > 0) ? (remoteBuildN > BUILD_N)
+                                              : (remoteVer != String(FIRMWARE_VERSION));
+}
+
 static void handleCheckUpdate() {
     if (!isWebRequest()) return;
     String ver, md5;
@@ -75,10 +83,7 @@ static void handleCheckUpdate() {
     if (!fetchVersionInfo(ver, md5, buildN, &busy)) {
         server.send(503, "application/json", busy ? "{\"error\":\"busy\"}" : "{\"error\":\"fetch_failed\"}"); return;
     }
-    // Compare monotonic build numbers when available (build_n > 0 means a CI build).
-    // Falls back to SHA inequality for firmware flashed locally (BUILD_N == 0).
-    bool avail = (buildN > 0 && BUILD_N > 0) ? (buildN > BUILD_N)
-                                              : (ver != String(FIRMWARE_VERSION));
+    bool avail = isNewerBuild(buildN, ver);
     server.send(200, "application/json",
         "{\"current\":\"" FIRMWARE_VERSION "\",\"latest\":\"" + jsonEscape(ver) +
         "\",\"update_available\":" + (avail ? "true" : "false") +
@@ -183,8 +188,7 @@ static void autoUpdateCheck(void *) {
         String ver, md5;
         uint32_t buildN;
         if (fetchVersionInfo(ver, md5, buildN))
-            updatePending = (buildN > 0 && BUILD_N > 0) ? (buildN > BUILD_N)
-                                                        : (ver != String(FIRMWARE_VERSION));
+            updatePending = isNewerBuild(buildN, ver);
     }  // ver, md5 destructors run here before vTaskDelete
     vTaskDelete(NULL);
 }
