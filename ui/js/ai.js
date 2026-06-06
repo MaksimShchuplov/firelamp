@@ -20,7 +20,7 @@ function askAI(){
   btn.disabled=true;nm.style.color='#fbbf24';nm.textContent='';
   var elapsed=0,etid=setInterval(function(){elapsed++;btn.textContent=(ru?'✨ Думаю ':'✨ Thinking ')+elapsed+'s…';},1000);
   btn.textContent=ru?'✨ Думаю 0s…':'✨ Thinking 0s…';
-  var ac=new AbortController(),to=setTimeout(function(){ac.abort();},13000);
+  var ac=new AbortController(),to=setTimeout(function(){ac.abort();},30000);
   xf('/surprise',{signal:ac.signal}).then(function(r){
     clearTimeout(to);clearInterval(etid);
     if(r.status===429)throw new Error('rate_limit');
