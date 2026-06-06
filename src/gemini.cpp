@@ -4,6 +4,7 @@
 #include <Preferences.h>
 #include "globals.h"
 #include "net_helpers.h"
+#include "mqtt.h"
 #include "certs.h"
 #include <ArduinoJson.h>
 static void handleSetGeminiKey() {
@@ -218,6 +219,7 @@ static void handleSurprise() {
     }
     s_surpriseBusy.store(false, std::memory_order_release);
     server.send(200, "application/json", j);
+    mqttPublishState();
 }
 
 void registerGeminiHandlers() {
