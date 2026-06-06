@@ -140,11 +140,11 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
         FAIL("parse_failed");
     }
 
-    if (b  >= 0) setBright(constrain(b,  0, 100));
-    if (cv >= 0) { uiContrast = (uint8_t)constrain(cv, 0,   100); }
-    if (co >= 0) { uiCooling  = (uint8_t)constrain(co, 20,  150); recalcCooling(); }
-    if (sp >= 0) { uiSparking = (uint8_t)constrain(sp, 0,   255); }
-    if (bl >= 0) { uiBlend    = (uint8_t)constrain(bl, 0,   255); }
+    if (b  >= 0) setBright(constrain(b,  BRIGHT_MIN,   BRIGHT_MAX));
+    if (cv >= 0) { uiContrast = (uint8_t)constrain(cv, CONTRAST_MIN, CONTRAST_MAX); }
+    if (co >= 0) { uiCooling  = (uint8_t)constrain(co, COOLING_MIN,  COOLING_MAX);  recalcCooling(); }
+    if (sp >= 0) { uiSparking = (uint8_t)constrain(sp, SPARKING_MIN, SPARKING_MAX); }
+    if (bl >= 0) { uiBlend    = (uint8_t)constrain(bl, BLEND_MIN,    BLEND_MAX);    }
     if (th >= 0) { uiTheme    = (uint8_t)constrain(th, 0,   THEME_COUNT - 1); }
     buildHeatPalette();
     updatePowerCalc();
