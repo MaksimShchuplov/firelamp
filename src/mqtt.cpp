@@ -44,7 +44,7 @@ void initMqtt() {
             DeserializationError err = deserializeJson(doc, payload, length);
             if (!err) {
                 bool changed = false;
-                static uint8_t last_b = 100;
+                static uint8_t last_b = BRIGHT_DEFAULT;
 
                 if (doc.containsKey("state")) {
                     String st = doc["state"];
@@ -53,7 +53,7 @@ void initMqtt() {
                         setBright(0);
                         changed = true;
                     } else if (st == "ON" && uiBright == 0) {
-                        setBright(last_b > 0 ? last_b : 100);
+                        setBright(last_b > 0 ? last_b : BRIGHT_DEFAULT);
                         changed = true;
                     }
                 }
@@ -150,7 +150,7 @@ static void handleGetMqtt() {
     String ip    = p.getString("ip", "");
     int    pt    = p.getInt("pt", 1883);
     String u     = p.getString("u", "");
-    bool   hasPw = p.isKey("p") && p.getString("p", "").length() > 0;
+    bool   hasPw = p.getString("p", "").length() > 0;
     String t     = p.getString("t", "firelamp");
     p.end();
 

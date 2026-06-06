@@ -20,8 +20,10 @@ static void handleManifest() {
 // off) are served from cache; API calls fall through so existing offline detection works.
 static const char SW_JS[] PROGMEM =
     "const C='fl-v1';"
-    "self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.add('/'))));"
-    "self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k))))));"
+    // skipWaiting + clients.claim so a redeployed SW takes over immediately
+    // instead of waiting for every PWA tab to close (single-tab home-screen app).
+    "self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.add('/')))});"
+    "self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));"
     "self.addEventListener('fetch',e=>{"
       "if(e.request.method!=='GET')return;"
       "e.respondWith(fetch(e.request).then(r=>{"
