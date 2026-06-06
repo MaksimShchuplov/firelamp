@@ -26,12 +26,14 @@ src/
   fire.cpp      — palette, brightness/gamma, wind, fire simulation
   boot.cpp      — crash-counter boot-loop detection + OTA rollback
   network.cpp   — startNetwork() + serviceNetwork() only; calls registerXxx()
-  handlers.cpp  — shared utilities + basic handlers (setb/c/co/sp/bl/theme, reset, info, debug, sw.js)
+  handlers.cpp  — shared utilities + basic handlers (setb/c/co/sp/bl/theme, reset, info, debug, log, resetwifi)
   presets.cpp   — preset CRUD (getpresets, savepreset, loadpreset, deletepreset)
   ota.cpp       — OTA update flow + autoUpdateCheck background task
   gemini.cpp    — Gemini AI Surprise Me effect (synchronous handler, surprise, setgeminikey, geminikey)
   mqtt.cpp      — MQTT client (PubSubClient): connect/reconnect, subscribe firelamp/set, publish firelamp/state
   mqtt.h        — mqttPublishState(), initMqtt(), serviceMqtt(), registerMqttHandlers()
+  flash.cpp     — /flash manual firmware upload (browser → lamp, no GitHub TLS) recovery endpoint
+  pwa.cpp       — PWA assets: manifest.json + service worker (sw.js)
 ui/
   index.html    — HTML structure (opens in browser for preview; link/script tags load source files)
   css/          — 8 CSS files (base, sliders, buttons, modal, themes, presets, sheet, ai)

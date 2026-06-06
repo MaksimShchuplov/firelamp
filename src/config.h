@@ -32,6 +32,21 @@
 #define BRIGHT_FLOOR        4       // min stable raw PWM on WS2812B
 #define BRIGHT_DITHER_ON    16      // enable BINARY_DITHER above this raw value
 
+// ---- UI parameter ranges ---------------------------------------------------
+// Single source of truth for the HTTP handlers, the MQTT callback, and the NVS
+// sanity-clamp. Keep these in sync or the three control paths diverge silently.
+// Theme range is [0, THEME_COUNT-1] (see Themes section).
+#define BRIGHT_MIN          0
+#define BRIGHT_MAX          100
+#define CONTRAST_MIN        0
+#define CONTRAST_MAX        100
+#define COOLING_MIN         20
+#define COOLING_MAX         150
+#define SPARKING_MIN        0
+#define SPARKING_MAX        255
+#define BLEND_MIN           0
+#define BLEND_MAX           255
+
 // ---- Task / system ---------------------------------------------------------
 #define LEDTASK_STACK_BYTES     8192    // measured watermark ~3.2 KB; 8 KB gives 2× headroom
 #define POWER_CALC_INTERVAL_MS  3000

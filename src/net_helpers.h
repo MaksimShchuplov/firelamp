@@ -29,9 +29,11 @@ void sendVal();
 //  Route registration — each module calls server.on() for its own handlers
 // =============================================================================
 
-void registerBasicHandlers();   // handlers.cpp: root, set*, reset, info, debug, resetwifi
+void registerBasicHandlers();   // handlers.cpp: root, state, set*, reset, info, debug, log, resetwifi
 void registerPresetHandlers();  // presets.cpp:  getpresets, savepreset, loadpreset, deletepreset
 void registerOtaHandlers();     // ota.cpp:      checkupdate, update
 void startAutoUpdateTask();     // ota.cpp:      launch background version-check FreeRTOS task
 void registerGeminiHandlers();  // gemini.cpp:   surprise, setgeminikey, geminikey
+void registerFlashHandlers();   // flash.cpp:    /flash manual firmware upload (recovery)
+void registerPwaHandlers();     // pwa.cpp:      manifest.json, sw.js
 void loadSettings();

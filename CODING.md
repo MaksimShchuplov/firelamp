@@ -6,8 +6,9 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 
 | Task | Read |
 |------|------|
-| New HTTP endpoint | The module that owns it (handlers/presets/ota/gemini/mqtt) |
+| New HTTP endpoint | The module that owns it (handlers/presets/ota/gemini/mqtt/flash/pwa) |
 | New constant / limit | `config.h` only |
+| Slider param range | `config.h` only (`*_MIN`/`*_MAX`) — single source for HTTP, MQTT, NVS clamp |
 | New shared variable | `globals.h` only |
 | Fire physics / palette | `fire.cpp` only |
 | Web UI layout / HTML | `ui/index.html` only |
@@ -18,6 +19,8 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 | AI Surprise Me | `gemini.cpp` only |
 | Preset CRUD | `presets.cpp` only |
 | MQTT broker / config | `mqtt.cpp` + `ui/js/mqtt.js` |
+| Manual flash recovery (`/flash`) | `flash.cpp` only |
+| PWA manifest / service worker | `pwa.cpp` only |
 | Browser poll / offline detection | `ui/js/poll.js` + `ui/js/state.js` |
 | Cross-module signature | `net_helpers.h` + the one relevant `.cpp` |
 
@@ -26,11 +29,13 @@ Never read all files. Never read UI files for C++ changes. `src/page.h` is gener
 ## Module ownership — each module registers its own routes
 
 ```
-handlers.cpp  →  registerBasicHandlers()   — setb/c/co/sp/bl/theme, reset, info, debug, resetwifi, root, manifest.json, sw.js
+handlers.cpp  →  registerBasicHandlers()   — root, state, setb/c/co/sp/bl/theme, reset, info, debug, log, resetwifi
 presets.cpp   →  registerPresetHandlers()  — getpresets, savepreset, loadpreset, deletepreset
 ota.cpp       →  registerOtaHandlers()     — checkupdate, update; plus startAutoUpdateTask()
 gemini.cpp    →  registerGeminiHandlers()  — surprise, setgeminikey, geminikey
 mqtt.cpp      →  registerMqttHandlers()    — setmqtt, getmqtt; plus initMqtt(), serviceMqtt()
+flash.cpp     →  registerFlashHandlers()   — /flash (GET form + POST upload)
+pwa.cpp       →  registerPwaHandlers()     — manifest.json, sw.js
 network.cpp   →  startNetwork() / serviceNetwork() — no handlers, just wiring
 ```
 

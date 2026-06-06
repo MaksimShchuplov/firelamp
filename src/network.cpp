@@ -17,12 +17,12 @@ void loadSettings() {
     uiTheme    = prefs.getUChar("theme",    THEME_DEFAULT);
     // Sanity-clamp in case NVS held out-of-range bytes from a corrupt write
     // or a downgrade from a future firmware with wider parameter ranges.
-    uiBright   = (uint8_t)constrain((int)uiBright,   0,   100);
-    uiContrast = (uint8_t)constrain((int)uiContrast, 0,   100);
-    uiCooling  = (uint8_t)constrain((int)uiCooling,  20,  150);
-    uiSparking = (uint8_t)constrain((int)uiSparking, 0,   255);
-    uiBlend    = (uint8_t)constrain((int)uiBlend,    0,   255);
-    uiTheme    = (uint8_t)constrain((int)uiTheme,    0,   THEME_COUNT - 1);
+    uiBright   = (uint8_t)constrain((int)uiBright,   BRIGHT_MIN,   BRIGHT_MAX);
+    uiContrast = (uint8_t)constrain((int)uiContrast, CONTRAST_MIN, CONTRAST_MAX);
+    uiCooling  = (uint8_t)constrain((int)uiCooling,  COOLING_MIN,  COOLING_MAX);
+    uiSparking = (uint8_t)constrain((int)uiSparking, SPARKING_MIN, SPARKING_MAX);
+    uiBlend    = (uint8_t)constrain((int)uiBlend,    BLEND_MIN,    BLEND_MAX);
+    uiTheme    = (uint8_t)constrain((int)uiTheme,    0,            THEME_COUNT - 1);
     applyBrightness();
     buildHeatPalette();
     recalcCooling();
@@ -67,6 +67,8 @@ void startNetwork() {
     registerOtaHandlers();
     registerGeminiHandlers();
     registerMqttHandlers();
+    registerFlashHandlers();
+    registerPwaHandlers();
     server.onNotFound([]() { server.send(404, "text/plain", "404"); });
     static const char *hdrs[] = {"X-Requested-With"};
     server.collectHeaders(hdrs, 1);

@@ -58,16 +58,16 @@ void initMqtt() {
                     }
                 }
 
-                if (doc.containsKey("b"))  { 
-                    int v = doc["b"]; 
-                    setBright(constrain(v, 0, 100)); 
+                if (doc.containsKey("b"))  {
+                    int v = doc["b"];
+                    setBright(constrain(v, BRIGHT_MIN, BRIGHT_MAX));
                     if (v > 0) last_b = v; // remember last non-zero brightness
-                    changed = true; 
+                    changed = true;
                 }
-                if (doc.containsKey("c"))  { uiContrast = constrain((int)doc["c"], 0, 100); changed = true; }
-                if (doc.containsKey("co")) { uiCooling = constrain((int)doc["co"], 20, 150); recalcCooling(); changed = true; }
-                if (doc.containsKey("sp")) { uiSparking = constrain((int)doc["sp"], 0, 255); changed = true; }
-                if (doc.containsKey("bl")) { uiBlend = constrain((int)doc["bl"], 0, 255); changed = true; }
+                if (doc.containsKey("c"))  { uiContrast = constrain((int)doc["c"], CONTRAST_MIN, CONTRAST_MAX); changed = true; }
+                if (doc.containsKey("co")) { uiCooling = constrain((int)doc["co"], COOLING_MIN, COOLING_MAX); recalcCooling(); changed = true; }
+                if (doc.containsKey("sp")) { uiSparking = constrain((int)doc["sp"], SPARKING_MIN, SPARKING_MAX); changed = true; }
+                if (doc.containsKey("bl")) { uiBlend = constrain((int)doc["bl"], BLEND_MIN, BLEND_MAX); changed = true; }
                 if (doc.containsKey("th")) { uiTheme = constrain((int)doc["th"], 0, THEME_COUNT - 1); changed = true; }
                 
                 if (changed) {
