@@ -164,10 +164,12 @@ static void handleUpdate() {
         vTaskDelay(pdMS_TO_TICKS(1));
     }
     http.end();
-    isUpdating.store(false, std::memory_order_relaxed);
 
+    // Keep isUpdating true on the success path so the LED bar stays full until the
+    // reboot; only revert to fire if the flash actually failed (no reboot happens then).
     if (!Update.end()) {
         LOG_ERROR("OTA Update.end: %s", Update.errorString());
+        isUpdating.store(false, std::memory_order_relaxed);
         return;
     }
     LOG_INFO("OTA written %u bytes — rebooting", (unsigned)written);

@@ -392,7 +392,18 @@ static const char SW_JS[] PROGMEM =
       "e.respondWith(fetch(e.request).then(r=>{"
         "if(r.ok)caches.open(C).then(c=>c.put(e.request,r.clone()));"
         "return r;"
-      "}).catch(()=>e.request.mode==='navigate'?caches.match('/'):Promise.reject()));"
+      "}).catch(()=>e.request.mode==='navigate'"
+        "?caches.match('/').then(r=>r||new Response("
+          "'<meta charset=utf-8>"
+          "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
+          "<title>Fire Lamp</title>"
+          "<body style=\"margin:0;height:100vh;display:flex;flex-direction:column;"
+          "align-items:center;justify-content:center;background:#0a0503;"
+          "font:600 16px system-ui,sans-serif\">"
+          "<div style=\"font-size:42px;color:#e8632a\">Fire Lamp</div>"
+          "<div style=\"margin-top:10px;color:#888\">Offline</div>',"
+          "{headers:{'Content-Type':'text/html;charset=utf-8'}}))"
+        ":Promise.reject()));"
     "});";
 
 static void handleServiceWorker() {
