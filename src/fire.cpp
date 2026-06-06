@@ -57,11 +57,12 @@ void buildHeatPalette() {
 // =============================================================================
 
 void applyBrightness() {
+    const uint8_t bright = uiBright.load(std::memory_order_relaxed);
     uint8_t raw;
-    if (uiBright == 0) {
+    if (bright == 0) {
         raw = 0;
     } else {
-        int v = (int)(powf((float)uiBright / 100.0f, BRIGHT_GAMMA) * 255.0f + 0.5f);
+        int v = (int)(powf((float)bright / 100.0f, BRIGHT_GAMMA) * 255.0f + 0.5f);
         raw = (uint8_t)(v < BRIGHT_FLOOR ? BRIGHT_FLOOR : v);
     }
     if (raw != appliedRaw) {
@@ -183,7 +184,7 @@ void fireEffect() {
 
     // 3. Ignite sparks at the base
     // Snapshot atomics once — avoids 20 + 800 seq_cst loads (memw on LX7) per frame.
-    const uint8_t sparking = uiSparking;
+    const uint8_t sparking = uiSparking.load(std::memory_order_relaxed);
     for (int x = 0; x < COLUMNS; x++) {
         if (random8() < sparking) {
             uint8_t y = random8(3);
@@ -193,8 +194,8 @@ void fireEffect() {
 
     // 4. Render with temporal blend.
     // Snapshot activePal once — a mid-frame flip must not split palette reads.
-    const CRGB    *pal   = heatPalette[activePal & 1];  // & 1 guards against memory corruption setting it > 1
-    const uint8_t  blend = uiBlend;
+    const CRGB    *pal   = heatPalette[activePal.load(std::memory_order_relaxed) & 1];
+    const uint8_t  blend = uiBlend.load(std::memory_order_relaxed);
     for (int y = 0; y < ROWS; y++) {
         const uint16_t base = (uint16_t)(ROWS - 1 - y) * COLUMNS;
         for (int x = 0; x < COLUMNS; x++)
