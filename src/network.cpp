@@ -78,7 +78,7 @@ void startNetwork() {
 void serviceNetwork() {
     server.handleClient();
 
-    if (prefsDirty.load(std::memory_order_relaxed) && millis() - prefsTouch.load(std::memory_order_relaxed) > NVS_COMMIT_DELAY_MS) {
+    if (prefsDirty.load(std::memory_order_acquire) && millis() - prefsTouch.load(std::memory_order_relaxed) > NVS_COMMIT_DELAY_MS) {
         if (flushPrefs()) {
             prefsDirty.store(false, std::memory_order_relaxed);
         } else {

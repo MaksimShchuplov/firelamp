@@ -56,7 +56,9 @@ extern std::atomic<uint32_t> prefsTouch;
 extern std::atomic<uint32_t> wifiRetryAt;
 
 // Marks NVS dirty and resets the debounce timer. Call from Core 1 only.
-inline void markDirty() { prefsDirty.store(true, std::memory_order_relaxed); prefsTouch.store(millis(), std::memory_order_relaxed); }
+// prefsTouch is stored first (relaxed), then prefsDirty with release ordering so
+// serviceNetwork()'s acquire load of prefsDirty guarantees a consistent timestamp.
+inline void markDirty() { prefsTouch.store(millis(), std::memory_order_relaxed); prefsDirty.store(true, std::memory_order_release); }
 extern std::atomic<uint32_t> lastPowerCalc;  // written Core 0 (fireEffect) + Core 1 (handlers)
 extern std::atomic<bool>     isBooting;      // true while WiFi is connecting
 extern std::atomic<bool>     isUpdating;     // true while OTA firmware is streaming to flash

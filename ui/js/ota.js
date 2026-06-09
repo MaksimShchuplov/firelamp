@@ -8,7 +8,7 @@ document.getElementById('rwifi').onclick=function(){
 var otaEls=['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','rst','chk','rwifi','surprise','ibtn','len','lru'];
 function enableOtaEls(){otaEls.forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=false;});}
 function startOTA(){
-  clearInterval(pollTid);
+  pullSeq++;clearInterval(pollTid);
   otaEls.forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
   var btn=document.getElementById('chk'),info=document.getElementById('vinfo');
   btn.textContent=ru?'Прошивка...':'Flashing...';
