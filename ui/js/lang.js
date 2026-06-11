@@ -12,6 +12,8 @@ function ul(){
  document.getElementById('lbl').textContent=ru?'Плавность':'Blend';
  document.getElementById('lth').textContent=ru?'Тема':'Theme';
  document.getElementById('lpr').textContent=ru?'Пресеты':'Presets';
+ document.getElementById('prexp').textContent=ru?'⬇ Экспорт':'⬇ Export';
+ document.getElementById('primp').textContent=ru?'⬆ Импорт':'⬆ Import';
  document.getElementById('tb0').textContent=ru?'Огонь':'Fire';
  document.getElementById('tb1').textContent=ru?'Тление':'Ember';
  document.getElementById('tb2').textContent=ru?'Плазма':'Plasma';

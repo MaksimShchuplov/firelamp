@@ -38,6 +38,8 @@ void initMqtt() {
     p.end();
 
     if (mqIp.length() > 0) {
+        // HA discovery config (~700 B) exceeds PubSubClient's 256 B default buffer.
+        mqttClient.setBufferSize(1024);
         mqttClient.setServer(mqIp.c_str(), mqPt);
         mqttClient.setCallback([](char* topic, byte* payload, unsigned int length) {
             JsonDocument doc;
@@ -81,6 +83,30 @@ void initMqtt() {
     }
 }
 
+// Home Assistant MQTT Discovery: a retained config message makes the lamp
+// appear in HA automatically (Settings → Devices) — no configuration.yaml.
+// Retained delivery also covers HA restarts without a birth-message listener.
+static void publishDiscovery() {
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    char uid[20];
+    snprintf(uid, sizeof(uid), "firelamp_%02x%02x%02x", mac[3], mac[4], mac[5]);
+    char topic[64];
+    snprintf(topic, sizeof(topic), "homeassistant/light/%s/config", uid);
+    char payload[896];
+    snprintf(payload, sizeof(payload),
+        "{\"name\":\"Fire Lamp\",\"uniq_id\":\"%s\","
+        "\"stat_t\":\"%s/state\",\"cmd_t\":\"%s/set\","
+        "\"stat_val_tpl\":\"{{ value_json.state }}\","
+        "\"pl_on\":\"{\\\"state\\\":\\\"ON\\\"}\",\"pl_off\":\"{\\\"state\\\":\\\"OFF\\\"}\","
+        "\"bri_stat_t\":\"%s/state\",\"bri_val_tpl\":\"{{ value_json.b }}\","
+        "\"bri_cmd_t\":\"%s/set\",\"bri_cmd_tpl\":\"{\\\"b\\\":{{ value }}}\",\"bri_scl\":100,"
+        "\"dev\":{\"ids\":[\"%s\"],\"name\":\"Fire Lamp\",\"mdl\":\"FireLamp ESP32-S3\","
+        "\"sw\":\"" FIRMWARE_VERSION "\"}}",
+        uid, mqT.c_str(), mqT.c_str(), mqT.c_str(), mqT.c_str(), uid);
+    mqttClient.publish(topic, payload, true);
+}
+
 void serviceMqtt() {
     if (mqIp.length() == 0 || WiFi.status() != WL_CONNECTED) return;
     
@@ -102,6 +128,7 @@ void serviceMqtt() {
                 LOG_INFO("MQTT connected to %s:%d", mqIp.c_str(), mqPt);
                 String sub = mqT + "/set";
                 mqttClient.subscribe(sub.c_str());
+                publishDiscovery();
                 mqttPublishState();
             } else {
                 LOG_WARN("MQTT connect failed, rc=%d", mqttClient.state());

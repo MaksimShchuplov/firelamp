@@ -63,6 +63,7 @@
 #define GEMINI_TIMEOUT_MS          25000  // Gemini API response timeout (ESP-side call)
 #define MDNS_NAME               "firelamp"   // → http://firelamp.local
 #define NVS_COMMIT_DELAY_MS     2500    // defer NVS writes to spare flash endurance
+#define NVS_WRITE_MAX_RETRIES   5       // consecutive flush failures before giving up until next change
 #define FIRMWARE_URL  "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"
 #define VERSION_URL   "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/version.json"
 #ifndef FIRMWARE_VERSION

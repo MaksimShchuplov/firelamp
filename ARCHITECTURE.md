@@ -102,6 +102,7 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 **Topics** (default prefix `firelamp`, configurable):
 - `firelamp/set` — subscribed; accepts a JSON payload with any subset of `state` (ON/OFF), `b`, `c`, `co`, `sp`, `bl`, `th`. State OFF saves the current brightness and sets it to 0; ON restores it.
 - `firelamp/state` — published after every received command and on reconnect; mirrors the full lamp state.
+- `homeassistant/light/firelamp_<mac>/config` — retained HA MQTT Discovery config published on every connect; HA auto-creates a light entity (on/off + brightness, `bri_scl: 100`). Retained delivery covers HA restarts. The payload (~700 B) exceeds PubSubClient's 256 B default buffer — `initMqtt()` calls `setBufferSize(1024)`.
 
 **Reconnect loop** in `serviceMqtt()` retries every 5 s with a random `clientId` (`firelamp-<hex>`) to avoid broker session collisions. `initMqtt()` is called once at boot and again after each `POST /setmqtt` to apply new credentials without a reboot.
 

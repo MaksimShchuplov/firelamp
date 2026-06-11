@@ -79,7 +79,9 @@ static void handleSavePreset() {
     snprintf(k, sizeof k, "p%dn", slot); p.putString(k, name);
     for (int j = 0; j < 6; j++) {
         snprintf(k, sizeof k, "p%d%s", slot, kPS[j]);
-        p.putUChar(k, *kPPtr[j]);
+        // Explicit per-param values support the import path; default is the live value.
+        int v;
+        p.putUChar(k, parseIntArg(kPS[j], kPLo[j], kPHi[j], v) ? (uint8_t)v : (uint8_t)*kPPtr[j]);
     }
     p.end();
     server.send(200, "application/json", "{\"ok\":true}");

@@ -79,8 +79,16 @@ void serviceNetwork() {
     server.handleClient();
 
     if (prefsDirty.load(std::memory_order_acquire) && millis() - prefsTouch.load(std::memory_order_relaxed) > NVS_COMMIT_DELAY_MS) {
+        static uint8_t nvsFails = 0;
         if (flushPrefs()) {
             prefsDirty.store(false, std::memory_order_relaxed);
+            nvsFails = 0;
+        } else if (++nvsFails >= NVS_WRITE_MAX_RETRIES) {
+            // Degraded flash: stop hammering it every NVS_COMMIT_DELAY_MS forever.
+            // The next markDirty() re-arms a fresh round of retries.
+            LOG_ERROR("NVS write failed %d times — giving up until next change", NVS_WRITE_MAX_RETRIES);
+            prefsDirty.store(false, std::memory_order_relaxed);
+            nvsFails = 0;
         } else {
             LOG_ERROR("NVS write failed — will retry in %d ms", NVS_COMMIT_DELAY_MS);
             prefsTouch.store(millis(), std::memory_order_relaxed);

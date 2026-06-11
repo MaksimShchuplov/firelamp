@@ -106,6 +106,12 @@ void setup() {
     startNetwork(); // joins WiFi → starts web server (non-blocking)
     isBooting.store(false, std::memory_order_relaxed);
     markBootSuccess();  // firmware initialised without crashing — cancel OTA rollback
+
+    // LEDTask has been rendering throughout the WiFi join — the watermark is
+    // meaningful by now. A shrinking value across framework upgrades is the
+    // early warning before a stack overflow.
+    LOG_INFO("LEDTask stack watermark: %u bytes free of %u",
+             (unsigned)uxTaskGetStackHighWaterMark(ledTaskHandle), LEDTASK_STACK_BYTES);
 }
 
 void loop() {

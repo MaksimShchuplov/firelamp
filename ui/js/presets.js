@@ -41,4 +41,27 @@ document.getElementById('prename').addEventListener('keydown',function(e){if(e.k
   b.addEventListener('mouseup',onEnd);
   b.addEventListener('mouseleave',function(){if(pt){clearTimeout(pt);pt=null;}});
 });
+document.getElementById('prexp').onclick=function(){
+  fetch('/getpresets').then(r=>r.json()).then(function(d){
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:'application/json'}));
+    a.download='firelamp-presets.json';a.click();URL.revokeObjectURL(a.href);
+  }).catch(function(){});
+};
+document.getElementById('primp').onclick=function(){document.getElementById('prfile').click();};
+document.getElementById('prfile').addEventListener('change',function(){
+  var f=this.files[0];this.value='';
+  if(!f)return;
+  f.text().then(function(t){
+    var d=JSON.parse(t);if(!Array.isArray(d))throw 0;
+    var q=Promise.resolve();
+    d.forEach(function(pr){
+      if(!pr||typeof pr.slot!=='number'||pr.slot<0||pr.slot>7||!pr.name)return;
+      var u='/savepreset?slot='+pr.slot+'&name='+encodeURIComponent(String(pr.name).substring(0,15));
+      ['b','c','co','sp','bl','th'].forEach(function(k){if(typeof pr[k]==='number')u+='&'+k+'='+pr[k];});
+      q=q.then(function(){return xf(u);});
+    });
+    q.then(fetchPresets,fetchPresets);
+  }).catch(function(){alert(ru?'Неверный файл пресетов':'Invalid presets file');});
+});
 fetchPresets();

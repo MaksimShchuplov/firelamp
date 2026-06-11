@@ -99,7 +99,7 @@ Open `http://firelamp.local` (or the IP shown in the serial monitor).
 | Sparking | 0–255 | Ignition rate at the base |
 | Blend | 0–255 | Temporal smoothing — lower = frozen glow |
 | Theme | Fire / Ember / Plasma / Ice | Color palette |
-| Presets | 8 slots | Tap to load · Long-press to save or delete |
+| Presets | 8 slots | Tap to load · Long-press to save or delete · Export/Import as JSON |
 | Surprise Me | — | Gemini AI effect — requires a key set in Settings |
 
 All parameters persist to flash automatically.
@@ -109,6 +109,8 @@ All parameters persist to flash automatically.
 ## MQTT
 
 Configure a broker in the settings modal (gear icon → MQTT tab).
+
+**Home Assistant discovers the lamp automatically** — on connect the lamp publishes a retained [MQTT Discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) config, and a "Fire Lamp" light entity appears in Settings → Devices with on/off and brightness. No YAML required.
 
 The lamp subscribes to **`<prefix>/set`** and publishes to **`<prefix>/state`** after every change.
 
@@ -124,7 +126,7 @@ The lamp subscribes to **`<prefix>/set`** and publishes to **`<prefix>/state`** 
 | `bl` | 0–255 | Blend |
 | `th` | 0–3 | Theme |
 
-**Home Assistant `configuration.yaml` example:**
+**Manual `configuration.yaml` example** (only needed if MQTT Discovery is disabled in HA):
 
 ```yaml
 mqtt:
