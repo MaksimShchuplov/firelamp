@@ -35,10 +35,7 @@ static void handleGetPresets() {
         // Strip control chars from names written by old firmware before JSON escaping.
         for (int ci = (int)nm.length() - 1; ci >= 0; ci--)
             if ((uint8_t)nm[ci] < 0x20) nm.remove(ci, 1);
-        // Escape for JSON — names may contain backslashes or quotes from old firmware.
-        nm.replace("\\", "\\\\");
-        nm.replace("\"", "\\\"");
-        GPFMT("{\"slot\":%d,\"name\":\"%s\"", i, nm.c_str());
+        GPFMT("{\"slot\":%d,\"name\":\"%s\"", i, jsonEscape(nm).c_str());
         if (nm.length() > 0) {
             for (int j = 0; j < 6; j++) {
                 snprintf(k, sizeof k, "p%d%s", i, kPS[j]);

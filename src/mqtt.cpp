@@ -100,6 +100,7 @@ static void publishDiscovery() {
     snprintf(uid, sizeof(uid), "firelamp_%02x%02x%02x", mac[3], mac[4], mac[5]);
     char topic[64];
     snprintf(topic, sizeof(topic), "homeassistant/light/%s/config", uid);
+    const char *t = mqT.c_str();
     char payload[896];
     snprintf(payload, sizeof(payload),
         "{\"name\":\"Fire Lamp\",\"uniq_id\":\"%s\","
@@ -110,7 +111,7 @@ static void publishDiscovery() {
         "\"bri_cmd_t\":\"%s/set\",\"bri_cmd_tpl\":\"{\\\"b\\\":{{ value }}}\",\"bri_scl\":100,"
         "\"dev\":{\"ids\":[\"%s\"],\"name\":\"Fire Lamp\",\"mdl\":\"FireLamp ESP32-S3\","
         "\"sw\":\"" FIRMWARE_VERSION "\"}}",
-        uid, mqT.c_str(), mqT.c_str(), mqT.c_str(), mqT.c_str(), uid);
+        uid, t, t, t, t, uid);
     mqttClient.publish(topic, payload, true);
 }
 
@@ -180,20 +181,13 @@ static void handleSetMqtt() {
 }
 
 static void handleGetMqtt() {
-    Preferences p;
-    p.begin("mqtt", true);
-    String ip    = p.getString("ip", "");
-    int    pt    = p.getInt("pt", 1883);
-    String u     = p.getString("u", "");
-    bool   hasPw = p.getString("p", "").length() > 0;
-    String t     = p.getString("t", "firelamp");
-    p.end();
-
+    // Read from in-memory module state — always consistent with the running config.
     // Password is write-only: return only whether it's set, not the value.
     // ip/u/t are <=64 raw; jsonEscape can double each, so 512 covers the worst case.
     char buf[512];
     snprintf(buf, sizeof(buf), "{\"ip\":\"%s\",\"pt\":%d,\"u\":\"%s\",\"p_set\":%s,\"t\":\"%s\"}",
-             jsonEscape(ip).c_str(), pt, jsonEscape(u).c_str(), hasPw ? "true" : "false", jsonEscape(t).c_str());
+             jsonEscape(mqIp).c_str(), mqPt, jsonEscape(mqU).c_str(),
+             mqP.length() > 0 ? "true" : "false", jsonEscape(mqT).c_str());
     server.send(200, "application/json", buf);
 }
 
