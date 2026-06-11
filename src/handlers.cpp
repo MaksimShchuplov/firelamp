@@ -1,29 +1,10 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "globals.h"
+#include "text_utils.h"
 #include "net_helpers.h"
 #include "page.h"
 #include "mqtt.h"
-
-// =============================================================================
-//  SHARED UTILITIES
-// =============================================================================
-
-String jsonEscape(const String &s) {
-    String r;
-    r.reserve(s.length() + 8);
-    for (unsigned i = 0; i < s.length(); i++) {
-        char c = s[i];
-        if      (c == '"')          r += "\\\"";
-        else if (c == '\\')         r += "\\\\";
-        else if (c == '\n')         r += "\\n";
-        else if (c == '\r')         r += "\\r";
-        else if (c == '\t')         r += "\\t";
-        else if ((uint8_t)c < 0x20) { /* skip control characters */ }
-        else                        r += c;
-    }
-    return r;
-}
 
 // Rejects requests without our custom header — blocks cross-origin CSRF attempts.
 // Browser CORS pre-flight fails for cross-origin requests that set custom headers,
@@ -65,18 +46,6 @@ void sendVal() {
     formatState(j, sizeof(j));
     server.send(200, "application/json", j);
     mqttPublishState();
-}
-
-void truncateUtf8(String &s, int maxChars) {
-    if ((int)s.length() <= maxChars) return;
-    int bytePos = 0, chars = 0;
-    while (bytePos < (int)s.length() && chars < maxChars) {
-        uint8_t c = (uint8_t)s[bytePos];
-        int seqLen = (c < 0x80) ? 1 : (c < 0xC0) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
-        if (bytePos + seqLen > (int)s.length()) break;
-        bytePos += seqLen; chars++;
-    }
-    s = s.substring(0, bytePos);
 }
 
 // Uses the always-open global prefs handle (opened in startNetwork).

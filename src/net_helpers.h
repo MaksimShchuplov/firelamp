@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include "text_utils.h"
 
 // =============================================================================
 //  Shared HTTP utilities — implemented in handlers.cpp
@@ -13,9 +14,6 @@
 // Parses a bounded integer query arg. Returns false on failure; caller sends the error response.
 [[nodiscard]] bool parseIntArg(const char *name, int lo, int hi, int &out);
 
-// JSON string escaping.
-[[nodiscard]] String jsonEscape(const String &s);
-
 // Formats current lamp state into buf as JSON {b,c,co,sp,w,bl,th,upd}.
 void formatState(char *buf, size_t len);
 
@@ -24,10 +22,6 @@ void sendVal();
 
 // Writes all 6 UI params to NVS via the global prefs handle. Returns true on success.
 [[nodiscard]] bool flushPrefs();
-
-// Truncates a String in-place to at most maxChars Unicode codepoints without splitting
-// multibyte UTF-8 sequences. Continuation bytes (0x80–0xBF) are treated as single units.
-void truncateUtf8(String &s, int maxChars);
 
 // =============================================================================
 //  Route registration — each module calls server.on() for its own handlers

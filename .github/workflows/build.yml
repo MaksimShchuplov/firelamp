@@ -51,6 +51,9 @@ jobs:
       - name: Run JS tests
         run: node test/test_ui.js
 
+      - name: Run C++ native unit tests
+        run: make -C test/native
+
       - name: Build Firmware
         run: pio run -e esp32s3
 

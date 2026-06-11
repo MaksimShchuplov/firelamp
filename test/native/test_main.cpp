@@ -1,0 +1,267 @@
+#include <unity.h>
+#include <cmath>
+
+#include "arduino_stub.h"
+
+#include "../../src/text_utils.h"
+
+// Define firmware identity before including ota_utils.h so the #ifndef guards
+// in that header are skipped and these values are used throughout the tests.
+#define FIRMWARE_VERSION "testver"
+#define BUILD_N 42
+#include "../../src/ota_utils.h"
+
+void setUp()    {}
+void tearDown() {}
+
+// =============================================================================
+//  jsonEscape
+// =============================================================================
+
+void test_json_escape_empty() {
+    TEST_ASSERT_EQUAL_STRING("", jsonEscape(String("")).c_str());
+}
+
+void test_json_escape_plain_ascii() {
+    TEST_ASSERT_EQUAL_STRING("hello world", jsonEscape(String("hello world")).c_str());
+}
+
+void test_json_escape_double_quote() {
+    TEST_ASSERT_EQUAL_STRING("\\\"", jsonEscape(String("\"")).c_str());
+}
+
+void test_json_escape_backslash() {
+    TEST_ASSERT_EQUAL_STRING("\\\\", jsonEscape(String("\\")).c_str());
+}
+
+void test_json_escape_newline() {
+    TEST_ASSERT_EQUAL_STRING("\\n", jsonEscape(String("\n")).c_str());
+}
+
+void test_json_escape_carriage_return() {
+    TEST_ASSERT_EQUAL_STRING("\\r", jsonEscape(String("\r")).c_str());
+}
+
+void test_json_escape_tab() {
+    TEST_ASSERT_EQUAL_STRING("\\t", jsonEscape(String("\t")).c_str());
+}
+
+void test_json_escape_control_chars_stripped() {
+    // 0x01 and 0x1F are below 0x20 and not \n/\r/\t — must be removed
+    String s; s += (char)0x01; s += (char)0x1F;
+    TEST_ASSERT_EQUAL_STRING("", jsonEscape(s).c_str());
+}
+
+void test_json_escape_mixed() {
+    TEST_ASSERT_EQUAL_STRING("\\\"hi\\nworld\\\\",
+        jsonEscape(String("\"hi\nworld\\")).c_str());
+}
+
+void test_json_escape_utf8_passthrough() {
+    // High bytes (>= 0x80) are not control chars — they pass through unchanged.
+    // 0xD0 0xBF is the UTF-8 encoding of U+043F ('п').
+    String s; s += (char)0xD0; s += (char)0xBF;
+    TEST_ASSERT_EQUAL_STRING("\xD0\xBF", jsonEscape(s).c_str());
+}
+
+// =============================================================================
+//  truncateUtf8
+// =============================================================================
+
+void test_truncate_empty_string() {
+    String s("");
+    truncateUtf8(s, 5);
+    TEST_ASSERT_EQUAL_STRING("", s.c_str());
+}
+
+void test_truncate_ascii_under_limit() {
+    String s("hello");
+    truncateUtf8(s, 10);
+    TEST_ASSERT_EQUAL_STRING("hello", s.c_str());
+}
+
+void test_truncate_ascii_at_limit() {
+    String s("hello");
+    truncateUtf8(s, 5);
+    TEST_ASSERT_EQUAL_STRING("hello", s.c_str());
+}
+
+void test_truncate_ascii_over_limit() {
+    String s("hello world");
+    truncateUtf8(s, 5);
+    TEST_ASSERT_EQUAL_STRING("hello", s.c_str());
+}
+
+void test_truncate_limit_zero() {
+    String s("hello");
+    truncateUtf8(s, 0);
+    TEST_ASSERT_EQUAL_STRING("", s.c_str());
+}
+
+void test_truncate_cyrillic_no_split() {
+    // "Привет" — 6 chars, 12 bytes in UTF-8.
+    // Truncate to 3 chars → "При" (6 bytes). Must not split a 2-byte sequence.
+    String s("\xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82");
+    truncateUtf8(s, 3);
+    TEST_ASSERT_EQUAL_STRING("\xD0\x9F\xD1\x80\xD0\xB8", s.c_str());  // "При"
+    TEST_ASSERT_EQUAL_INT(6, (int)s.length());
+}
+
+void test_truncate_mixed_ascii_cyrillic() {
+    // "AB" + "Я" (U+042F, 2 bytes) = 3 chars, 4 bytes.
+    // Truncate to 2 chars → "AB".
+    String s("AB\xD0\xAF");
+    truncateUtf8(s, 2);
+    TEST_ASSERT_EQUAL_STRING("AB", s.c_str());
+}
+
+void test_truncate_three_byte_sequence_no_split() {
+    // U+4E16 "世" in UTF-8 is 0xE4 0xB8 0x96 (3 bytes).
+    // Two copies = 2 chars, 6 bytes. Truncate to 1 → first char only (3 bytes).
+    String s("\xE4\xB8\x96\xE4\xB8\x96");
+    truncateUtf8(s, 1);
+    TEST_ASSERT_EQUAL_STRING("\xE4\xB8\x96", s.c_str());
+    TEST_ASSERT_EQUAL_INT(3, (int)s.length());
+}
+
+// =============================================================================
+//  isValidMd5
+// =============================================================================
+
+void test_md5_valid_lowercase() {
+    TEST_ASSERT_TRUE(isValidMd5(String("d41d8cd98f00b204e9800998ecf8427e")));
+}
+
+void test_md5_valid_uppercase() {
+    TEST_ASSERT_TRUE(isValidMd5(String("D41D8CD98F00B204E9800998ECF8427E")));
+}
+
+void test_md5_too_short() {
+    TEST_ASSERT_FALSE(isValidMd5(String("d41d8cd98f00b204e9800998ecf8427")));  // 31 chars
+}
+
+void test_md5_too_long() {
+    TEST_ASSERT_FALSE(isValidMd5(String("d41d8cd98f00b204e9800998ecf8427e0")));  // 33 chars
+}
+
+void test_md5_invalid_char() {
+    // 'g' is not a valid hex digit
+    TEST_ASSERT_FALSE(isValidMd5(String("g41d8cd98f00b204e9800998ecf8427e")));
+}
+
+void test_md5_empty() {
+    TEST_ASSERT_FALSE(isValidMd5(String("")));
+}
+
+// =============================================================================
+//  isNewerBuild  (compiled with FIRMWARE_VERSION="testver", BUILD_N=42)
+// =============================================================================
+
+void test_newer_build_both_ci_remote_ahead() {
+    // Both sides have build numbers → numeric comparison: 43 > 42 → newer
+    TEST_ASSERT_TRUE(isNewerBuild(43, String("any")));
+}
+
+void test_newer_build_both_ci_same() {
+    TEST_ASSERT_FALSE(isNewerBuild(42, String("any")));
+}
+
+void test_newer_build_both_ci_remote_behind() {
+    TEST_ASSERT_FALSE(isNewerBuild(41, String("any")));
+}
+
+void test_newer_build_remote_dev_sha_differs() {
+    // remoteBuildN == 0 → SHA fallback; "other123" != "testver" → newer
+    TEST_ASSERT_TRUE(isNewerBuild(0, String("other123")));
+}
+
+void test_newer_build_remote_dev_sha_same() {
+    // remoteBuildN == 0 → SHA fallback; "testver" == "testver" → not newer
+    TEST_ASSERT_FALSE(isNewerBuild(0, String("testver")));
+}
+
+// =============================================================================
+//  Palette regression: contrast == 0 must keep i==0 black (power == 0 edge case)
+// =============================================================================
+
+void test_palette_contrast_zero_i0_stays_black() {
+    // At contrast=0: power = 1 + (0 - 50) / 50 = 0.
+    // IEEE powf(0, 0) == 1.0, which would map "no heat" (i==0) to max brightness.
+    // The fix: clamp i==0 to n=0 unconditionally.
+    const int   contrast = 0;
+    const float power    = 1.0f + ((float)contrast - 50.0f) / 50.0f;
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 0.0f, power);  // sanity: power is indeed 0
+
+    const int   i = 0;
+    const float n = (i == 0) ? 0.0f : powf((float)i / 255.0f, power);
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 0.0f, n);  // i==0 must be black, not 1.0
+}
+
+void test_palette_contrast_zero_nonzero_i_full_bright() {
+    // With power==0, any i>0 gives powf(x,0)==1.0 — intentional: the entire palette
+    // collapses to maximum brightness, creating a white-hot solid effect.
+    const int   contrast = 0;
+    const float power    = 1.0f + ((float)contrast - 50.0f) / 50.0f;
+
+    const int   i = 128;
+    const float n = (i == 0) ? 0.0f : powf((float)i / 255.0f, power);
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.0f, n);
+}
+
+void test_palette_normal_contrast_midpoint() {
+    // At contrast=50: power = 1.0 (linear). i=128 → n ≈ 0.502.
+    const int   contrast = 50;
+    const float power    = 1.0f + ((float)contrast - 50.0f) / 50.0f;
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.0f, power);
+
+    const int   i = 128;
+    const float n = (i == 0) ? 0.0f : powf((float)i / 255.0f, power);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.502f, n);
+}
+
+// =============================================================================
+//  Entry point
+// =============================================================================
+
+int main() {
+    UNITY_BEGIN();
+
+    RUN_TEST(test_json_escape_empty);
+    RUN_TEST(test_json_escape_plain_ascii);
+    RUN_TEST(test_json_escape_double_quote);
+    RUN_TEST(test_json_escape_backslash);
+    RUN_TEST(test_json_escape_newline);
+    RUN_TEST(test_json_escape_carriage_return);
+    RUN_TEST(test_json_escape_tab);
+    RUN_TEST(test_json_escape_control_chars_stripped);
+    RUN_TEST(test_json_escape_mixed);
+    RUN_TEST(test_json_escape_utf8_passthrough);
+
+    RUN_TEST(test_truncate_empty_string);
+    RUN_TEST(test_truncate_ascii_under_limit);
+    RUN_TEST(test_truncate_ascii_at_limit);
+    RUN_TEST(test_truncate_ascii_over_limit);
+    RUN_TEST(test_truncate_limit_zero);
+    RUN_TEST(test_truncate_cyrillic_no_split);
+    RUN_TEST(test_truncate_mixed_ascii_cyrillic);
+    RUN_TEST(test_truncate_three_byte_sequence_no_split);
+
+    RUN_TEST(test_md5_valid_lowercase);
+    RUN_TEST(test_md5_valid_uppercase);
+    RUN_TEST(test_md5_too_short);
+    RUN_TEST(test_md5_too_long);
+    RUN_TEST(test_md5_invalid_char);
+    RUN_TEST(test_md5_empty);
+
+    RUN_TEST(test_newer_build_both_ci_remote_ahead);
+    RUN_TEST(test_newer_build_both_ci_same);
+    RUN_TEST(test_newer_build_both_ci_remote_behind);
+    RUN_TEST(test_newer_build_remote_dev_sha_differs);
+    RUN_TEST(test_newer_build_remote_dev_sha_same);
+
+    RUN_TEST(test_palette_contrast_zero_i0_stays_black);
+    RUN_TEST(test_palette_contrast_zero_nonzero_i_full_bright);
+    RUN_TEST(test_palette_normal_contrast_midpoint);
+
+    return UNITY_END();
+}

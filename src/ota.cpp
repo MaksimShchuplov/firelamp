@@ -4,6 +4,7 @@
 #include <Update.h>
 #include <ArduinoJson.h>
 #include "globals.h"
+#include "ota_utils.h"
 #include "net_helpers.h"
 #include "certs.h"
 
@@ -60,14 +61,6 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *o
     return true;
 }
 
-// Returns true when the remote build is newer than the running firmware.
-// Uses monotonic build numbers when both sides are CI builds (build_n > 0);
-// falls back to SHA inequality for locally-flashed firmware (BUILD_N == 0).
-static bool isNewerBuild(uint32_t remoteBuildN, const String &remoteVer) {
-    return (remoteBuildN > 0 && BUILD_N > 0) ? (remoteBuildN > BUILD_N)
-                                              : (remoteVer != String(FIRMWARE_VERSION));
-}
-
 static void handleCheckUpdate() {
     if (!isWebRequest()) return;
     String ver, md5;
@@ -81,16 +74,6 @@ static void handleCheckUpdate() {
         "{\"current\":\"" FIRMWARE_VERSION "\",\"latest\":\"" + jsonEscape(ver) +
         "\",\"update_available\":" + (avail ? "true" : "false") +
         ",\"date\":\"" __DATE__ " " __TIME__ "\"}");
-}
-
-static bool isValidMd5(const String &s) {
-    if (s.length() != 32) return false;
-    for (unsigned i = 0; i < 32; i++) {
-        char c = s[i];
-        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
-            return false;
-    }
-    return true;
 }
 
 static void handleUpdate() {

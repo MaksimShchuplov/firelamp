@@ -6,3 +6,4 @@
 src/page.h
 __pycache__/
 *.pyc
+test/native/test_native
