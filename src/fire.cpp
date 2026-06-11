@@ -20,7 +20,9 @@ void buildHeatPalette() {
     const uint8_t next  = (activePal.load() & 1) ^ 1;
     const float   power = 1.0f + ((contrast - 50.0f) / 50.0f);
     for (int i = 0; i < 256; i++) {
-        float    n    = powf((float)i / 255.0f, power);
+        // i==0 must stay black: at contrast==0 power is 0 and powf(0,0)==1,
+        // which would map "no heat" to the brightest palette entry.
+        float    n    = (i == 0) ? 0.0f : powf((float)i / 255.0f, power);
         uint16_t m    = (uint16_t)(n * 255.0f);
         uint8_t  t192 = (uint8_t)((m * 191) / 255);
         uint8_t  ramp = (uint8_t)((t192 & 0x3F) << 2);
