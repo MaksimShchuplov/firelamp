@@ -7,3 +7,5 @@ src/page.h
 __pycache__/
 *.pyc
 test/native/test_native
+ui/node_modules/
+ui/dist/

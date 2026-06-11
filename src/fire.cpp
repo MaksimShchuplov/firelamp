@@ -75,7 +75,7 @@ void applyBrightness() {
 }
 
 void setBright(int v) {
-    v = constrain(v, 0, 100);
+    v = constrain(v, BRIGHT_MIN, BRIGHT_MAX);
     if ((uint8_t)v != uiBright) {
         uiBright   = (uint8_t)v;
         markDirty();
@@ -124,9 +124,9 @@ void updatePowerCalc() {
 void fireEffect() {
     if (isBooting.load(std::memory_order_relaxed)) {
         // Simple LED progress bar filling from bottom to top while WiFi connects
-        CRGB color = heatPalette[activePal.load(std::memory_order_relaxed) & 1][192];
-        color.fadeLightBy(beatsin8(45, 0, 160)); // gentle pulse
-        int t = millis() / 100;
+        CRGB color = heatPalette[activePal.load(std::memory_order_relaxed) & 1][BOOT_BAR_PALETTE_IDX];
+        color.fadeLightBy(beatsin8(BOOT_BAR_PULSE_BPM, 0, BOOT_BAR_PULSE_DEPTH));
+        int t = millis() / BOOT_ROW_ADVANCE_MS;
         int rowsToFill = (t >= ROWS) ? ROWS : t;
         
         FastLED.clear();
@@ -147,12 +147,12 @@ void fireEffect() {
         FastLED.clear();
         for (int y = 0; y < filled; y++) {
             const int base = (ROWS - 1 - y) * COLUMNS;
-            for (int x = 0; x < COLUMNS; x++) leds[base + x] = pal[200];
+            for (int x = 0; x < COLUMNS; x++) leds[base + x] = pal[OTA_BAR_FILL_IDX];
         }
         if (filled < ROWS) {
             const int base = (ROWS - 1 - filled) * COLUMNS;
-            CRGB tip = pal[240];
-            tip.fadeLightBy(beatsin8(80, 0, 150));
+            CRGB tip = pal[OTA_BAR_TIP_IDX];
+            tip.fadeLightBy(beatsin8(OTA_TIP_PULSE_BPM, 0, OTA_TIP_PULSE_DEPTH));
             for (int x = 0; x < COLUMNS; x++) leds[base + x] = tip;
         }
         applyBrightness();
@@ -189,7 +189,7 @@ void fireEffect() {
     const uint8_t sparking = uiSparking.load(std::memory_order_relaxed);
     for (int x = 0; x < COLUMNS; x++) {
         if (random8() < sparking) {
-            uint8_t y = random8(3);
+            uint8_t y = random8(SPARK_BASE_ROWS);
             heat[y][x] = qadd8(heat[y][x], random8(SPARK_INTENSITY - SPARK_MIN_VARIANCE, SPARK_INTENSITY));
         }
     }

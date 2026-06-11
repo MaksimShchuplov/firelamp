@@ -84,3 +84,19 @@
 #define VERSION_CACHE_MS        60000   // re-fetch version.json at most once per minute
 #define OTA_CHECK_DELAY_MS      8000    // delay after WiFi connect before background OTA check
 #define UPDCHK_STACK_BYTES      12288   // autoUpdateCheck: TLS handshake + HTTPClient needs ~10 KB stack
+
+// ---- Boot animation (Core 0, isBooting render path) ------------------------
+// Palette entry for the loading bar: 192/255 ≈ 75% heat → warm orange on any theme.
+#define BOOT_BAR_PALETTE_IDX    192
+#define BOOT_BAR_PULSE_BPM      45      // beatsin8 speed for the gentle boot-bar flicker
+#define BOOT_BAR_PULSE_DEPTH    160     // beatsin8 high end (0 = unaffected, 255 = black)
+#define BOOT_ROW_ADVANCE_MS     100     // one row added to the bar every N ms
+
+// ---- OTA progress animation (Core 0, isUpdating render path) ---------------
+#define OTA_BAR_FILL_IDX        200     // palette entry for fully-filled bar segments
+#define OTA_BAR_TIP_IDX         240     // palette entry for the glowing leading edge
+#define OTA_TIP_PULSE_BPM       80      // beatsin8 speed for the tip fade shimmer
+#define OTA_TIP_PULSE_DEPTH     150     // beatsin8 high end
+
+// ---- Spark base rows --------------------------------------------------------
+#define SPARK_BASE_ROWS         3       // sparks can ignite in any of the bottom N rows
