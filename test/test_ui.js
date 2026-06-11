@@ -258,3 +258,205 @@ describe('xf() header merging', () => {
       'original options.headers should not gain X-Requested-With');
   });
 });
+
+// ===========================================================================
+// ps() slider clamping — mirrors state.js: Math.max(lo, Math.min(hi, n|0))
+// ===========================================================================
+
+function psClamp(lo, hi, n) {
+  return Math.max(lo, Math.min(hi, n | 0));
+}
+
+describe('ps() slider clamping', () => {
+  test('value within range is returned unchanged', () => {
+    assert.equal(psClamp(0,   100, 50),  50);
+    assert.equal(psClamp(20,  150, 85),  85);
+    assert.equal(psClamp(0,   255, 0),    0);
+    assert.equal(psClamp(0,   255, 255), 255);
+  });
+
+  test('value below lo is clamped to lo', () => {
+    assert.equal(psClamp(0,   100, -1),   0);
+    assert.equal(psClamp(20,  150, 0),   20);
+    assert.equal(psClamp(20,  150, 19),  20);
+  });
+
+  test('value above hi is clamped to hi', () => {
+    assert.equal(psClamp(0,   100, 101), 100);
+    assert.equal(psClamp(0,   255, 300), 255);
+    assert.equal(psClamp(20,  150, 151), 150);
+  });
+
+  test('float is truncated toward zero via |0', () => {
+    assert.equal(psClamp(0, 100, 50.9), 50);
+    assert.equal(psClamp(0, 100, 50.1), 50);
+    assert.equal(psClamp(0, 100,  0.9),  0);
+  });
+
+  test('undefined/null become 0 via |0', () => {
+    assert.equal(psClamp(0, 100, undefined), 0);
+    assert.equal(psClamp(0, 100, null),      0);
+  });
+
+  test('undefined/null clamped to lo when lo > 0', () => {
+    assert.equal(psClamp(20, 150, undefined), 20);
+    assert.equal(psClamp(20, 150, null),      20);
+  });
+});
+
+// ===========================================================================
+// Preset import — validation and URL building extracted from presets.js
+// ===========================================================================
+
+// Mirrors the filter logic in the file-import handler.
+function filterImport(arr) {
+  if (!Array.isArray(arr)) throw new Error('not_array');
+  const out = [];
+  arr.forEach(function(pr) {
+    if (!pr || typeof pr.slot !== 'number' || pr.slot < 0 || pr.slot > 7 || !pr.name) return;
+    out.push(pr);
+  });
+  return out;
+}
+
+// Mirrors URL construction in the file-import forEach loop.
+function buildImportUrl(pr) {
+  let u = '/savepreset?slot=' + pr.slot + '&name=' + encodeURIComponent(String(pr.name).substring(0, 15));
+  ['b', 'c', 'co', 'sp', 'bl', 'th'].forEach(function(k) {
+    if (typeof pr[k] === 'number') u += '&' + k + '=' + pr[k];
+  });
+  return u;
+}
+
+describe('preset import — validation', () => {
+  test('non-array input throws', () => {
+    assert.throws(() => filterImport({}),   /not_array/);
+    assert.throws(() => filterImport('[]'), /not_array/);
+    assert.throws(() => filterImport(null), /not_array/);
+  });
+
+  test('null entry is skipped', () => {
+    assert.deepEqual(filterImport([null, undefined, false]), []);
+  });
+
+  test('entry without slot field is skipped', () => {
+    assert.deepEqual(filterImport([{ name: 'Blaze' }]), []);
+  });
+
+  test('entry with string slot is skipped', () => {
+    assert.deepEqual(filterImport([{ slot: '0', name: 'Blaze' }]), []);
+  });
+
+  test('slot -1 and slot 8 are out of bounds and skipped', () => {
+    assert.deepEqual(filterImport([{ slot: -1, name: 'X' }]), []);
+    assert.deepEqual(filterImport([{ slot: 8,  name: 'X' }]), []);
+  });
+
+  test('entry without name is skipped', () => {
+    assert.deepEqual(filterImport([{ slot: 0 }]), []);
+    assert.deepEqual(filterImport([{ slot: 0, name: '' }]), []);
+  });
+
+  test('valid entry with all params passes through', () => {
+    const pr = { slot: 3, name: 'Blaze', b: 80, c: 60, co: 45, sp: 100, bl: 50, th: 0 };
+    assert.deepEqual(filterImport([pr]), [pr]);
+  });
+
+  test('valid entries at boundary slots 0 and 7 are accepted', () => {
+    const a = { slot: 0, name: 'A' };
+    const b = { slot: 7, name: 'B' };
+    assert.deepEqual(filterImport([a, b]), [a, b]);
+  });
+
+  test('mixed valid and invalid — only valid entries returned', () => {
+    const valid   = { slot: 1, name: 'Good' };
+    const invalid = { slot: 9, name: 'Bad' };
+    assert.deepEqual(filterImport([invalid, null, valid, {}]), [valid]);
+  });
+});
+
+describe('preset import — URL building', () => {
+  test('URL contains correct slot and encoded name', () => {
+    const url = buildImportUrl({ slot: 2, name: 'Blaze' });
+    assert.ok(url.includes('slot=2'),        url);
+    assert.ok(url.includes('name=Blaze'),    url);
+  });
+
+  test('numeric params b, c, co, sp, bl, th are appended', () => {
+    const url = buildImportUrl({ slot: 0, name: 'X', b: 80, c: 60, co: 45, sp: 100, bl: 50, th: 2 });
+    assert.ok(url.includes('&b=80'),   url);
+    assert.ok(url.includes('&c=60'),   url);
+    assert.ok(url.includes('&co=45'),  url);
+    assert.ok(url.includes('&sp=100'), url);
+    assert.ok(url.includes('&bl=50'),  url);
+    assert.ok(url.includes('&th=2'),   url);
+  });
+
+  test('string param values are not appended', () => {
+    const url = buildImportUrl({ slot: 0, name: 'X', b: '80' });
+    assert.ok(!url.includes('&b='), url);
+  });
+
+  test('unknown keys are not appended', () => {
+    const url = buildImportUrl({ slot: 0, name: 'X', foo: 99, bar: 42 });
+    assert.ok(!url.includes('&foo='), url);
+    assert.ok(!url.includes('&bar='), url);
+  });
+
+  test('name is truncated to 15 characters', () => {
+    const url  = buildImportUrl({ slot: 0, name: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' });
+    const name = decodeURIComponent(url.match(/name=([^&]*)/)[1]);
+    assert.equal(name.length, 15, `expected 15 chars, got "${name}"`);
+  });
+
+  test('special characters in name are percent-encoded', () => {
+    const url = buildImportUrl({ slot: 0, name: 'Огонь' });
+    assert.ok(url.includes('name='), url);
+    assert.ok(!url.includes('name=Огонь'), 'Cyrillic should be encoded');
+  });
+});
+
+// ===========================================================================
+// kAmb theme color table — mirrors state.js
+// ===========================================================================
+
+// Extract kAmb without executing any DOM calls.
+function loadKAmb() {
+  const src  = fs.readFileSync(path.join(ROOT, 'ui/js/state.js'), 'utf-8');
+  const m    = src.match(/var kAmb=(\[[\s\S]*?\]);/);
+  if (!m) throw new Error('kAmb not found in state.js');
+  // eslint-disable-next-line no-new-func
+  return new Function('return ' + m[1])();
+}
+
+const kAmb = loadKAmb();
+
+describe('kAmb theme color table', () => {
+  test('exactly 4 themes are defined', () => {
+    assert.equal(kAmb.length, 4);
+  });
+
+  test('each theme entry has 14 values', () => {
+    kAmb.forEach((theme, i) => {
+      assert.equal(theme.length, 14, `theme ${i} should have 14 entries`);
+    });
+  });
+
+  test('first 6 values per theme are non-negative integers (RGB components)', () => {
+    kAmb.forEach((theme, i) => {
+      for (let j = 0; j < 6; j++) {
+        assert.ok(Number.isInteger(theme[j]) && theme[j] >= 0 && theme[j] <= 255,
+          `theme ${i}[${j}] = ${theme[j]} is not a valid 0-255 integer`);
+      }
+    });
+  });
+
+  test('last 8 values per theme are CSS hex color strings', () => {
+    kAmb.forEach((theme, i) => {
+      for (let j = 6; j < 14; j++) {
+        assert.match(String(theme[j]), /^#[0-9a-f]{6}$/i,
+          `theme ${i}[${j}] = "${theme[j]}" is not a #rrggbb color`);
+      }
+    });
+  });
+});
