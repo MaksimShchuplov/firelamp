@@ -104,6 +104,13 @@ def build_page(source, target, env):
 
     manifest_json = read(os.path.join(ui, "manifest.json"))
 
+    for _name, _blob in (("CSS", css), ("JS", js), ("HTML", html), ("manifest.json", manifest_json)):
+        if ")FLPG" in _blob:
+            raise ValueError(
+                "build_page.py: {} contains the raw-string sentinel ')FLPG' — "
+                "rename the FLPG delimiter in build_page.py".format(_name)
+            )
+
     page_h = (
         "#pragma once\n"
         "#include <pgmspace.h>\n"

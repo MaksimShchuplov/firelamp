@@ -241,3 +241,10 @@ class TestBuildPageSource:
             "build_page.py must use 'lambda m:' for the JS re.sub replacement "
             "to prevent JS backslash sequences from being treated as group references"
         )
+
+    def test_flpg_sentinel_guard_present(self):
+        src = _BP.read_text(encoding="utf-8")
+        assert ')FLPG' in src and 'ValueError' in src, (
+            "build_page.py must guard against content containing the ')FLPG' raw-string "
+            "delimiter and raise ValueError if found"
+        )
