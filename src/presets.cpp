@@ -8,8 +8,8 @@
 static const char * const kPS[]  = {"b","c","co","sp","bl","th"};
 static const uint8_t      kPDef[]= {BRIGHT_DEFAULT, CONTRAST_DEFAULT, COOLING_DEFAULT,
                                      SPARKING_DEFAULT, BLEND_DEFAULT, THEME_DEFAULT};
-static const uint8_t      kPLo[] = {0,   0,  20,  0,   0,   0};
-static const uint8_t      kPHi[] = {100, 100, 150, 255, 255, THEME_COUNT - 1};
+static const uint8_t      kPLo[] = {BRIGHT_MIN,  CONTRAST_MIN,  COOLING_MIN,  SPARKING_MIN,  BLEND_MIN,  0};
+static const uint8_t      kPHi[] = {BRIGHT_MAX,  CONTRAST_MAX,  COOLING_MAX,  SPARKING_MAX,  BLEND_MAX,  THEME_COUNT - 1};
 static std::atomic<uint8_t> * const kPPtr[] = {
     &uiBright, &uiContrast, &uiCooling, &uiSparking, &uiBlend, &uiTheme
 };

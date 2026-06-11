@@ -44,40 +44,47 @@ void initMqtt() {
         mqttClient.setCallback([](char* topic, byte* payload, unsigned int length) {
             JsonDocument doc;
             DeserializationError err = deserializeJson(doc, payload, length);
-            if (!err) {
-                bool changed = false;
-                static uint8_t last_b = BRIGHT_DEFAULT;
+            if (err) return;
 
-                if (doc.containsKey("state")) {
-                    String st = doc["state"];
-                    if (st == "OFF" && uiBright > 0) {
-                        last_b = uiBright;
-                        setBright(0);
-                        changed = true;
-                    } else if (st == "ON" && uiBright == 0) {
-                        setBright(last_b > 0 ? last_b : BRIGHT_DEFAULT);
-                        changed = true;
-                    }
-                }
+            bool changed     = false;
+            bool needPalette = false;
+            bool hadB        = doc.containsKey("b");
+            bool hadState    = doc.containsKey("state");
+            static uint8_t last_b = BRIGHT_DEFAULT;
 
-                if (doc.containsKey("b"))  {
-                    int v = doc["b"];
-                    setBright(constrain(v, BRIGHT_MIN, BRIGHT_MAX));
-                    if (v > 0) last_b = v; // remember last non-zero brightness
-                    changed = true;
+            // Process explicit brightness first so the state block sees the updated
+            // last_b and so that {state:OFF, b:N} saves N as the restore point.
+            if (hadB) {
+                int cv = constrain((int)doc["b"], BRIGHT_MIN, BRIGHT_MAX);
+                setBright(cv);
+                if (cv > 0) last_b = (uint8_t)cv;
+                changed = true;
+            }
+
+            if (hadState) {
+                const char *st = doc["state"];
+                if (st && strcmp(st, "OFF") == 0) {
+                    // Save brightness before turning off only when b was not in this payload.
+                    if (!hadB && uiBright > 0) last_b = uiBright;
+                    setBright(0);
+                } else if (st && strcmp(st, "ON") == 0 && !hadB && uiBright == 0) {
+                    setBright(last_b > 0 ? last_b : BRIGHT_DEFAULT);
                 }
-                if (doc.containsKey("c"))  { uiContrast = constrain((int)doc["c"], CONTRAST_MIN, CONTRAST_MAX); changed = true; }
-                if (doc.containsKey("co")) { uiCooling = constrain((int)doc["co"], COOLING_MIN, COOLING_MAX); recalcCooling(); changed = true; }
-                if (doc.containsKey("sp")) { uiSparking = constrain((int)doc["sp"], SPARKING_MIN, SPARKING_MAX); changed = true; }
-                if (doc.containsKey("bl")) { uiBlend = constrain((int)doc["bl"], BLEND_MIN, BLEND_MAX); changed = true; }
-                if (doc.containsKey("th")) { uiTheme = constrain((int)doc["th"], 0, THEME_COUNT - 1); changed = true; }
-                
-                if (changed) {
-                    buildHeatPalette();
-                    updatePowerCalc();
-                    markDirty();
-                    mqttPublishState();
-                }
+                // Always echo so HA receives an ack even for no-op commands.
+                changed = true;
+            }
+
+            if (doc.containsKey("c"))  { uiContrast = (uint8_t)constrain((int)doc["c"],  CONTRAST_MIN, CONTRAST_MAX); needPalette = true; changed = true; }
+            if (doc.containsKey("co")) { uiCooling  = (uint8_t)constrain((int)doc["co"], COOLING_MIN,  COOLING_MAX);  recalcCooling(); changed = true; }
+            if (doc.containsKey("sp")) { uiSparking = (uint8_t)constrain((int)doc["sp"], SPARKING_MIN, SPARKING_MAX); changed = true; }
+            if (doc.containsKey("bl")) { uiBlend    = (uint8_t)constrain((int)doc["bl"], BLEND_MIN,    BLEND_MAX);    changed = true; }
+            if (doc.containsKey("th")) { uiTheme    = (uint8_t)constrain((int)doc["th"], 0, THEME_COUNT - 1); needPalette = true; changed = true; }
+
+            if (changed) {
+                if (needPalette) buildHeatPalette();
+                updatePowerCalc();
+                markDirty();
+                mqttPublishState();
             }
         });
     }

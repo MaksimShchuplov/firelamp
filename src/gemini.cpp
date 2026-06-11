@@ -136,8 +136,8 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
     int bl = innerDoc["bl"] | -1;
     int th = innerDoc["th"] | -1;
 
-    if (name.length() == 0 || b < 0) {
-        LOG_WARN("Gemini: missing fields. name=\"%s\" b=%d", name.c_str(), b);
+    if (name.length() == 0 || b <= 0) {
+        LOG_WARN("Gemini: missing or zero fields. name=\"%s\" b=%d", name.c_str(), b);
         FAIL("parse_failed");
     }
 
@@ -200,7 +200,11 @@ static void handleSurprise() {
     // the same atomic values that surpriseBody() just wrote — releasing the gate
     // first would let a concurrent Core 1 preemption overwrite them before the
     // JSON snapshot is taken.
-    char j[160];
+    // formatState worst case ~82 bytes; suffix ,\"name\":\"<60 chars>\"} needs up to 72 bytes.
+    // Static assert catches future formatState growth before it silently truncates the response.
+    static_assert(sizeof(char[256]) >= 96 + PRESET_NAME_MAX_LEN * 4 + 16,
+                  "j[] too small for formatState output + name suffix");
+    char j[256];
     formatState(j, sizeof(j));
     int slen = strlen(j);
     if (slen > 0 && j[slen - 1] == '}') {

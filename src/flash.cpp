@@ -61,7 +61,11 @@ static void handleFlashUpload() {
             s_flashAuth = false;
         }
     } else if (up.status == UPLOAD_FILE_WRITE) {
-        if (s_flashAuth) Update.write(up.buf, up.currentSize);
+        if (s_flashAuth && Update.write(up.buf, up.currentSize) != up.currentSize) {
+            LOG_ERROR("Flash: write failed at offset %u", (unsigned)up.totalSize);
+            Update.abort();
+            s_flashAuth = false;
+        }
     } else if (up.status == UPLOAD_FILE_END) {
         if (s_flashAuth && !Update.end(true))
             LOG_ERROR("Flash: Update.end: %s", Update.errorString());

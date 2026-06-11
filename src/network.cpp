@@ -97,6 +97,14 @@ void serviceNetwork() {
 
     serviceMqtt();
 
+    // Refresh per-row cooling caps periodically so they vary over time rather than
+    // staying frozen at the single random sample taken on the last parameter change.
+    static uint32_t lastCoolRecalc = 0;
+    if (millis() - lastCoolRecalc > COOLING_RECALC_INTERVAL_MS) {
+        recalcCooling();
+        lastCoolRecalc = millis();
+    }
+
     if (WiFi.status() != WL_CONNECTED && millis() - wifiRetryAt > WIFI_RETRY_MS) {
         wifiRetryAt = millis();
         WiFi.reconnect();

@@ -102,7 +102,7 @@ static void handleUpdate() {
     WiFiClientSecure dlClient;
     dlClient.setCACertBundle(x509_crt_bundle_start);
     HTTPClient http;
-    http.setTimeout(HTTP_TIMEOUT_MS);
+    http.setTimeout(OTA_DOWNLOAD_TIMEOUT_MS);
     http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     LOG_INFO("OTA → %s  md5: %s", ver.c_str(), md5.c_str());
     if (!http.begin(dlClient, FIRMWARE_URL)) {

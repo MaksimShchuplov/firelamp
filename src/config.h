@@ -84,6 +84,7 @@
 #define VERSION_CACHE_MS        60000   // re-fetch version.json at most once per minute
 #define OTA_CHECK_DELAY_MS      8000    // delay after WiFi connect before background OTA check
 #define UPDCHK_STACK_BYTES      12288   // autoUpdateCheck: TLS handshake + HTTPClient needs ~10 KB stack
+#define OTA_DOWNLOAD_TIMEOUT_MS 60000   // per-chunk idle timeout for firmware binary stream; version.json uses HTTP_TIMEOUT_MS
 
 // ---- Boot animation (Core 0, isBooting render path) ------------------------
 // Palette entry for the loading bar: 192/255 ≈ 75% heat → warm orange on any theme.
@@ -100,3 +101,8 @@
 
 // ---- Spark base rows --------------------------------------------------------
 #define SPARK_BASE_ROWS         3       // sparks can ignite in any of the bottom N rows
+
+// ---- Cooling recalculation interval ----------------------------------------
+// coolMax[] is refreshed on this period from Core 1 so per-row cooling caps
+// vary over time rather than staying frozen at the values set on last param change.
+#define COOLING_RECALC_INTERVAL_MS  5000
