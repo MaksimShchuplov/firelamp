@@ -2,6 +2,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <Update.h>
+#include <ArduinoJson.h>
 #include "globals.h"
 #include "net_helpers.h"
 #include "certs.h"
@@ -44,25 +45,17 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *o
     }
     String body = http.getString();
     http.end();
-    auto extractStr = [&](const char *key) -> String {
-        String s = String("\"") + key + "\":\"";
-        int i = body.indexOf(s); if (i < 0) return "";
-        i += s.length();
-        int e = body.indexOf("\"", i);
-        return (e > i) ? body.substring(i, e) : "";
-    };
-    auto extractNum = [&](const char *key) -> uint32_t {
-        String s = String("\"") + key + "\":";
-        int i = body.indexOf(s); if (i < 0) return 0;
-        i += s.length();
-        int e = i;
-        while (e < (int)body.length() && isdigit((unsigned char)body[e])) e++;
-        return (e > i) ? (uint32_t)body.substring(i, e).toInt() : 0;
-    };
-    ver    = extractStr("version");
-    md5    = extractStr("md5");
-    buildN = extractNum("build_n");
-    if (ver.length() == 0) { LOG_WARN("version.json parse failed"); return false; }
+    {
+        JsonDocument doc;
+        if (deserializeJson(doc, body) != DeserializationError::Ok) {
+            LOG_WARN("version.json parse failed");
+            return false;
+        }
+        ver    = doc["version"] | "";
+        md5    = doc["md5"] | "";
+        buildN = (uint32_t)(doc["build_n"] | 0u);
+    }
+    if (ver.length() == 0) { LOG_WARN("version.json: missing version field"); return false; }
     s_ver = ver; s_md5 = md5; s_buildN = buildN; s_at = millis();
     return true;
 }

@@ -25,6 +25,10 @@ void sendVal();
 // Writes all 6 UI params to NVS via the global prefs handle. Returns true on success.
 [[nodiscard]] bool flushPrefs();
 
+// Truncates a String in-place to at most maxChars Unicode codepoints without splitting
+// multibyte UTF-8 sequences. Continuation bytes (0x80–0xBF) are treated as single units.
+void truncateUtf8(String &s, int maxChars);
+
 // =============================================================================
 //  Route registration — each module calls server.on() for its own handlers
 // =============================================================================

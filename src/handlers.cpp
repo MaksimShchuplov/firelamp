@@ -67,6 +67,18 @@ void sendVal() {
     mqttPublishState();
 }
 
+void truncateUtf8(String &s, int maxChars) {
+    if ((int)s.length() <= maxChars) return;
+    int bytePos = 0, chars = 0;
+    while (bytePos < (int)s.length() && chars < maxChars) {
+        uint8_t c = (uint8_t)s[bytePos];
+        int seqLen = (c < 0x80) ? 1 : (c < 0xC0) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
+        if (bytePos + seqLen > (int)s.length()) break;
+        bytePos += seqLen; chars++;
+    }
+    s = s.substring(0, bytePos);
+}
+
 // Uses the always-open global prefs handle (opened in startNetwork).
 bool flushPrefs() {
     bool ok = true;
@@ -84,6 +96,20 @@ bool flushPrefs() {
 // =============================================================================
 
 static void sendInvalid() { server.send(400, "application/json", "{\"error\":\"invalid\"}"); }
+
+// Shared body for setc/setco/setsp/setbl/settheme: validate → change-check → side-effect → dirty → respond.
+static bool applySimpleParam(int lo, int hi, std::atomic<uint8_t> &param, void (*onChanged)() = nullptr) {
+    if (!isWebRequest()) return false;
+    int v;
+    if (!parseIntArg("v", lo, hi, v)) { sendInvalid(); return false; }
+    if (param.load(std::memory_order_relaxed) != (uint8_t)v) {
+        param.store((uint8_t)v, std::memory_order_relaxed);
+        if (onChanged) onChanged();
+        markDirty();
+    }
+    updatePowerCalc(); sendVal();
+    return true;
+}
 
 static void handleRoot() {
     server.sendHeader("X-Content-Type-Options", "nosniff");
@@ -110,68 +136,11 @@ static void handleSetB() {
     sendVal();
 }
 
-static void handleSetC() {
-    if (!isWebRequest()) return;
-    int v;
-    if (!parseIntArg("v", CONTRAST_MIN, CONTRAST_MAX, v)) { sendInvalid(); return; }
-    if (uiContrast != (uint8_t)v) {
-        uiContrast = (uint8_t)v;
-        buildHeatPalette();
-        markDirty();
-    }
-    updatePowerCalc();
-    sendVal();
-}
-
-static void handleSetCo() {
-    if (!isWebRequest()) return;
-    int v;
-    if (!parseIntArg("v", COOLING_MIN, COOLING_MAX, v)) { sendInvalid(); return; }
-    if (uiCooling != (uint8_t)v) {
-        uiCooling = (uint8_t)v;
-        recalcCooling();
-        markDirty();
-    }
-    updatePowerCalc();
-    sendVal();
-}
-
-static void handleSetSp() {
-    if (!isWebRequest()) return;
-    int v;
-    if (!parseIntArg("v", SPARKING_MIN, SPARKING_MAX, v)) { sendInvalid(); return; }
-    if (uiSparking != (uint8_t)v) {
-        uiSparking = (uint8_t)v;
-        markDirty();
-    }
-    updatePowerCalc();
-    sendVal();
-}
-
-static void handleSetBl() {
-    if (!isWebRequest()) return;
-    int v;
-    if (!parseIntArg("v", BLEND_MIN, BLEND_MAX, v)) { sendInvalid(); return; }
-    if (uiBlend != (uint8_t)v) {
-        uiBlend = (uint8_t)v;
-        markDirty();
-    }
-    updatePowerCalc();
-    sendVal();
-}
-
-static void handleSetTheme() {
-    if (!isWebRequest()) return;
-    int v;
-    if (!parseIntArg("v", 0, THEME_COUNT - 1, v)) { sendInvalid(); return; }
-    if (uiTheme != (uint8_t)v) {
-        uiTheme = (uint8_t)v;
-        buildHeatPalette();
-        markDirty();
-    }
-    updatePowerCalc();
-    sendVal();
-}
+static void handleSetC()     { applySimpleParam(CONTRAST_MIN, CONTRAST_MAX,   uiContrast, buildHeatPalette); }
+static void handleSetCo()    { applySimpleParam(COOLING_MIN,  COOLING_MAX,    uiCooling,  recalcCooling); }
+static void handleSetSp()    { applySimpleParam(SPARKING_MIN, SPARKING_MAX,   uiSparking); }
+static void handleSetBl()    { applySimpleParam(BLEND_MIN,    BLEND_MAX,      uiBlend); }
+static void handleSetTheme() { applySimpleParam(0,            THEME_COUNT-1,  uiTheme,    buildHeatPalette); }
 
 static void handleReset() {
     if (!isWebRequest()) return;

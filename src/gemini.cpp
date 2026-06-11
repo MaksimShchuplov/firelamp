@@ -151,17 +151,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
     updatePowerCalc();
     markDirty();
 
-    // Truncate by Unicode codepoints to avoid splitting multibyte UTF-8 sequences.
-    if (name.length() > (unsigned)PRESET_NAME_MAX_LEN) {
-        int bytePos = 0, chars = 0;
-        while (bytePos < (int)name.length() && chars < PRESET_NAME_MAX_LEN) {
-            uint8_t ch = (uint8_t)name[bytePos];
-            int seqLen = (ch < 0x80) ? 1 : (ch < 0xC0) ? 1 : (ch < 0xE0) ? 2 : (ch < 0xF0) ? 3 : 4;
-            if (bytePos + seqLen > (int)name.length()) break;
-            bytePos += seqLen; chars++;
-        }
-        name = name.substring(0, bytePos);
-    }
+    truncateUtf8(name, PRESET_NAME_MAX_LEN);
 
     String esc = jsonEscape(name);
     strncpy(outName, esc.c_str(), nameLen - 1);

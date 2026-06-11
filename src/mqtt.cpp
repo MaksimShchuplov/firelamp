@@ -88,13 +88,14 @@ void serviceMqtt() {
         unsigned long now = millis();
         if (now - lastReconnectAttempt > 5000) {
             lastReconnectAttempt = now;
-            String clientId = "firelamp-" + String(random(0xffff), HEX);
+            char clientId[24];
+            snprintf(clientId, sizeof(clientId), "firelamp-%04x", (unsigned)random(0xffff));
             bool connected = false;
-            
+
             if (mqU.length() > 0) {
-                connected = mqttClient.connect(clientId.c_str(), mqU.c_str(), mqP.c_str());
+                connected = mqttClient.connect(clientId, mqU.c_str(), mqP.c_str());
             } else {
-                connected = mqttClient.connect(clientId.c_str());
+                connected = mqttClient.connect(clientId);
             }
             
             if (connected) {

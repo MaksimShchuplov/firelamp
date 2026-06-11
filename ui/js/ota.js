@@ -21,17 +21,13 @@ function startOTA(){
   info.textContent=ru?'Скачивание... Не закрывайте страницу.':'Downloading... Do not close this page.';
   setTimeout(function(){pfil.style.width='88%';},50);
   function pollReboot(){
-    var n=0,wentOffline=false,tid=setInterval(function(){n++;
+    var n=0,wentOffline=false,tid;
+    function showOtaError(msg){clearInterval(tid);pfil.style.background='#ef4444';info.textContent=msg;enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.onclick=function(){location.reload();};}
+    tid=setInterval(function(){n++;
       var ac=new AbortController(),to=setTimeout(function(){ac.abort();},2000);
       xf('/info',{cache:'no-store',signal:ac.signal}).then(function(r){clearTimeout(to);return r.json();}).then(function(d){
         if(!wentOffline){
-          // Lamp still alive — OTA flash may have failed silently (200 was already sent).
-          // Keep polling; give up at n>10 (~30 s) and show failure.
-          if(n>10){clearInterval(tid);pfil.style.background='#ef4444';
-            info.textContent=ru?'Обновление не удалось. Обновите страницу.':'Update failed. Refresh the page to try again.';
-            enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);
-            btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';
-            btn.onclick=function(){location.reload();};}
+          if(n>10){showOtaError(ru?'Обновление не удалось. Обновите страницу.':'Update failed. Refresh the page to try again.');}
           return;
         }
         // Lamp responded after going offline. Confirm it actually rebooted by
@@ -45,12 +41,7 @@ function startOTA(){
         btn.textContent=ru?'Готово! ✓':'Done! ✓';btn.style.borderColor='#4ade80';btn.style.color='#4ade80';
         info.textContent=(ru?'Обновлено до ':'Updated to ')+d.version;
         setTimeout(function(){location.reload();},2000);
-      }).catch(function(){wentOffline=true;if(n>20){clearInterval(tid);pfil.style.background='#ef4444';
-        info.textContent=ru?'Лампа не отвечает. Обновите страницу вручную.':'Lamp not responding. Refresh manually.';
-        enableOtaEls();
-        pollTid=setInterval(function(){if(!document.hidden)pull();},5000);
-        btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';
-        btn.onclick=function(){location.reload();};}});
+      }).catch(function(){wentOffline=true;if(n>20){showOtaError(ru?'Лампа не отвечает. Обновите страницу вручную.':'Lamp not responding. Refresh manually.');}});
     },3000);
   }
   var doAfter=function(){

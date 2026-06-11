@@ -72,22 +72,7 @@ static void handleSavePreset() {
     for (int i = (int)name.length() - 1; i >= 0; i--)
         if ((uint8_t)name[i] < 0x20) name.remove(i, 1);
     if (name.length() == 0) { server.send(400, "application/json", "{\"error\":\"empty name\"}"); return; }
-    // Truncate by Unicode codepoints, not bytes, to avoid splitting multibyte UTF-8 sequences
-    // (e.g. Cyrillic = 2 bytes/char; naive byte-slice would store invalid UTF-8 in NVS).
-    if (name.length() > (unsigned)PRESET_NAME_MAX_LEN) {
-        int bytePos = 0, chars = 0;
-        while (bytePos < (int)name.length() && chars < PRESET_NAME_MAX_LEN) {
-            uint8_t c = (uint8_t)name[bytePos];
-            // 0x80–0xBF are continuation bytes, never valid sequence starters —
-            // treat them as 1-byte invalid units so a malformed input byte cannot
-            // cause the loop to skip into the middle of a valid codepoint that follows.
-            int seqLen = (c < 0x80) ? 1 : (c < 0xC0) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
-            if (bytePos + seqLen > (int)name.length()) break;  // incomplete sequence at end
-            bytePos += seqLen;
-            chars++;
-        }
-        name = name.substring(0, bytePos);
-    }
+    truncateUtf8(name, PRESET_NAME_MAX_LEN);
     Preferences p;
     p.begin("presets", false);
     char k[6];
