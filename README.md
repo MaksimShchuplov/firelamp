@@ -38,6 +38,8 @@
 
 ## Hardware
 
+Full assembly guide — BOM, power injection, matrix layout, troubleshooting — in [HARDWARE.md](HARDWARE.md).
+
 | Part | Notes |
 |------|-------|
 | ESP32-S3 DevKitC-1 | any ESP32-S3 board works |
