@@ -4,6 +4,8 @@
 #include "arduino_stub.h"
 
 #include "../../src/text_utils.h"
+#include "../../src/config.h"
+#include "../../src/mqtt_state.h"
 
 // Define firmware identity before including ota_utils.h so the #ifndef guards
 // in that header are skipped and these values are used throughout the tests.
@@ -220,6 +222,81 @@ void test_palette_normal_contrast_midpoint() {
 }
 
 // =============================================================================
+//  mqttResolveBright — ON/OFF brightness state machine
+// =============================================================================
+
+void test_mqtt_bright_only_mid() {
+    MqttBrightDelta d = mqttResolveBright(true, false, nullptr, 50, 100, 30);
+    TEST_ASSERT_EQUAL_INT(50, d.bright);
+    TEST_ASSERT_EQUAL_INT(50, d.last_b);
+}
+
+void test_mqtt_bright_zero_does_not_update_last_b() {
+    MqttBrightDelta d = mqttResolveBright(true, false, nullptr, 0, 100, 30);
+    TEST_ASSERT_EQUAL_INT(0, d.bright);
+    TEST_ASSERT_EQUAL_INT(30, d.last_b);  // not updated when cv==0
+}
+
+void test_mqtt_bright_clamped_high() {
+    MqttBrightDelta d = mqttResolveBright(true, false, nullptr, 150, 100, 30);
+    TEST_ASSERT_EQUAL_INT(BRIGHT_MAX, d.bright);
+    TEST_ASSERT_EQUAL_INT(BRIGHT_MAX, d.last_b);
+}
+
+void test_mqtt_bright_clamped_low() {
+    MqttBrightDelta d = mqttResolveBright(true, false, nullptr, -5, 80, 30);
+    TEST_ASSERT_EQUAL_INT(0, d.bright);
+    TEST_ASSERT_EQUAL_INT(30, d.last_b);  // clamped to 0, so last_b not updated
+}
+
+void test_mqtt_off_saves_cur_bright() {
+    MqttBrightDelta d = mqttResolveBright(false, true, "OFF", 0, 80, 30);
+    TEST_ASSERT_EQUAL_INT(0, d.bright);
+    TEST_ASSERT_EQUAL_INT(80, d.last_b);  // saved curBright
+}
+
+void test_mqtt_off_cur_bright_zero_no_save() {
+    MqttBrightDelta d = mqttResolveBright(false, true, "OFF", 0, 0, 30);
+    TEST_ASSERT_EQUAL_INT(0, d.bright);
+    TEST_ASSERT_EQUAL_INT(30, d.last_b);  // curBright==0: nothing to save
+}
+
+void test_mqtt_on_restores_last_b() {
+    MqttBrightDelta d = mqttResolveBright(false, true, "ON", 0, 0, 50);
+    TEST_ASSERT_EQUAL_INT(50, d.bright);
+}
+
+void test_mqtt_on_already_on_no_change() {
+    MqttBrightDelta d = mqttResolveBright(false, true, "ON", 0, 30, 50);
+    TEST_ASSERT_EQUAL_INT(-1, d.bright);  // curBright!=0: no-op
+}
+
+void test_mqtt_on_last_b_zero_uses_default() {
+    MqttBrightDelta d = mqttResolveBright(false, true, "ON", 0, 0, 0);
+    TEST_ASSERT_EQUAL_INT(BRIGHT_DEFAULT, d.bright);
+}
+
+void test_mqtt_b_and_off_saves_new_b_as_last_b() {
+    // {b:80, state:"OFF"} — b processed first; last_b=80, then bright→0
+    MqttBrightDelta d = mqttResolveBright(true, true, "OFF", 80, 50, 30);
+    TEST_ASSERT_EQUAL_INT(0, d.bright);
+    TEST_ASSERT_EQUAL_INT(80, d.last_b);  // b=80 wins over curBright=50
+}
+
+void test_mqtt_b_and_on_skips_on_restore() {
+    // {b:80, state:"ON"} with lamp off — b sets bright directly; ON skips (hadB=true)
+    MqttBrightDelta d = mqttResolveBright(true, true, "ON", 80, 0, 30);
+    TEST_ASSERT_EQUAL_INT(80, d.bright);
+    TEST_ASSERT_EQUAL_INT(80, d.last_b);
+}
+
+void test_mqtt_neither_b_nor_state() {
+    MqttBrightDelta d = mqttResolveBright(false, false, nullptr, 0, 50, 30);
+    TEST_ASSERT_EQUAL_INT(-1, d.bright);
+    TEST_ASSERT_EQUAL_INT(30, d.last_b);
+}
+
+// =============================================================================
 //  Entry point
 // =============================================================================
 
@@ -262,6 +339,19 @@ int main() {
     RUN_TEST(test_palette_contrast_zero_i0_stays_black);
     RUN_TEST(test_palette_contrast_zero_nonzero_i_full_bright);
     RUN_TEST(test_palette_normal_contrast_midpoint);
+
+    RUN_TEST(test_mqtt_bright_only_mid);
+    RUN_TEST(test_mqtt_bright_zero_does_not_update_last_b);
+    RUN_TEST(test_mqtt_bright_clamped_high);
+    RUN_TEST(test_mqtt_bright_clamped_low);
+    RUN_TEST(test_mqtt_off_saves_cur_bright);
+    RUN_TEST(test_mqtt_off_cur_bright_zero_no_save);
+    RUN_TEST(test_mqtt_on_restores_last_b);
+    RUN_TEST(test_mqtt_on_already_on_no_change);
+    RUN_TEST(test_mqtt_on_last_b_zero_uses_default);
+    RUN_TEST(test_mqtt_b_and_off_saves_new_b_as_last_b);
+    RUN_TEST(test_mqtt_b_and_on_skips_on_restore);
+    RUN_TEST(test_mqtt_neither_b_nor_state);
 
     return UNITY_END();
 }

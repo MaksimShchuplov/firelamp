@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Update.h>
+#include <atomic>
 #include "globals.h"
 #include "net_helpers.h"
 
@@ -10,7 +11,7 @@
 //  GitHub required.  Useful when the OTA-to-GitHub path is broken.
 // =============================================================================
 
-static bool s_flashAuth = false;
+static std::atomic<bool> s_flashAuth{false};
 
 static void handleFlashPage() {
     server.send(200, "text/html", F(

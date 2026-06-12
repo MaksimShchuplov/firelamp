@@ -6,6 +6,7 @@
 #include "globals.h"
 #include "net_helpers.h"
 #include "mqtt.h"
+#include "mqtt_state.h"
 
 static WiFiClient espClient;
 static PubSubClient mqttClient(espClient);
@@ -52,27 +53,14 @@ void initMqtt() {
             bool hadState    = doc.containsKey("state");
             static uint8_t last_b = BRIGHT_DEFAULT;
 
-            // Process explicit brightness first so the state block sees the updated
-            // last_b and so that {state:OFF, b:N} saves N as the restore point.
-            if (hadB) {
-                int cv = constrain((int)doc["b"], BRIGHT_MIN, BRIGHT_MAX);
-                setBright(cv);
-                if (cv > 0) last_b = (uint8_t)cv;
-                changed = true;
-            }
-
-            if (hadState) {
-                const char *st = doc["state"];
-                if (st && strcmp(st, "OFF") == 0) {
-                    // Save brightness before turning off only when b was not in this payload.
-                    if (!hadB && uiBright > 0) last_b = uiBright;
-                    setBright(0);
-                } else if (st && strcmp(st, "ON") == 0 && !hadB && uiBright == 0) {
-                    setBright(last_b > 0 ? last_b : BRIGHT_DEFAULT);
-                }
-                // Always echo so HA receives an ack even for no-op commands.
-                changed = true;
-            }
+            MqttBrightDelta bd = mqttResolveBright(
+                hadB, hadState,
+                hadState ? (const char *)doc["state"] : nullptr,
+                hadB ? (int)doc["b"] : 0,
+                (uint8_t)uiBright.load(std::memory_order_relaxed), last_b);
+            if (bd.bright >= 0) setBright(bd.bright);
+            last_b = bd.last_b;
+            if (hadB || hadState) changed = true;
 
             if (doc.containsKey("c"))  { uiContrast = (uint8_t)constrain((int)doc["c"],  CONTRAST_MIN, CONTRAST_MAX); needPalette = true; changed = true; }
             if (doc.containsKey("co")) { uiCooling  = (uint8_t)constrain((int)doc["co"], COOLING_MIN,  COOLING_MAX);  recalcCooling(); changed = true; }
@@ -100,7 +88,10 @@ static void publishDiscovery() {
     snprintf(uid, sizeof(uid), "firelamp_%02x%02x%02x", mac[3], mac[4], mac[5]);
     char topic[64];
     snprintf(topic, sizeof(topic), "homeassistant/light/%s/config", uid);
-    const char *t = mqT.c_str();
+    // jsonEscape prevents a malicious topic prefix from injecting into the JSON
+    // discovery payload published to the Home Assistant broker.
+    String te = jsonEscape(mqT);
+    const char *t = te.c_str();
     char payload[896];
     snprintf(payload, sizeof(payload),
         "{\"name\":\"Fire Lamp\",\"uniq_id\":\"%s\","
@@ -164,6 +155,14 @@ static void handleSetMqtt() {
     if (u.length()  > 64) u  = u.substring(0, 64);
     if (pw.length() > 64) pw = pw.substring(0, 64);
     if (t.length()  > 64) t  = t.substring(0, 64);
+
+    // Reject characters that would break MQTT topic syntax or JSON embedding.
+    // MQTT wildcards (#, +) produce illegal topics; " breaks the discovery payload.
+    for (int i = (int)t.length() - 1; i >= 0; i--) {
+        char c = t[i];
+        if (c == '#' || c == '+' || c == '"' || (uint8_t)c < 0x21 || (uint8_t)c > 0x7E)
+            t.remove(i, 1);
+    }
 
     Preferences p;
     p.begin("mqtt", false);

@@ -78,7 +78,7 @@ static void handleXxx() {
 }
 ```
 
-CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/getpresets`, `/geminikey`.
+CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/getpresets`, `/geminikey`, `/getmqtt`, `/sw.js`, `/manifest.json`.
 `/debug` keeps the guard — it exposes SSID, heap stats, and all tuning params.
 
 ## Code style
