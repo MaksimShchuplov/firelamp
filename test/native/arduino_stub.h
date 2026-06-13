@@ -1,6 +1,6 @@
 #pragma once
 // Minimal Arduino type stubs for native (host) unit tests.
-// Provides String and integer typedefs only — no hardware APIs.
+// Provides String, integer typedefs, and FastLED saturating-math stubs.
 #include <cstdint>
 #include <cstdlib>
 #include <string>
@@ -30,3 +30,13 @@ public:
 
     const char *c_str() const { return _s.c_str(); }
 };
+
+// FastLED saturating-arithmetic stubs used by fire.cpp.
+inline uint8_t qadd8(uint8_t a, uint8_t b) {
+    unsigned v = (unsigned)a + b;
+    return (v > 255) ? 255 : (uint8_t)v;
+}
+inline uint8_t qsub8(uint8_t a, uint8_t b) {
+    return (b >= a) ? 0 : (uint8_t)(a - b);
+}
+

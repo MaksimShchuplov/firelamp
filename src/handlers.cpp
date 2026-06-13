@@ -122,13 +122,12 @@ static void handleReset() {
 }
 
 static void handleInfo() {
-    char j[768];  // 512 is tight for 32-char escaped SSID + all fields; 768 gives safe headroom
-    String ip   = WiFi.localIP().toString();
-    String ssid = jsonEscape(WiFi.SSID());
+    char j[512];
+    String ip = WiFi.localIP().toString();
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
     snprintf(j, sizeof(j),
              "{\"flash_mb\":%u,\"free_heap\":%u,\"min_heap\":%u,"
-             "\"rssi_dbm\":%d,\"uptime_s\":%lu,\"ip\":\"%s\",\"ssid\":\"%s\","
+             "\"rssi_dbm\":%d,\"uptime_s\":%lu,\"ip\":\"%s\","
              "\"led_stack_free\":%lu,"
              "\"version\":\"" FIRMWARE_VERSION "\",\"build\":\"" __DATE__ " " __TIME__ "\"}",
              (unsigned)(ESP.getFlashChipSize() / (1024 * 1024)),
@@ -136,7 +135,7 @@ static void handleInfo() {
              (unsigned)ESP.getMinFreeHeap(),
              (int)WiFi.RSSI(),
              (unsigned long)(millis() / 1000),
-             ip.c_str(), ssid.c_str(),
+             ip.c_str(),
              (unsigned long)watermark);
     server.send(200, "application/json", j);
 }

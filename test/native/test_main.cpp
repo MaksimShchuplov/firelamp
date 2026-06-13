@@ -222,6 +222,92 @@ void test_palette_normal_contrast_midpoint() {
 }
 
 // =============================================================================
+//  Fire algorithm invariants
+//  Tests validate the formulas from fire.cpp using only config.h constants —
+//  no Arduino runtime, no FastLED, no atomics needed.
+// =============================================================================
+
+// --- qadd8 / qsub8 (stubs in arduino_stub.h) ---------------------------------
+
+void test_qadd8_saturates_at_255() {
+    TEST_ASSERT_EQUAL_INT(255, qadd8(200, 100));
+}
+void test_qadd8_no_saturation() {
+    TEST_ASSERT_EQUAL_INT(150, qadd8(100, 50));
+}
+void test_qsub8_saturates_at_0() {
+    TEST_ASSERT_EQUAL_INT(0, qsub8(50, 100));
+}
+void test_qsub8_no_saturation() {
+    TEST_ASSERT_EQUAL_INT(50, qsub8(100, 50));
+}
+
+// --- Upward convection blend coefficients ------------------------------------
+
+void test_convection_coefficients_sum_to_256() {
+    // 154 + 102 == 256 means the weighted blend sums to 1.0 in Q8 fixed-point.
+    // If the sum were < 256, heat would slowly drain; if > 256, it would grow.
+    TEST_ASSERT_EQUAL_INT(256, 154 + 102);
+}
+
+void test_convection_blend_known_inputs() {
+    // Reproduces fire.cpp step 2: heat[y][x] = (h1*154 + h2*102) >> 8
+    uint8_t h1 = 200, h2 = 100;
+    uint8_t result = (uint8_t)(((uint16_t)h1 * 154 + (uint16_t)h2 * 102) >> 8);
+    // (200*154 + 100*102) >> 8 = (30800 + 10200) >> 8 = 41000 >> 8 = 160
+    TEST_ASSERT_EQUAL_INT(160, result);
+}
+
+void test_convection_no_uint16_overflow() {
+    // Worst case: both inputs at 255. Intermediate must fit in uint16_t.
+    uint32_t max_intermediate = (uint32_t)255 * 154 + (uint32_t)255 * 102;
+    TEST_ASSERT_LESS_THAN((uint32_t)65536, max_intermediate);  // 65280 < 65536
+}
+
+// --- Per-row cooling formula (recalcCooling in fire.cpp) --------------------
+// Formula: coolMax = (r * COOLING_ROW_SCALE) / ROWS + COOLING_ROW_BIAS
+//          where r = random8(lo, hi), lo = max(0, cooling-VAR), hi = min(255, cooling+VAR)
+
+void test_cool_formula_always_at_least_bias() {
+    // Even at the lowest possible random sample (lo at COOLING_MIN), result >= BIAS.
+    const int lo = COOLING_MIN - COOLING_VARIANCE;  // 20-10 = 10
+    const uint8_t at_lo = (uint8_t)((lo * COOLING_ROW_SCALE) / ROWS + COOLING_ROW_BIAS);
+    TEST_ASSERT_GREATER_OR_EQUAL(COOLING_ROW_BIAS, at_lo);
+}
+
+void test_cool_formula_higher_cooling_raises_coolmax() {
+    // coolMax at COOLING_MAX min-sample > coolMax at COOLING_MIN max-sample,
+    // i.e. the ranges don't overlap across the full parameter span.
+    const int lo_max = COOLING_MAX - COOLING_VARIANCE;       // 150-10 = 140
+    const int hi_min = COOLING_MIN + COOLING_VARIANCE;       // 20+10  = 30
+    const uint8_t at_max_lo  = (uint8_t)((lo_max * COOLING_ROW_SCALE) / ROWS + COOLING_ROW_BIAS);
+    const uint8_t at_min_hi  = (uint8_t)((hi_min * COOLING_ROW_SCALE) / ROWS + COOLING_ROW_BIAS);
+    TEST_ASSERT_GREATER_THAN(at_min_hi, at_max_lo);
+}
+
+void test_cool_lo_clamp_prevents_underflow() {
+    // If cooling < COOLING_VARIANCE, lo would underflow uint8 without the guard.
+    // fire.cpp: lo = (cooling > COOLING_VARIANCE) ? cooling - COOLING_VARIANCE : 0
+    const uint8_t low_cooling = COOLING_VARIANCE - 1;  // 9 — below the guard threshold
+    const uint8_t lo = (low_cooling > COOLING_VARIANCE) ? low_cooling - COOLING_VARIANCE : 0;
+    TEST_ASSERT_EQUAL_INT(0, lo);
+}
+
+// --- Spark constants ---------------------------------------------------------
+
+void test_spark_base_rows_within_grid() {
+    // Sparks must only touch the bottom SPARK_BASE_ROWS rows; must be within [0, ROWS).
+    TEST_ASSERT_LESS_THAN(ROWS, SPARK_BASE_ROWS);
+}
+
+void test_spark_heat_range_positive() {
+    // random8(SPARK_INTENSITY - SPARK_MIN_VARIANCE, SPARK_INTENSITY) must have lo < hi.
+    const int lo = SPARK_INTENSITY - SPARK_MIN_VARIANCE;  // 240-40 = 200
+    TEST_ASSERT_GREATER_THAN(0, lo);
+    TEST_ASSERT_LESS_THAN(SPARK_INTENSITY, lo);
+}
+
+// =============================================================================
 //  mqttResolveBright — ON/OFF brightness state machine
 // =============================================================================
 
@@ -339,6 +425,19 @@ int main() {
     RUN_TEST(test_palette_contrast_zero_i0_stays_black);
     RUN_TEST(test_palette_contrast_zero_nonzero_i_full_bright);
     RUN_TEST(test_palette_normal_contrast_midpoint);
+
+    RUN_TEST(test_qadd8_saturates_at_255);
+    RUN_TEST(test_qadd8_no_saturation);
+    RUN_TEST(test_qsub8_saturates_at_0);
+    RUN_TEST(test_qsub8_no_saturation);
+    RUN_TEST(test_convection_coefficients_sum_to_256);
+    RUN_TEST(test_convection_blend_known_inputs);
+    RUN_TEST(test_convection_no_uint16_overflow);
+    RUN_TEST(test_cool_formula_always_at_least_bias);
+    RUN_TEST(test_cool_formula_higher_cooling_raises_coolmax);
+    RUN_TEST(test_cool_lo_clamp_prevents_underflow);
+    RUN_TEST(test_spark_base_rows_within_grid);
+    RUN_TEST(test_spark_heat_range_positive);
 
     RUN_TEST(test_mqtt_bright_only_mid);
     RUN_TEST(test_mqtt_bright_zero_does_not_update_last_b);

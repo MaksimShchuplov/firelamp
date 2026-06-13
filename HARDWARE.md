@@ -7,15 +7,16 @@
 | 1 | ESP32-S3 DevKitC-1 | N8R2 or N16R8 | Any S3 board works; N8R2 is the cheapest |
 | 1 | WS2812B LED strip | 144 LED/m, 5 V, IP30 | Cut to exactly 800 LEDs (5.56 m at 144/m) |
 | 1 | 5 V PSU | ≥ 10 A (50 W) | Mean Well LRS-60-5 (12 A) recommended |
-| 1 | Resistor | 300–500 Ω, ¼ W | Series protection on data line |
+| 1 | 74AHCT125 | quad bus buffer, 14-pin DIP or SOIC | 3.3 V → 5 V level shifter on data line |
+| 1 | Resistor | 300–500 Ω, ¼ W | Series protection on data line (after level shifter) |
 | 1 | Capacitor | 1000 µF / 10 V | Across strip power rails, near the first LED |
 | — | Wire, red | 18 AWG, ≥ 30 cm | PSU + to strip 5 V |
 | — | Wire, black | 18 AWG, ≥ 30 cm | PSU GND to strip GND and ESP GND |
-| — | Wire, any color | 24 AWG, ≥ 30 cm | Data line (ESP GPIO 5 → strip DIN) |
+| — | Wire, any color | 24 AWG, ≥ 30 cm | Data line (ESP GPIO 5 → 74AHCT125 → strip DIN) |
 | 1 | Cylindrical frame | 125 mm diameter, ≥ 45 cm tall | Acrylic tube, PVC pipe, or 3D-printed ring stack |
 | — | Diffuser film | white or frosted | Wraps the outside of the frame to blend pixels |
 
-> **Strip selection:** use genuine WS2812B, not WS2811, SK6812, or "NeoPixel compatible" variants unless you verify the 3.3 V logic level is accepted. Most WS2812B chips tolerate 3.3 V data on short runs (< 50 cm). Add a 74AHCT125 level shifter for longer data runs.
+> **Why the level shifter?** WS2812B specifies `V_IH = 0.7 × VDD = 3.5 V` for a HIGH input when powered at 5 V. The ESP32-S3 outputs 3.3 V — 200 mV below that threshold. The 74AHCT125 converts the 3.3 V signal to 5 V unconditionally, so the timing margin is guaranteed regardless of chip batch. Driving the data line directly at 3.3 V often works in practice (many WS2812B have a ~2.5 V actual threshold) but is outside the datasheet specification and can cause random pixel glitches on some strips or at low temperatures.
 
 ---
 
@@ -44,8 +45,13 @@ Both injection points share the same PSU GND rail. Use 18 AWG or thicker wire fo
 ## Wiring
 
 ```
-                       300 Ω
-ESP32-S3 GPIO 5 ───[===]─── Strip DIN (data in)
+                    ┌─────────────────────────┐
+                    │  74AHCT125              │    300 Ω
+ESP32-S3 GPIO 5 ───►│A0            Y0├────────[===]─── Strip DIN (data in)
+PSU 5 V  ──────────►│VCC                     │
+GND      ──────────►│GND, /OE1               │
+                    └─────────────────────────┘
+
 ESP32-S3 GND    ─────────── Strip GND
                             │
                          [1000 µF]  ← place across strip rails near LED 1
@@ -53,6 +59,8 @@ ESP32-S3 GND    ─────────── Strip GND
 PSU 5 V ────────────────── Strip 5 V
 PSU GND ────────────────── Strip GND ─── ESP32-S3 GND
 ```
+
+> Use any of the four A/Y pairs on the 74AHCT125. Tie all unused /OE pins to GND. Power the 74AHCT125 from the **PSU 5 V** rail, not from the ESP 3.3 V pin.
 
 **PSU earth:** connect the PSU earth (green/yellow) to the metal enclosure if used.
 
@@ -88,7 +96,7 @@ If your strip winds serpentine (even rows reversed), the fire will look mirrored
 
 2. **Add the decoupling capacitor.** Solder the 1000 µF cap across the 5 V and GND pads at the very start of the strip (LED 0 side). Observe polarity.
 
-3. **Add the data resistor.** Solder the 300–500 Ω resistor in series on the data wire between GPIO 5 and the strip DIN pad. Place it near the ESP, not the strip.
+3. **Wire the level shifter.** Connect ESP GPIO 5 to any A input of the 74AHCT125. Tie VCC to PSU 5 V and GND+/OE to GND. Then solder the 300–500 Ω resistor in series between the Y output and strip DIN. Place the resistor near the strip DIN pad.
 
 4. **Wire GND first.** Connect ESP GND → strip GND → PSU GND before connecting 5 V to avoid floating signals.
 
@@ -118,8 +126,14 @@ If your strip winds serpentine (even rows reversed), the fire will look mirrored
 
 | ESP32-S3 pin | Connected to | Notes |
 |--------------|-------------|-------|
-| GPIO 5 | Strip DIN (via 300–500 Ω) | Defined as `LED_PIN` in `config.h` |
-| GND | Strip GND, PSU GND | Common ground — all three must be connected |
-| 5 V (VBUS, USB) | — | Do not connect to strip 5 V |
+| GPIO 5 | 74AHCT125 A0 input | Defined as `LED_PIN` in `config.h` |
+| GND | 74AHCT125 GND/OE, strip GND, PSU GND | Common ground — all must share this rail |
+| 5 V (VBUS, USB) | — | Do not connect to strip 5 V or 74AHCT125 VCC |
+
+| 74AHCT125 pin | Connected to | Notes |
+|---------------|-------------|-------|
+| VCC | PSU 5 V | Must be 5 V — not ESP 3.3 V |
+| GND, /OE1 | Common GND | Tie /OE pins to GND to permanently enable outputs |
+| Y0 | Strip DIN (via 300–500 Ω) | 5 V output to the strip |
 
 To use a different data pin, change `#define LED_PIN` in `src/config.h` and reflash.
