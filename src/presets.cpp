@@ -14,6 +14,14 @@ static std::atomic<uint8_t> * const kPPtr[] = {
     &uiBright, &uiContrast, &uiCooling, &uiSparking, &uiBlend, &uiTheme
 };
 
+// One forgotten array entry when adding a UI parameter would silently read past
+// the end of the shorter arrays. Pin every parallel array to PRESET_PARAM_COUNT.
+static_assert(sizeof(kPS)   / sizeof(kPS[0])   == PRESET_PARAM_COUNT, "kPS size mismatch");
+static_assert(sizeof(kPDef) / sizeof(kPDef[0]) == PRESET_PARAM_COUNT, "kPDef size mismatch");
+static_assert(sizeof(kPLo)  / sizeof(kPLo[0])  == PRESET_PARAM_COUNT, "kPLo size mismatch");
+static_assert(sizeof(kPHi)  / sizeof(kPHi[0])  == PRESET_PARAM_COUNT, "kPHi size mismatch");
+static_assert(sizeof(kPPtr) / sizeof(kPPtr[0]) == PRESET_PARAM_COUNT, "kPPtr size mismatch");
+
 static void handleGetPresets() {
     // buf fits worst case: 8 slots × up to ~100 chars (name up to 60 bytes for 15 emoji
     // × 4 bytes each) + JSON framing ≈ 1280 bytes. 2048 gives comfortable headroom.
@@ -37,7 +45,7 @@ static void handleGetPresets() {
             if ((uint8_t)nm[ci] < 0x20) nm.remove(ci, 1);
         GPFMT("{\"slot\":%d,\"name\":\"%s\"", i, jsonEscape(nm).c_str());
         if (nm.length() > 0) {
-            for (int j = 0; j < 6; j++) {
+            for (int j = 0; j < PRESET_PARAM_COUNT; j++) {
                 snprintf(k, sizeof k, "p%d%s", i, kPS[j]);
                 GPFMT(",\"%s\":%d", kPS[j], p.getUChar(k, kPDef[j]));
             }
@@ -74,7 +82,7 @@ static void handleSavePreset() {
     p.begin("presets", false);
     char k[6];
     snprintf(k, sizeof k, "p%dn", slot); p.putString(k, name);
-    for (int j = 0; j < 6; j++) {
+    for (int j = 0; j < PRESET_PARAM_COUNT; j++) {
         snprintf(k, sizeof k, "p%d%s", slot, kPS[j]);
         // Explicit per-param values support the import path; default is the live value.
         int v;
@@ -98,7 +106,7 @@ static void handleLoadPreset() {
     if (name.length() == 0) {
         p.end(); server.send(404, "application/json", "{\"error\":\"empty slot\"}"); return;
     }
-    for (int j = 0; j < 6; j++) {
+    for (int j = 0; j < PRESET_PARAM_COUNT; j++) {
         snprintf(k, sizeof k, "p%d%s", slot, kPS[j]);
         *kPPtr[j] = (uint8_t)constrain((int)p.getUChar(k, kPDef[j]), (int)kPLo[j], (int)kPHi[j]);
     }
@@ -118,7 +126,7 @@ static void handleDeletePreset() {
     p.begin("presets", false);
     char k[6];
     snprintf(k, sizeof k, "p%dn", slot); p.remove(k);
-    for (int j = 0; j < 6; j++) {
+    for (int j = 0; j < PRESET_PARAM_COUNT; j++) {
         snprintf(k, sizeof k, "p%d%s", slot, kPS[j]); p.remove(k);
     }
     p.end();

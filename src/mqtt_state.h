@@ -19,9 +19,9 @@ inline MqttBrightDelta mqttResolveBright(
     MqttBrightDelta d{-1, lastB};
 
     if (hadB) {
-        int cv = newB < BRIGHT_MIN ? BRIGHT_MIN : newB > BRIGHT_MAX ? BRIGHT_MAX : newB;
-        d.bright = cv;
-        if (cv > 0) d.last_b = (uint8_t)cv;
+        int bv = newB < BRIGHT_MIN ? BRIGHT_MIN : newB > BRIGHT_MAX ? BRIGHT_MAX : newB;
+        d.bright = bv;
+        if (bv > 0) d.last_b = (uint8_t)bv;
     }
 
     if (hadState) {

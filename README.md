@@ -56,7 +56,7 @@ ESP32-S3 GND     ───────────  Strip GND  ──  PSU GND
 PSU 5 V          ───────────  Strip 5 V
 ```
 
-> ESP32-S3 outputs 3.3 V logic. Most WS2812B strips accept this directly on short data runs (< 30 cm). Add a 74HCT245 level shifter for longer runs.
+> ESP32-S3 outputs 3.3 V logic. Most WS2812B strips accept this directly on short data runs (< 50 cm). Add a 74AHCT125 level shifter for longer runs.
 
 ---
 

@@ -41,7 +41,7 @@ function startOTA(){
         btn.textContent=ru?'Готово! ✓':'Done! ✓';btn.style.borderColor='#4ade80';btn.style.color='#4ade80';
         info.textContent=(ru?'Обновлено до ':'Updated to ')+d.version;
         setTimeout(function(){location.reload();},2000);
-      }).catch(function(){wentOffline=true;if(n>20){showOtaError(ru?'Лампа не отвечает. Обновите страницу вручную.':'Lamp not responding. Refresh manually.');}});
+      }).catch(function(){clearTimeout(to);wentOffline=true;if(n>20){showOtaError(ru?'Лампа не отвечает. Обновите страницу вручную.':'Lamp not responding. Refresh manually.');}});
     },3000);
   }
   var doAfter=function(){
