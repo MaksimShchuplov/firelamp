@@ -136,8 +136,8 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
     int bl = innerDoc["bl"] | -1;
     int th = innerDoc["th"] | -1;
 
-    if (name.length() == 0 || b <= 0) {
-        LOG_WARN("Gemini: missing or zero fields. name=\"%s\" b=%d", name.c_str(), b);
+    if (name.length() == 0 || b < 0) {
+        LOG_WARN("Gemini: missing fields. name=\"%s\" b=%d", name.c_str(), b);
         FAIL("parse_failed");
     }
 

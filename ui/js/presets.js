@@ -45,7 +45,7 @@ document.getElementById('prexp').onclick=function(){
   fetch('/getpresets').then(r=>r.json()).then(function(d){
     var a=document.createElement('a');
     a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:'application/json'}));
-    a.download='firelamp-presets.json';a.click();URL.revokeObjectURL(a.href);
+    a.download='firelamp-presets.json';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
   }).catch(function(){});
 };
 document.getElementById('primp').onclick=function(){document.getElementById('prfile').click();};
@@ -59,7 +59,7 @@ document.getElementById('prfile').addEventListener('change',function(){
       if(!pr||typeof pr.slot!=='number'||pr.slot<0||pr.slot>7||!pr.name)return;
       var u='/savepreset?slot='+pr.slot+'&name='+encodeURIComponent(String(pr.name).substring(0,15));
       ['b','c','co','sp','bl','th'].forEach(function(k){if(typeof pr[k]==='number')u+='&'+k+'='+pr[k];});
-      q=q.then(function(){return xf(u);});
+      q=q.then(function(){return xf(u).catch(function(){});});
     });
     q.then(fetchPresets,fetchPresets);
   }).catch(function(){alert(ru?'Неверный файл пресетов':'Invalid presets file');});

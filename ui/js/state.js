@@ -32,5 +32,5 @@ function applyState(x){
   if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);
   if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
 }
-function pull(){var seq=++pullSeq;fetch('/state').then(r=>r.json()).then(x=>{if(seq<pullSeq)return;applyState(x);}).catch(()=>{pullFails++;if(pullFails>=3)showOffline();});}
+function pull(){var seq=++pullSeq;fetch('/state').then(r=>r.json()).then(x=>{if(seq<pullSeq)return;applyState(x);}).catch(()=>{if(seq<pullSeq)return;pullFails++;if(pullFails>=3)showOffline();});}
 document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});

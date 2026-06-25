@@ -173,14 +173,18 @@ void fireEffect() {
     // 2. Upward convection with wind
     for (int y = ROWS - 1; y > 0; y--) {
         const int wind = (int)lroundf(windDir[y]);
-        const int y1   = y - 1, y2 = (y >= 2) ? y - 2 : 0;
+        const int y1   = y - 1;
+        // y2 < 0 means below the grid: treat as zero heat so row 1 gets 154/256 of row 0,
+        // not a full copy (which happened when the missing row aliased y1).
+        const bool haveY2 = (y >= 2);
+        const int  y2     = haveY2 ? y - 2 : 0;
         for (int x = 0; x < COLUMNS; x++) {
             int nx = x + wind;
             if (nx >= COLUMNS) nx -= COLUMNS;
             else if (nx < 0)   nx += COLUMNS;
-            // *3/5 + *2/5 in Q8 fixed-point: 154/256≈0.602, 102/256=0.398, sum=256/256=1.0
+            // *3/5 + *2/5 in Q8 fixed-point: 154/256≈0.602, 102/256=0.398
             heat[y][x] = (uint8_t)(((uint16_t)heat[y1][nx] * 154
-                                  + (uint16_t)heat[y2][nx] * 102) >> 8);
+                                  + (haveY2 ? (uint16_t)heat[y2][nx] : 0u) * 102) >> 8);
         }
     }
 

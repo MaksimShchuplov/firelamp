@@ -35,7 +35,7 @@ function startOTA(){
         // Without this check, a single transient /info failure followed by a
         // recovery (e.g. OTA flash failed on ESP side) would trigger a premature
         // page reload while the old firmware is still running.
-        if(d.uptime_s!==undefined&&d.uptime_s>=120){wentOffline=false;return;}
+        if(d.uptime_s!==undefined&&d.uptime_s>=120){return;}
         clearInterval(tid);
         pfil.style.transition='width .4s';pfil.style.width='100%';pfil.style.background='#4ade80';
         btn.textContent=ru?'Готово! ✓':'Done! ✓';btn.style.borderColor='#4ade80';btn.style.color='#4ade80';

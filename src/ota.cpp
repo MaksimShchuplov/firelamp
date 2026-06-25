@@ -97,7 +97,7 @@ static void handleUpdate() {
     server.client().stop();
 
     otaProgress.store(0, std::memory_order_relaxed);
-    isUpdating.store(true, std::memory_order_relaxed);
+    isUpdating.store(true, std::memory_order_release);
 
     WiFiClientSecure dlClient;
     dlClient.setCACertBundle(x509_crt_bundle_start);
