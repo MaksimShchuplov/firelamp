@@ -6,6 +6,7 @@
 #include "net_helpers.h"
 #include "mqtt.h"
 #include "certs.h"
+#include "params.h"
 #include <ArduinoJson.h>
 static void handleSetGeminiKey() {
     if (!isWebRequest()) return;
@@ -129,25 +130,18 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
     }
 
     String name = innerDoc["name"] | "";
-    int b  = innerDoc["b"] | -1;
-    int cv = innerDoc["c"] | -1;
-    int co = innerDoc["co"] | -1;
-    int sp = innerDoc["sp"] | -1;
-    int bl = innerDoc["bl"] | -1;
-    int th = innerDoc["th"] | -1;
+    int b = innerDoc["b"] | -1;
 
     if (name.length() == 0 || b < 0) {
         LOG_WARN("Gemini: missing fields. name=\"%s\" b=%d", name.c_str(), b);
         FAIL("parse_failed");
     }
 
-    if (b  >= 0) setBright(constrain(b,  BRIGHT_MIN,   BRIGHT_MAX));
-    if (cv >= 0) { uiContrast = (uint8_t)constrain(cv, CONTRAST_MIN, CONTRAST_MAX); }
-    if (co >= 0) { uiCooling  = (uint8_t)constrain(co, COOLING_MIN,  COOLING_MAX);  recalcCooling(); }
-    if (sp >= 0) { uiSparking = (uint8_t)constrain(sp, SPARKING_MIN, SPARKING_MAX); }
-    if (bl >= 0) { uiBlend    = (uint8_t)constrain(bl, BLEND_MIN,    BLEND_MAX);    }
-    if (th >= 0) { uiTheme    = (uint8_t)constrain(th, 0,   THEME_COUNT - 1); }
-    buildHeatPalette();
+    // Brightness is autoJson=false (gamma path); apply it explicitly, then let
+    // the registry clamp/apply c/co/sp/bl/th and fire their side-effects.
+    setBright(constrain(b, BRIGHT_MIN, BRIGHT_MAX));
+    applyJsonParams(innerDoc);
+    buildHeatPalette();   // idempotent: early-outs if contrast/theme unchanged
     updatePowerCalc();
     markDirty();
 

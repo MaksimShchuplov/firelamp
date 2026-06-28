@@ -7,6 +7,7 @@
 #include "net_helpers.h"
 #include "mqtt.h"
 #include "mqtt_state.h"
+#include "params.h"
 
 static WiFiClient espClient;
 static PubSubClient mqttClient(espClient);
@@ -47,12 +48,13 @@ void initMqtt() {
             DeserializationError err = deserializeJson(doc, payload, length);
             if (err) return;
 
-            bool changed     = false;
-            bool needPalette = false;
-            bool hadB        = doc.containsKey("b");
-            bool hadState    = doc.containsKey("state");
+            bool hadB     = doc.containsKey("b");
+            bool hadState = doc.containsKey("state");
             static uint8_t last_b = BRIGHT_DEFAULT;
 
+            // Brightness is the registry's autoJson=false parameter: it goes
+            // through the ON/OFF state machine and setBright()'s gamma path here,
+            // not applyJsonParams().
             MqttBrightDelta bd = mqttResolveBright(
                 hadB, hadState,
                 hadState ? (const char *)doc["state"] : nullptr,
@@ -60,16 +62,11 @@ void initMqtt() {
                 (uint8_t)uiBright.load(std::memory_order_relaxed), last_b);
             if (bd.bright >= 0) setBright(bd.bright);
             last_b = bd.last_b;
-            if (hadB || hadState) changed = true;
 
-            if (doc.containsKey("c"))  { uiContrast = (uint8_t)constrain((int)doc["c"],  CONTRAST_MIN, CONTRAST_MAX); needPalette = true; changed = true; }
-            if (doc.containsKey("co")) { uiCooling  = (uint8_t)constrain((int)doc["co"], COOLING_MIN,  COOLING_MAX);  recalcCooling(); changed = true; }
-            if (doc.containsKey("sp")) { uiSparking = (uint8_t)constrain((int)doc["sp"], SPARKING_MIN, SPARKING_MAX); changed = true; }
-            if (doc.containsKey("bl")) { uiBlend    = (uint8_t)constrain((int)doc["bl"], BLEND_MIN,    BLEND_MAX);    changed = true; }
-            if (doc.containsKey("th")) { uiTheme    = (uint8_t)constrain((int)doc["th"], 0, THEME_COUNT - 1); needPalette = true; changed = true; }
+            bool changed = (hadB || hadState);
+            changed |= applyJsonParams(doc);   // c/co/sp/bl/th + their side-effects
 
             if (changed) {
-                if (needPalette) buildHeatPalette();
                 updatePowerCalc();
                 markDirty();
                 mqttPublishState();

@@ -54,7 +54,7 @@
 // ---- Themes / presets ------------------------------------------------------
 #define THEME_COUNT             4       // Fire / Ember / Plasma / Ice
 #define PRESET_NAME_MAX_LEN     15
-#define PRESET_PARAM_COUNT      6       // b, c, co, sp, bl, th — size of the parallel preset arrays
+// Parameter count lives in params.cpp (PARAM_COUNT) — derived from the PARAMS[] registry.
 
 // ---- Network ---------------------------------------------------------------
 #define WIFI_PORTAL_SSID        "FireLamp-Setup"
