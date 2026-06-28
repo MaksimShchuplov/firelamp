@@ -1,6 +1,7 @@
 #pragma once
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <ArduinoJson.h>
 #include "globals.h"
 
@@ -32,4 +33,23 @@ extern const size_t     PARAM_COUNT;
 // Applies every present, numeric, autoJson parameter from a parsed JSON document,
 // clamping to range and firing each parameter's side-effect. Returns true if any
 // parameter changed. Brightness (autoJson=false) is left to the caller.
-bool applyJsonParams(JsonDocument &doc);
+//
+// Defined inline so the symbol never crosses a translation-unit boundary:
+// ArduinoJson's JsonDocument lives in a config-encoded versioned namespace, and a
+// cross-TU definition can mangle to a different name than the caller expects
+// (an ODR/link mismatch). Inlining sidesteps that entirely — PARAMS/PARAM_COUNT
+// stay extern (plain data, namespace-independent).
+inline bool applyJsonParams(JsonDocument &doc) {
+    bool changed = false;
+    for (size_t i = 0; i < PARAM_COUNT; i++) {
+        const ParamDesc &p = PARAMS[i];
+        if (!p.autoJson || !doc[p.key].is<int>()) continue;
+        int v = doc[p.key].as<int>();
+        if      (v < p.lo) v = p.lo;
+        else if (v > p.hi) v = p.hi;
+        p.value->store((uint8_t)v, std::memory_order_relaxed);
+        if (p.onChange) p.onChange();
+        changed = true;
+    }
+    return changed;
+}
