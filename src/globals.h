@@ -46,9 +46,9 @@ extern std::atomic<uint32_t> currentPowerMw;  // milliwatts
 extern std::atomic<bool>     updatePending;
 
 // ---- NVS deferred-write state (Core 1 only) ------------------------------------
-// prefsDirty/prefsTouch are written by markDirty() — called from HTTP handlers
-// AND from surpriseTask (a separate FreeRTOS task on Core 1). Both tasks share
-// Core 1 under preemptive scheduling; plain types are formally data races. Both atomic.
+// prefsDirty/prefsTouch are written by markDirty() (Core 1 HTTP handlers) and
+// read/written in serviceNetwork() (Core 1). Kept atomic for the release/acquire
+// pairing in markDirty() that publishes prefsTouch before prefsDirty.
 extern std::atomic<bool>     prefsDirty;
 extern std::atomic<uint32_t> prefsTouch;
 // Written from WiFi event callback (Core 0 WiFi task) and read/written from

@@ -85,7 +85,7 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 **Prompt construction** (`surpriseBody`):
 - A random *scene* is picked from 15 atmospheric moods (e.g. `midnight thunderstorm`, `arctic tundra`, `volcanic eruption`, `bioluminescent cave`) to give each request a creative direction.
 - Current lamp state (`b`, `c`, `co`, `sp`, `bl`, `th`) is injected so Gemini creates something contrasting rather than repeating similar values.
-- `temperature: 1.4`, `maxOutputTokens: 120`, `thinkingConfig.thinkingBudget: 0` — thinking disabled; cuts typical latency from ~15 s to ~2 s.
+- `temperature: 1.1`, `maxOutputTokens: 120`, `thinkingConfig.thinkingBudget: 0` — thinking disabled; cuts typical latency from ~15 s to ~2 s.
 
 **HTTP response** (200): full lamp state JSON with an added `"name"` field — the requesting browser updates sliders and shows the effect name the moment the response arrives. Other open browsers see the updated state on their next 5 s poll (name field not included in `/state`).
 

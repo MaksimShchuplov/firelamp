@@ -21,7 +21,7 @@ function startOTA(){
   info.textContent=ru?'Скачивание... Не закрывайте страницу.':'Downloading... Do not close this page.';
   setTimeout(function(){pfil.style.width='88%';},50);
   function pollReboot(){
-    var n=0,wentOffline=false,tid;
+    var n=0,wentOffline=false,backOnline=0,tid;
     function showOtaError(msg){clearInterval(tid);pfil.style.background='#ef4444';info.textContent=msg;enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.onclick=function(){location.reload();};}
     tid=setInterval(function(){n++;
       var ac=new AbortController(),to=setTimeout(function(){ac.abort();},2000);
@@ -35,7 +35,14 @@ function startOTA(){
         // Without this check, a single transient /info failure followed by a
         // recovery (e.g. OTA flash failed on ESP side) would trigger a premature
         // page reload while the old firmware is still running.
-        if(d.uptime_s!==undefined&&d.uptime_s>=120){return;}
+        // A real reboot yields uptime_s < 120. Responding with high uptime after
+        // going offline means the ESP-side flash failed and the old firmware is
+        // still running — bail after a few confirmations instead of looping the
+        // "Rebooting…" bar forever.
+        if(d.uptime_s!==undefined&&d.uptime_s>=120){
+          if(++backOnline>=5)showOtaError(ru?'Обновление не удалось. Обновите страницу.':'Update failed. Refresh the page to try again.');
+          return;
+        }
         clearInterval(tid);
         pfil.style.transition='width .4s';pfil.style.width='100%';pfil.style.background='#4ade80';
         btn.textContent=ru?'Готово! ✓':'Done! ✓';btn.style.borderColor='#4ade80';btn.style.color='#4ade80';

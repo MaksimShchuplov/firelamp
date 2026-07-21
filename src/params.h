@@ -41,6 +41,14 @@ extern const size_t     PARAM_COUNT;
 // stay extern (plain data, namespace-independent).
 inline bool applyJsonParams(JsonDocument &doc) {
     bool changed = false;
+    // Collect each distinct side-effect and run it once AFTER all values are
+    // stored. buildHeatPalette() is only safe against a single palette-buffer
+    // flip per Core-0 render frame; a payload that changes both contrast and
+    // theme (e.g. MQTT {"c":90,"th":2}) has two params whose onChange is
+    // buildHeatPalette, and firing it twice back-to-back would overwrite the
+    // buffer Core 0 is mid-read of. 8 comfortably exceeds the registry size.
+    void (*pending[8])() = {};
+    size_t np = 0;
     for (size_t i = 0; i < PARAM_COUNT; i++) {
         const ParamDesc &p = PARAMS[i];
         if (!p.autoJson || !doc[p.key].is<int>()) continue;
@@ -48,8 +56,12 @@ inline bool applyJsonParams(JsonDocument &doc) {
         if      (v < p.lo) v = p.lo;
         else if (v > p.hi) v = p.hi;
         p.value->store((uint8_t)v, std::memory_order_relaxed);
-        if (p.onChange) p.onChange();
         changed = true;
+        if (!p.onChange) continue;
+        bool seen = false;
+        for (size_t k = 0; k < np; k++) if (pending[k] == p.onChange) { seen = true; break; }
+        if (!seen && np < 8) pending[np++] = p.onChange;
     }
+    for (size_t k = 0; k < np; k++) pending[k]();
     return changed;
 }

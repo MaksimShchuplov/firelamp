@@ -154,12 +154,17 @@ static void handleSetMqtt() {
     if (t.length()  > 64) t  = t.substring(0, 64);
 
     // Reject characters that would break MQTT topic syntax or JSON embedding.
-    // MQTT wildcards (#, +) produce illegal topics; " breaks the discovery payload.
+    // MQTT wildcards (#, +) produce illegal topics; " and \ break the discovery
+    // payload (jsonEscape doubles \, which can truncate the fixed 896-byte buffer).
     for (int i = (int)t.length() - 1; i >= 0; i--) {
         char c = t[i];
-        if (c == '#' || c == '+' || c == '"' || (uint8_t)c < 0x21 || (uint8_t)c > 0x7E)
+        if (c == '#' || c == '+' || c == '"' || c == '\\' || (uint8_t)c < 0x21 || (uint8_t)c > 0x7E)
             t.remove(i, 1);
     }
+    // Re-apply the default if sanitizing emptied the topic — e.g. a Cyrillic base
+    // topic whose bytes are all > 0x7E gets fully stripped. An empty prefix yields
+    // "/set"/"/state" and permanently silences mqttPublishState().
+    if (t.length() == 0) t = "firelamp";
 
     Preferences p;
     p.begin("mqtt", false);
