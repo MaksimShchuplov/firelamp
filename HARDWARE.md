@@ -9,7 +9,9 @@
 | 1 | 5 V PSU | ≥ 10 A (50 W) | Mean Well LRS-60-5 (12 A) recommended |
 | 1 | 74AHCT125 | quad bus buffer, 14-pin DIP or SOIC | 3.3 V → 5 V level shifter on data line |
 | 1 | Resistor | 300–500 Ω, ¼ W | Series protection on data line (after level shifter) |
-| 1 | Capacitor | 1000 µF / 10 V | Across strip power rails, near the first LED |
+| 1 | Capacitor | 1000 µF / 10–16 V | Across strip power rails, near the first LED |
+| 1 | Capacitor | 100 nF ceramic | VCC bypass for the 74AHCT125, right at the chip |
+| 1 | Inline fuse + holder | 10 A (blade or 5×20 mm) | In series with PSU + output — a shorted strip trace burns before the wiring does otherwise |
 | — | Wire, red | 18 AWG, ≥ 30 cm | PSU + to strip 5 V |
 | — | Wire, black | 18 AWG, ≥ 30 cm | PSU GND to strip GND and ESP GND |
 | — | Wire, any color | 24 AWG, ≥ 30 cm | Data line (ESP GPIO 5 → 74AHCT125 → strip DIN) |
@@ -22,7 +24,7 @@
 
 ## Power
 
-800 LEDs at full white draw up to **48 W** (800 × 60 mA at 5 V). The default firmware cap is set generously high (`PSU_MAX_MA 20000` in `config.h`) to rely on voltage drop rather than software limiting — real draw on typical fire effects is 8–15 W.
+800 LEDs at full white draw up to **48 A ≈ 240 W** theoretical (800 × 60 mA at 5 V) — far beyond any PSU in this build. The firmware's FastLED limiter caps draw at 20 A / 100 W (`PSU_MAX_MA 20000` in `config.h`), intentionally above the recommended PSU's 12 A rating, relying on strip voltage drop to keep real current lower — typical fire effects draw 8–15 W. A white-heavy worst case (Ice theme, contrast 0, brightness 100) can still push past 12 A: the LRS-60-5 then enters hiccup overload protection and the strip blinks until brightness is lowered. Set `PSU_MAX_MA 12000` if you prefer the firmware to guarantee staying within the PSU rating.
 
 **Minimum PSU:** 5 V / 10 A (50 W).  
 **Recommended:** Mean Well LRS-60-5 (5 V / 12 A, 60 W) — fanless, compact, reliable.
@@ -38,7 +40,7 @@ PSU 5 V ──── start of strip (LED 1) ───┐
 PSU 5 V ──── end of strip  (LED 800) ──┘
 ```
 
-Both injection points share the same PSU GND rail. Use 18 AWG or thicker wire for the power runs.
+Run **both 5 V and GND** to each injection point — ground-side drop dims and color-shifts the far end exactly like 5 V drop does. Use 18 AWG or thicker wire for the power runs.
 
 ---
 
@@ -60,7 +62,7 @@ PSU 5 V ────────────────── Strip 5 V
 PSU GND ────────────────── Strip GND ─── ESP32-S3 GND
 ```
 
-> Use any of the four A/Y pairs on the 74AHCT125. Tie all unused /OE pins to GND. Power the 74AHCT125 from the **PSU 5 V** rail, not from the ESP 3.3 V pin.
+> Use any of the four A/Y pairs on the 74AHCT125. Tie all unused /OE pins **and all unused A inputs** to GND — floating CMOS inputs oscillate and raise supply current. Add a 100 nF ceramic bypass across VCC/GND right at the chip. Power the 74AHCT125 from the **PSU 5 V** rail, not from the ESP 3.3 V pin.
 
 **PSU earth:** connect the PSU earth (green/yellow) to the metal enclosure if used.
 
@@ -96,7 +98,7 @@ If your strip winds serpentine (even rows reversed), the fire will look mirrored
 
 2. **Add the decoupling capacitor.** Solder the 1000 µF cap across the 5 V and GND pads at the very start of the strip (LED 0 side). Observe polarity.
 
-3. **Wire the level shifter.** Connect ESP GPIO 5 to any A input of the 74AHCT125. Tie VCC to PSU 5 V and GND+/OE to GND. Then solder the 300–500 Ω resistor in series between the Y output and strip DIN. Place the resistor near the strip DIN pad.
+3. **Wire the level shifter.** Connect ESP GPIO 5 to any A input of the 74AHCT125. Tie VCC to PSU 5 V; tie GND, all /OE pins, and the unused A inputs to GND. Solder the 100 nF bypass across VCC/GND at the chip. Then solder the 300–500 Ω resistor in series between the Y output and strip DIN. Place the resistor near the strip DIN pad.
 
 4. **Wire GND first.** Connect ESP GND → strip GND → PSU GND before connecting 5 V to avoid floating signals.
 
@@ -113,7 +115,7 @@ If your strip winds serpentine (even rows reversed), the fire will look mirrored
 | Strip shows wrong color (green instead of red on color test) | `LED_COLOR_ORDER` mismatch | Change `GRB` → `RGB` or `BRG` in `config.h` |
 | Strip flickers or resets randomly | ESP powered from strip 5 V rail, or no decoupling cap | Power ESP from USB; add 1000 µF cap at strip start |
 | Far end of strip is dim or yellowish | Voltage drop on long power run | Inject power at both ends of the strip |
-| First few LEDs are correct, rest are garbage | Data line too long or no series resistor | Add 300–500 Ω resistor near the ESP; keep data wire < 50 cm |
+| First few LEDs are correct, rest are garbage | Data line too long or no series resistor | Add the 300–500 Ω series resistor near the strip DIN pad (as in step 3); keep data wire < 50 cm |
 | Fire pattern is mirrored on every other row | Strip wired serpentine | Re-solder rows in single-direction scan |
 | ESP not detected by computer | Native USB disabled in firmware | Use `--no-stub` upload flag; set speed to 57600 (already in `platformio.ini`) |
 | `http://firelamp.local` doesn't resolve | mDNS not working on your network | Use the IP address from the serial monitor instead |
@@ -133,7 +135,7 @@ If your strip winds serpentine (even rows reversed), the fire will look mirrored
 | 74AHCT125 pin | Connected to | Notes |
 |---------------|-------------|-------|
 | VCC | PSU 5 V | Must be 5 V — not ESP 3.3 V |
-| GND, /OE1 | Common GND | Tie /OE pins to GND to permanently enable outputs |
+| GND, /OE1, unused A inputs | Common GND | /OE low enables outputs; grounding unused inputs stops CMOS oscillation |
 | Y0 | Strip DIN (via 300–500 Ω) | 5 V output to the strip |
 
 To use a different data pin, change `#define LED_PIN` in `src/config.h` and reflash.
