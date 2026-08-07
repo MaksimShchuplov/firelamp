@@ -17,9 +17,10 @@ pio run -e esp32s3 -t upload && pio device monitor   # flash + monitor
 ## Tests (no hardware required)
 
 ```bash
+make test                    # all suites; or individually:
 make -C test/native          # C++ unit tests (Unity): text_utils, ota_utils, mqtt_state, fire/palette formulas
 node test/test_ui.js         # UI JS tests (node:test): DD table, dynDesc
-python3 -m pytest test/ -q   # build_page.py / get_version.py tests
+python3 -m pytest test/ -q   # build scripts + config.h↔UI consistency (test_consistency.py)
 ```
 
 ## Project Structure
@@ -54,7 +55,7 @@ ui/
 test/
   native/       — Unity C++ unit tests (make -C test/native)
   test_ui.js    — UI JS tests (node test/test_ui.js)
-  test_*.py     — build-script tests (python3 -m pytest test/ -q)
+  test_*.py     — build-script tests + config.h↔UI consistency checks (python3 -m pytest test/ -q)
 partitions_ota_4mb.csv   — custom partition table (two 1.75 MB OTA slots + NVS)
 build_page.py            — PlatformIO pre-build script: assembles ui/ files into src/page.h
 get_version.py           — PlatformIO pre-build script: injects git SHA as FIRMWARE_VERSION

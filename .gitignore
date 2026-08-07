@@ -9,3 +9,4 @@ __pycache__/
 test/native/test_native
 ui/node_modules/
 ui/dist/
+.pytest_cache/

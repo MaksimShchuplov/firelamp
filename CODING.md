@@ -126,12 +126,15 @@ Each step is one file. Read only that file.
 ## Tests — run before every commit
 
 ```bash
-make -C test/native                  # C++ unit tests (text_utils, ota_utils, mqtt_state, fire/palette formulas)
-node test/test_ui.js                 # UI JS tests (DD table, dynDesc buckets)
-python3 -m pytest test/ -q           # build_page.py / get_version.py tests
+make test                            # all suites: C++ (Unity), UI JS (node:test), Python (pytest)
 node --check ui/js/<changed>.js      # syntax check any edited JS (it ships minified in PROGMEM)
 ```
 
-No hardware needed — all three suites are native and take <5 s total. If a change
+No hardware needed — everything is native and takes <5 s total. If a change
 touches a header-only helper (`text_utils.h`, `ota_utils.h`, `mqtt_state.h`) or a
 formula mirrored in `test/native/test_main.cpp`, update the test in the same commit.
+
+`test/test_consistency.py` cross-checks config.h ranges/defaults against their UI
+mirrors (index.html slider attrs, state.js clamps, sliders.js vib bounds, globals.js
+DD buckets, presets.js import keys vs params.cpp). If it fails after your edit, you
+changed one side of a mirrored value — fix the other side, don't weaken the test.
