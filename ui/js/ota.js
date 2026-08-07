@@ -20,9 +20,10 @@ function startOTA(){
   pbar.appendChild(pfil);info.insertAdjacentElement('afterend',pbar);
   info.textContent=ru?'Скачивание... Не закрывайте страницу.':'Downloading... Do not close this page.';
   setTimeout(function(){pfil.style.width='88%';},50);
+  var tid;
+  function showOtaError(msg){if(tid)clearInterval(tid);pfil.style.background='#ef4444';info.textContent=msg;enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.onclick=function(){location.reload();};}
   function pollReboot(){
-    var n=0,wentOffline=false,backOnline=0,tid;
-    function showOtaError(msg){clearInterval(tid);pfil.style.background='#ef4444';info.textContent=msg;enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.onclick=function(){location.reload();};}
+    var n=0,wentOffline=false,backOnline=0;
     tid=setInterval(function(){n++;
       var ac=new AbortController(),to=setTimeout(function(){ac.abort();},2000);
       xf('/info',{cache:'no-store',signal:ac.signal}).then(function(r){clearTimeout(to);return r.json();}).then(function(d){
@@ -57,7 +58,11 @@ function startOTA(){
     info.textContent=ru?'Лампа перезагружается...':'Lamp rebooting...';
     setTimeout(pollReboot,5000);
   };
-  xf('/update').then(doAfter,doAfter);
+  // A non-OK /update response (503 busy / fetch_failed) means the OTA never
+  // started — fail immediately instead of 30 s of futile reboot polling.
+  // Rejection still falls through to doAfter: the ESP closes the connection
+  // right after responding, and some browsers surface that as a network error.
+  xf('/update').then(function(r){if(r.ok)doAfter();else showOtaError(ru?'Не удалось начать обновление. Попробуйте ещё раз.':'Could not start the update. Try again.');},doAfter);
 }
 document.getElementById('chk').onclick=function(){
   var btn=document.getElementById('chk');

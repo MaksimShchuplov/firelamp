@@ -61,7 +61,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
              "Currently: b=%d c=%d co=%d sp=%d bl=%d th=%d(%s). Make something strikingly different.",
              (int)uiBright, (int)uiContrast, (int)uiCooling,
              (int)uiSparking, (int)uiBlend, curTh,
-             kThemeNames[curTh < 4 ? curTh : 0]);
+             kThemeNames[curTh < THEME_COUNT ? curTh : 0]);
 
     static const char kPromptBase[] =
         "You design fire effects for a physical LED lamp. It is a 125mm diameter metal cylinder "

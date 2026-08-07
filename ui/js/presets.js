@@ -57,7 +57,10 @@ document.getElementById('prfile').addEventListener('change',function(){
     var q=Promise.resolve();
     d.forEach(function(pr){
       if(!pr||typeof pr.slot!=='number'||pr.slot<0||pr.slot>7||!pr.name)return;
-      var u='/savepreset?slot='+pr.slot+'&name='+encodeURIComponent(String(pr.name).substring(0,15));
+      // Truncate by codepoints, not UTF-16 units: substring(0,15) can split an
+      // emoji surrogate pair, and encodeURIComponent throws URIError on lone
+      // surrogates — which killed the whole import of a legitimately exported file.
+      var u='/savepreset?slot='+pr.slot+'&name='+encodeURIComponent(Array.from(String(pr.name)).slice(0,15).join(''));
       ['b','c','co','sp','bl','th'].forEach(function(k){if(typeof pr[k]==='number')u+='&'+k+'='+pr[k];});
       q=q.then(function(){return xf(u).catch(function(){});});
     });

@@ -28,13 +28,13 @@ function ul(){
  document.getElementById('mt4').textContent=ru?'Искры (Зажигание)':'Sparking (Ignition)';
  document.getElementById('md4').textContent=ru?'Управляет хаосом у основания. Высокое = сплошной ревущий жар. Низкое = спокойное тление.':'Dictates chaos at the base. Higher = a solid roaring inferno. Lower = calm smoldering.';
  document.getElementById('mt5').textContent=ru?'По умолчанию':'Reset to Default';
- document.getElementById('md5').textContent=ru?'Восстанавливает все параметры к заводским значениям: яркость 100, контрастность 50, охлаждение 45, искры 36, плавность 50, тема Огонь.':'Restores all parameters to factory defaults: brightness 100, contrast 50, cooling 45, sparking 36, blend 50, theme Fire.';
+ document.getElementById('md5').textContent=ru?'Восстанавливает все параметры к заводским значениям: яркость 100, контрастность 50, охлаждение 46, искры 26, плавность 50, тема Огонь.':'Restores all parameters to factory defaults: brightness 100, contrast 50, cooling 46, sparking 26, blend 50, theme Fire.';
  document.getElementById('mt6').textContent=ru?'Проверить обновления':'Check for Update';
  document.getElementById('md6').textContent=ru?'Сравнивает текущую прошивку с последней сборкой на GitHub. При наличии обновления предложит установить его — лампа перезагрузится автоматически.':'Compares current firmware with the latest build on GitHub. If an update is available you can install it — the lamp reboots automatically.';
  document.getElementById('mt7').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
  document.getElementById('md7').textContent=ru?'Удаляет сохранённые данные сети и перезагружает лампу в режим настройки. Подключитесь к "FireLamp-Setup" и откройте 192.168.4.1 чтобы выбрать новую сеть.':'Clears saved Wi-Fi credentials and reboots into setup mode. Connect to "FireLamp-Setup" and open 192.168.4.1 to choose a new network.';
  document.getElementById('mt8').textContent=ru?'Потребление':'Power';
- document.getElementById('md8').textContent=ru?'Расчётное потребление в ваттах на основе текущего цвета и яркости каждого светодиода. Обновляется каждые 8 секунд.':'Estimated power draw in watts based on the current colour and brightness of each LED. Updates every 8 seconds.';
+ document.getElementById('md8').textContent=ru?'Расчётное потребление в ваттах на основе текущего цвета и яркости каждого светодиода. Обновляется каждые 5 секунд.':'Estimated power draw in watts based on the current colour and brightness of each LED. Updates every 5 seconds.';
  document.getElementById('mt9').textContent=ru?'Плавность':'Blend';
  document.getElementById('md9').textContent=ru?'Временное сглаживание кадров. 0 = застывшее свечение, 255 = резкое мерцание. Оптимальный диапазон 30–80.':'Temporal blend per frame. 0 = frozen glow, 255 = sharp flicker. Sweet spot 30–80.';
  document.getElementById('mt10').textContent=ru?'Тема цвета':'Color Theme';

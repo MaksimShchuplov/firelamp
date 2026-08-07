@@ -19,15 +19,19 @@ static void handleManifest() {
 // Network-first, cache-fallback SW. Navigation requests (page load while lamp is
 // off) are served from cache; API calls fall through so existing offline detection works.
 static const char SW_JS[] PROGMEM =
-    "const C='fl-v1';"
+    "const C='fl-v2';"
     // skipWaiting + clients.claim so a redeployed SW takes over immediately
     // instead of waiting for every PWA tab to close (single-tab home-screen app).
     "self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.add('/')))});"
     "self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));"
     "self.addEventListener('fetch',e=>{"
       "if(e.request.method!=='GET')return;"
+      // Cache navigations only: the offline fallback serves caches.match('/'),
+      // so caching API GETs (/state, /setb?v=N × every slider value) is pure
+      // storage bloat. Clone synchronously — the page may lock the body the
+      // moment respondWith() resolves, and a late clone() throws.
       "e.respondWith(fetch(e.request).then(r=>{"
-        "if(r.ok)caches.open(C).then(c=>c.put(e.request,r.clone()));"
+        "if(r.ok&&e.request.mode==='navigate'){const rc=r.clone();caches.open(C).then(c=>c.put(e.request,rc));}"
         "return r;"
       "}).catch(()=>e.request.mode==='navigate'"
         "?caches.match('/').then(r=>r||new Response("

@@ -9,6 +9,7 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 | New HTTP endpoint | The module that owns it (handlers/presets/ota/gemini/mqtt/flash/pwa) |
 | New constant / limit | `config.h` only |
 | Slider param range | `config.h` only (`*_MIN`/`*_MAX`) — single source for HTTP, MQTT, NVS clamp |
+| Param registry (key/range/default/side-effect) | `params.cpp` (+ `params.h` for `ParamDesc` / `applyJsonParams`) |
 | New shared variable | `globals.h` only |
 | Fire physics / palette | `fire.cpp` only |
 | Web UI layout / HTML | `ui/index.html` only |
@@ -37,6 +38,7 @@ mqtt.cpp      →  registerMqttHandlers()    — setmqtt, getmqtt; plus initMqtt
 flash.cpp     →  registerFlashHandlers()   — /flash (GET form + POST upload)
 pwa.cpp       →  registerPwaHandlers()     — manifest.json, sw.js
 network.cpp   →  startNetwork() / serviceNetwork() — no handlers, just wiring
+params.cpp    →  PARAMS[] registry         — one row per UI param: key, atomic, default, range, side-effect; drives presets + MQTT/Gemini JSON apply
 ```
 
 To add a new endpoint: add handler + `server.on()` inside the relevant `registerXxx()`.
@@ -97,17 +99,18 @@ Checklist (in order):
 1. `config.h` — add `FOO_DEFAULT`, range limits as `#define`
 2. `globals.h` — add `extern std::atomic<uint8_t> uiFoo;`
 3. `main.cpp` — add definition `std::atomic<uint8_t> uiFoo{FOO_DEFAULT};`
-4. `handlers.cpp` — add `handleSetFoo()` + wire in `registerBasicHandlers()`
-5. `handlers.cpp:flushPrefs()` — add `prefs.putUChar("foo", uiFoo)`
-6. `network.cpp:loadSettings()` — load + clamp from NVS
-7. `handlers.cpp:sendVal()` — add field to JSON response
-8. `fire.cpp` — use `uiFoo` in simulation
-9. `ui/js/globals.js` — add DOM ref and debounce timer variable
-10. `ui/js/state.js` — add `pfo(n)` apply function
-11. `ui/js/lang.js` — add label text + `ul()` translations (EN + RU) + `DD` description table entry
-12. `ui/js/sliders.js` — add slider event listener
-13. `ui/index.html` — add slider, label, description `<div>`
-14. `ui/css/sliders.css` — add styles if needed
+4. `params.cpp` — add `PARAMS[]` row `{"fo", &uiFoo, FOO_DEFAULT, FOO_MIN, FOO_MAX, sideEffectOrNullptr, true}` — this alone makes presets, MQTT `firelamp/set`, and Gemini pick it up
+5. `handlers.cpp` — add `handleSetFoo()` + wire in `registerBasicHandlers()`
+6. `handlers.cpp:flushPrefs()` — add `prefs.putUChar("foo", uiFoo)`
+7. `network.cpp:loadSettings()` — load + clamp from NVS
+8. `handlers.cpp:formatState()` — add field to JSON response
+9. `fire.cpp` — use `uiFoo` in simulation
+10. `ui/js/globals.js` — add DOM ref and debounce timer variable
+11. `ui/js/state.js` — add `pfo(n)` apply function
+12. `ui/js/lang.js` — add label text + `ul()` translations (EN + RU); `ui/js/globals.js` — `DD` description table entry
+13. `ui/js/sliders.js` — add slider event listener
+14. `ui/index.html` — add slider, label, description `<div>`
+15. `ui/css/sliders.css` — add styles if needed
 
 Each step is one file. Read only that file.
 
@@ -119,3 +122,16 @@ Each step is one file. Read only that file.
 - Slider debounce: 120 ms timeout; declare timer variable in `globals.js`, handler in `sliders.js`.
 - `dynDesc('sid', val)` — maps value range to description text from `DD` table in `globals.js`.
 - `build_page.py` assembles `ui/` into `src/page.h` at pre-build time. Order is declared in `CSS_FILES` / `JS_FILES` lists in `build_page.py`.
+
+## Tests — run before every commit
+
+```bash
+make -C test/native                  # C++ unit tests (text_utils, ota_utils, mqtt_state, fire/palette formulas)
+node test/test_ui.js                 # UI JS tests (DD table, dynDesc buckets)
+python3 -m pytest test/ -q           # build_page.py / get_version.py tests
+node --check ui/js/<changed>.js      # syntax check any edited JS (it ships minified in PROGMEM)
+```
+
+No hardware needed — all three suites are native and take <5 s total. If a change
+touches a header-only helper (`text_utils.h`, `ota_utils.h`, `mqtt_state.h`) or a
+formula mirrored in `test/native/test_main.cpp`, update the test in the same commit.

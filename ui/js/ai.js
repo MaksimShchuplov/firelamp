@@ -28,7 +28,7 @@ function askAI(){
   }).then(function(x){
     if(x.error)throw new Error(x.error);
     applyState(x);
-    if(aiNmTid){clearTimeout(aiNmTid);aiNmTid=null;}clearActive();lastAiName=(x.name||'').substring(0,15);nm.textContent=(lastAiName||'AI Effect')+' ✨';
+    if(aiNmTid){clearTimeout(aiNmTid);aiNmTid=null;}clearActive();lastAiName=Array.from(x.name||'').slice(0,15).join('');nm.textContent=(lastAiName||'AI Effect')+' ✨';
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
   }).catch(function(e){
     clearTimeout(to);clearInterval(etid);

@@ -42,6 +42,10 @@ void initMqtt() {
     if (mqIp.length() > 0) {
         // HA discovery config (~700 B) exceeds PubSubClient's 256 B default buffer.
         mqttClient.setBufferSize(1024);
+        // connect() blocks Core 1 (web server) while waiting for CONNACK; the
+        // 15 s PubSubClient default freezes the UI on every 5 s reconnect retry
+        // when the broker is configured but unresponsive.
+        mqttClient.setSocketTimeout(5);
         mqttClient.setServer(mqIp.c_str(), mqPt);
         mqttClient.setCallback([](char* topic, byte* payload, unsigned int length) {
             JsonDocument doc;
