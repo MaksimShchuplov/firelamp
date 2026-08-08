@@ -21,7 +21,9 @@
 
 // ---- Power -----------------------------------------------------------------
 #define PSU_VOLTS           5
-#define PSU_MAX_MA          20000   // above PSU rating: voltage drop limits real draw
+#define PSU_MAX_MA          20000   // empirically tuned on hardware: above PSU rating on purpose —
+                                    // strip voltage drop keeps real draw in check; a 12 A "datasheet"
+                                    // cap clips max brightness. Do not lower without re-measuring.
 
 // ---- Brightness ------------------------------------------------------------
 #define BRIGHT_DEFAULT      100     // 0..100, until UI / NVS overrides

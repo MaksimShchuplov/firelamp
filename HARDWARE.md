@@ -24,7 +24,7 @@
 
 ## Power
 
-800 LEDs at full white draw up to **48 A ≈ 240 W** theoretical (800 × 60 mA at 5 V) — far beyond any PSU in this build. The firmware's FastLED limiter caps draw at 20 A / 100 W (`PSU_MAX_MA 20000` in `config.h`), intentionally above the recommended PSU's 12 A rating, relying on strip voltage drop to keep real current lower — typical fire effects draw 8–15 W. A white-heavy worst case (Ice theme, contrast 0, brightness 100) can still push past 12 A: the LRS-60-5 then enters hiccup overload protection and the strip blinks until brightness is lowered. Set `PSU_MAX_MA 12000` if you prefer the firmware to guarantee staying within the PSU rating.
+800 LEDs at full white draw up to **48 A ≈ 240 W** theoretical (800 × 60 mA at 5 V) — far beyond any PSU in this build. The firmware's FastLED limiter caps draw at 20 A / 100 W (`PSU_MAX_MA 20000` in `config.h`). That value is **empirically tuned on the real build**: it sits above the PSU's 12 A rating on purpose, because voltage drop along the 5.5 m strip keeps measured current within what the LRS-60-5 actually delivers, while a "correct" 12 A cap would visibly clip maximum brightness. Do not lower it to match the PSU datasheet without re-measuring on hardware. Typical fire effects draw 8–15 W. If you substitute a different PSU or much thicker power wiring (less voltage drop), re-check real current on a white-heavy theme (Ice, contrast 0, brightness 100) — an overloaded LRS-series PSU enters hiccup protection and the strip blinks.
 
 **Minimum PSU:** 5 V / 10 A (50 W).  
 **Recommended:** Mean Well LRS-60-5 (5 V / 12 A, 60 W) — fanless, compact, reliable.

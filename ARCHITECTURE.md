@@ -181,6 +181,6 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 
 ## Hardware Notes
 
-- **PSU**: Mean Well 60 W (5 V 12 A). FastLED power limiter set to 20 A (100 W) — intentionally above PSU rating to allow full brightness, relying on voltage drop along the 800-LED strip to keep real current below 12 A.
+- **PSU**: Mean Well 60 W (5 V 12 A). FastLED power limiter set to 20 A (100 W) — empirically tuned on the real build, intentionally above PSU rating to allow full brightness, relying on voltage drop along the 800-LED strip to keep real current below 12 A. Do not "correct" it to the PSU datasheet without re-measuring on hardware.
 - **FPS ceiling**: ~40 FPS is the WS2812B protocol limit for 800 LEDs on one data line. The RMT5 driver on S3 overlaps frame computation with LED transmission.
 - **Upload**: `--no-stub` flag required, speed 57600 (native USB CDC disabled, `ARDUINO_USB_MODE=0`).
