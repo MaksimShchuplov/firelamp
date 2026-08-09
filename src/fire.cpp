@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <FastLED.h>
 #include "globals.h"
+#include "fire_math.h"
 
 // =============================================================================
 //  PALETTE — heat LUT (red → orange → white-hot), double-buffered
@@ -18,35 +19,13 @@ void buildHeatPalette() {
     lastTheme    = theme;
 
     const uint8_t next  = (activePal.load() & 1) ^ 1;
-    const float   power = 1.0f + ((contrast - 50.0f) / 50.0f);
+    const float   power = palettePower(contrast);   // hoisted: one powf per entry, not two
     for (int i = 0; i < 256; i++) {
-        // i==0 must stay black: at contrast==0 power is 0 and powf(0,0)==1,
-        // which would map "no heat" to the brightest palette entry.
-        float    n    = (i == 0) ? 0.0f : powf((float)i / 255.0f, power);
-        uint16_t m    = (uint16_t)(n * 255.0f);
-        uint8_t  t192 = (uint8_t)((m * 191) / 255);
-        uint8_t  ramp = (uint8_t)((t192 & 0x3F) << 2);
-        switch (theme) {
-            case 1: // Ember — deep reds, no white-hot
-                if      (t192 > 0x80) heatPalette[next][i] = CRGB(255, ramp >> 1, 0);
-                else if (t192 > 0x40) heatPalette[next][i] = CRGB(ramp, 0, 0);
-                else                  heatPalette[next][i] = CRGB(ramp >> 2, 0, 0);
-                break;
-            case 2: // Plasma — purple → magenta → white
-                if      (t192 > 0x80) heatPalette[next][i] = CRGB(255, ramp, 255);
-                else if (t192 > 0x40) heatPalette[next][i] = CRGB(ramp, 0, 255);
-                else                  heatPalette[next][i] = CRGB(ramp >> 2, 0, ramp);
-                break;
-            case 3: // Ice — dark blue → cyan → white
-                if      (t192 > 0x80) heatPalette[next][i] = CRGB(ramp, 255, 255);
-                else if (t192 > 0x40) heatPalette[next][i] = CRGB(0, ramp, 255);
-                else                  heatPalette[next][i] = CRGB(0, ramp >> 2, ramp);
-                break;
-            default: // Fire — classic red → orange → yellow → white
-                if      (t192 > 0x80) heatPalette[next][i] = CRGB(255, 255, ramp);
-                else if (t192 > 0x40) heatPalette[next][i] = CRGB(255, ramp, 0);
-                else                  heatPalette[next][i] = CRGB(ramp, 0, 0);
-        }
+        const float    n    = paletteNorm(power, i);
+        const uint16_t m    = (uint16_t)(n * 255.0f);
+        const uint8_t  t192 = (uint8_t)((m * 191) / 255);
+        const Rgb8     c    = heatRamp(theme, t192);
+        heatPalette[next][i] = CRGB(c.r, c.g, c.b);
     }
     // seq_cst store generates a full memory barrier (memw on LX7) automatically,
     // ensuring all palette stores above are visible to Core 0 before the index
@@ -57,15 +36,6 @@ void buildHeatPalette() {
 // =============================================================================
 //  BRIGHTNESS
 // =============================================================================
-
-// Pure: safe to call from either core. appliedRaw is written only by
-// applyBrightness() on Core 0, so a Core-1 caller that needs the raw value for
-// the brightness just written must derive it rather than read the atomic.
-static uint8_t brightToRaw(uint8_t bright) {
-    if (bright == 0) return 0;
-    int v = (int)(powf((float)bright / 100.0f, BRIGHT_GAMMA) * 255.0f + 0.5f);
-    return (uint8_t)(v < BRIGHT_FLOOR ? BRIGHT_FLOOR : v);
-}
 
 void applyBrightness() {
     const uint8_t raw = brightToRaw(uiBright.load(std::memory_order_relaxed));

@@ -6,6 +6,7 @@
 #include "../../src/text_utils.h"
 #include "../../src/config.h"
 #include "../../src/mqtt_state.h"
+#include "../../src/fire_math.h"
 
 // Define firmware identity before including ota_utils.h so the #ifndef guards
 // in that header are skipped and these values are used throughout the tests.
@@ -186,39 +187,79 @@ void test_newer_build_remote_dev_sha_same() {
 //  Palette regression: contrast == 0 must keep i==0 black (power == 0 edge case)
 // =============================================================================
 
-void test_palette_contrast_zero_i0_stays_black() {
-    // At contrast=0: power = 1 + (0 - 50) / 50 = 0.
-    // IEEE powf(0, 0) == 1.0, which would map "no heat" (i==0) to max brightness.
-    // The fix: clamp i==0 to n=0 unconditionally.
-    const int   contrast = 0;
-    const float power    = 1.0f + ((float)contrast - 50.0f) / 50.0f;
-    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 0.0f, power);  // sanity: power is indeed 0
+// These call the shipped expressions from fire_math.h. The previous versions
+// re-implemented the formulas locally, so reverting fire.cpp left them green.
 
-    const int   i = 0;
-    const float n = (i == 0) ? 0.0f : powf((float)i / 255.0f, power);
-    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 0.0f, n);  // i==0 must be black, not 1.0
+void test_palette_contrast_zero_i0_stays_black() {
+    // At contrast=0 power is 0, and IEEE powf(0,0)==1.0 would map "no heat"
+    // (i==0) to max brightness. paletteNorm clamps i==0 unconditionally.
+    const float power = palettePower(0);
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 0.0f, power);
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 0.0f, paletteNorm(power, 0));
 }
 
 void test_palette_contrast_zero_nonzero_i_full_bright() {
-    // With power==0, any i>0 gives powf(x,0)==1.0 — intentional: the entire palette
+    // With power==0, any i>0 gives powf(x,0)==1.0 — intentional: the palette
     // collapses to maximum brightness, creating a white-hot solid effect.
-    const int   contrast = 0;
-    const float power    = 1.0f + ((float)contrast - 50.0f) / 50.0f;
-
-    const int   i = 128;
-    const float n = (i == 0) ? 0.0f : powf((float)i / 255.0f, power);
-    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.0f, n);
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.0f, paletteNorm(palettePower(0), 128));
 }
 
 void test_palette_normal_contrast_midpoint() {
-    // At contrast=50: power = 1.0 (linear). i=128 → n ≈ 0.502.
-    const int   contrast = 50;
-    const float power    = 1.0f + ((float)contrast - 50.0f) / 50.0f;
-    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.0f, power);
+    const float power = palettePower(50);
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.0f, power);          // linear at 50
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.502f, paletteNorm(power, 128));
+}
 
-    const int   i = 128;
-    const float n = (i == 0) ? 0.0f : powf((float)i / 255.0f, power);
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.502f, n);
+// --- heatRamp branch selection ----------------------------------------------
+// ramp = (t192 & 0x3F) << 2 wraps to 0 at every multiple of 0x40, so branch
+// selection must use the bit tests. With `>` the exact boundary values fall one
+// branch low with ramp==0 and collapse to that branch's zero-intensity colour.
+
+void test_heat_ramp_boundary_0x80_not_black() {
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        Rgb8 c = heatRamp(th, 0x80);
+        TEST_ASSERT_TRUE_MESSAGE(c.r || c.g || c.b,
+            "heatRamp(theme, 0x80) collapsed to black — branch test regressed to `>`");
+    }
+}
+
+void test_heat_ramp_boundary_0x80_selects_high_branch() {
+    // High branch at ramp==0: Fire (255,255,0), Ember (255,0,0),
+    // Plasma (255,0,255), Ice (0,255,255).
+    Rgb8 fire = heatRamp(0, 0x80);
+    TEST_ASSERT_EQUAL_UINT8(255, fire.r); TEST_ASSERT_EQUAL_UINT8(255, fire.g); TEST_ASSERT_EQUAL_UINT8(0, fire.b);
+    Rgb8 ice = heatRamp(3, 0x80);
+    TEST_ASSERT_EQUAL_UINT8(0, ice.r);   TEST_ASSERT_EQUAL_UINT8(255, ice.g);  TEST_ASSERT_EQUAL_UINT8(255, ice.b);
+}
+
+void test_heat_ramp_boundary_0x40_selects_mid_branch() {
+    // Fire mid branch is (255, ramp, 0); at t192==0x40 ramp==0 → (255,0,0).
+    Rgb8 fire = heatRamp(0, 0x40);
+    TEST_ASSERT_EQUAL_UINT8(255, fire.r); TEST_ASSERT_EQUAL_UINT8(0, fire.g); TEST_ASSERT_EQUAL_UINT8(0, fire.b);
+    // Ice mid branch is (0, ramp, 255) → blue, not the low branch's black.
+    Rgb8 ice = heatRamp(3, 0x40);
+    TEST_ASSERT_EQUAL_UINT8(0, ice.r);   TEST_ASSERT_EQUAL_UINT8(0, ice.g);   TEST_ASSERT_EQUAL_UINT8(255, ice.b);
+}
+
+// --- brightToRaw -------------------------------------------------------------
+
+void test_bright_to_raw_zero_is_off() {
+    TEST_ASSERT_EQUAL_UINT8(0, brightToRaw(0));
+}
+
+void test_bright_to_raw_full_is_255() {
+    TEST_ASSERT_EQUAL_UINT8(255, brightToRaw(100));
+}
+
+void test_bright_to_raw_low_clamps_to_floor() {
+    // 0.05^2.2*255+0.5 ≈ 0.85 → truncates to 0 → clamped up to BRIGHT_FLOOR,
+    // the minimum stable PWM value on WS2812B.
+    TEST_ASSERT_EQUAL_UINT8(BRIGHT_FLOOR, brightToRaw(5));
+}
+
+void test_bright_to_raw_is_monotonic() {
+    for (int b = 1; b < 100; b++)
+        TEST_ASSERT_TRUE(brightToRaw((uint8_t)(b + 1)) >= brightToRaw((uint8_t)b));
 }
 
 // =============================================================================
@@ -425,6 +466,13 @@ int main() {
     RUN_TEST(test_palette_contrast_zero_i0_stays_black);
     RUN_TEST(test_palette_contrast_zero_nonzero_i_full_bright);
     RUN_TEST(test_palette_normal_contrast_midpoint);
+    RUN_TEST(test_heat_ramp_boundary_0x80_not_black);
+    RUN_TEST(test_heat_ramp_boundary_0x80_selects_high_branch);
+    RUN_TEST(test_heat_ramp_boundary_0x40_selects_mid_branch);
+    RUN_TEST(test_bright_to_raw_zero_is_off);
+    RUN_TEST(test_bright_to_raw_full_is_255);
+    RUN_TEST(test_bright_to_raw_low_clamps_to_floor);
+    RUN_TEST(test_bright_to_raw_is_monotonic);
 
     RUN_TEST(test_qadd8_saturates_at_255);
     RUN_TEST(test_qadd8_no_saturation);
