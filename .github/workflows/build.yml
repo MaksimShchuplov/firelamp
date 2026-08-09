@@ -9,6 +9,16 @@ on:
 permissions:
   contents: write
 
+# Two pushes to main landing within one build duration would both update the
+# rolling `latest` release, and its two assets are replaced one request at a
+# time — interleaving can leave run B's firmware.bin beside run A's
+# version.json, so every device's /update streams the binary and then fails
+# the MD5 check. Serialise rather than cancel: each commit still publishes its
+# own immutable build-* release.
+concurrency:
+  group: publish-firmware
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest

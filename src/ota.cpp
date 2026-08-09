@@ -9,7 +9,8 @@
 #include "certs.h"
 
 // Fetches version.json from GitHub. Caches result for VERSION_CACHE_MS. Returns false on error.
-static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *outBusy = nullptr) {
+static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *outBusy = nullptr,
+                             bool force = false) {
     static String            s_ver, s_md5;
     static uint32_t          s_buildN = 0, s_at = 0;
     static std::atomic<bool> s_busy{false};
@@ -29,7 +30,10 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *o
     // RAII: unconditionally release the lock on all exit paths.
     struct Guard { std::atomic<bool> &f; ~Guard() { f.store(false, std::memory_order_seq_cst); } } guard{s_busy};
 
-    if (s_ver.length() > 0 && millis() - s_at < VERSION_CACHE_MS) {
+    // handleUpdate passes force: publishing `latest` replaces firmware.bin and
+    // version.json in separate requests, so a cached md5 from before that window
+    // can describe a different binary than the one about to be downloaded.
+    if (!force && s_ver.length() > 0 && millis() - s_at < VERSION_CACHE_MS) {
         ver = s_ver; md5 = s_md5; buildN = s_buildN; return true;
     }
 
@@ -81,7 +85,7 @@ static void handleUpdate() {
     String ver, md5;
     uint32_t buildN;
     bool busy = false;
-    if (!fetchVersionInfo(ver, md5, buildN, &busy) || !isValidMd5(md5)) {
+    if (!fetchVersionInfo(ver, md5, buildN, &busy, true) || !isValidMd5(md5)) {
         server.send(503, "application/json", busy ? "{\"error\":\"busy\"}" : "{\"error\":\"fetch_failed\"}");
         return;
     }
