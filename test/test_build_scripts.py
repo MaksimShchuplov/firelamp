@@ -248,3 +248,26 @@ class TestBuildPageSource:
             "build_page.py must guard against content containing the ')FLPG' raw-string "
             "delimiter and raise ValueError if found"
         )
+
+
+# ===========================================================================
+# File-list coverage — a UI file that exists on disk but is missing from
+# JS_FILES/CSS_FILES is silently dropped from the PROGMEM blob: the orphan
+# <script src=...> tag is swallowed by the run-collapsing re.sub, src/page.h
+# is gitignored, and the build prints "unchanged". This shipped once already
+# (ui/js/mqtt.js absent from the blob for several commits).
+# Compare sorted() only — JS_FILES order is load-order-significant.
+# ===========================================================================
+
+class TestUiFileListCoverage:
+    def test_file_lists_cover_ui_dir(self):
+        ui = _HERE.parent / "ui"
+        for key, sub, ext in (("JS_FILES", "js", ".js"), ("CSS_FILES", "css", ".css")):
+            on_disk = sorted(p.name for p in (ui / sub).glob("*" + ext))
+            listed = sorted(os.path.basename(p) for p in _bp[key])
+            assert listed == on_disk, "%s: %r vs on-disk %r" % (key, listed, on_disk)
+
+    def test_index_html_tags_match_file_lists(self):
+        html = (_HERE.parent / "ui" / "index.html").read_text(encoding="utf-8")
+        assert sorted(re.findall(r"<script src=(js/[^>]+)></script>", html)) == sorted(_bp["JS_FILES"])
+        assert sorted(re.findall(r"<link rel=stylesheet href=(css/[^>]+)>", html)) == sorted(_bp["CSS_FILES"])

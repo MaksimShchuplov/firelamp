@@ -321,7 +321,7 @@ function filterImport(arr) {
 
 // Mirrors URL construction in the file-import forEach loop.
 function buildImportUrl(pr) {
-  let u = '/savepreset?slot=' + pr.slot + '&name=' + encodeURIComponent(String(pr.name).substring(0, 15));
+  let u = '/savepreset?slot=' + pr.slot + '&name=' + encodeURIComponent(Array.from(String(pr.name)).slice(0, 15).join(''));
   ['b', 'c', 'co', 'sp', 'bl', 'th'].forEach(function(k) {
     if (typeof pr[k] === 'number') u += '&' + k + '=' + pr[k];
   });
@@ -407,6 +407,23 @@ describe('preset import — URL building', () => {
     const url  = buildImportUrl({ slot: 0, name: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' });
     const name = decodeURIComponent(url.match(/name=([^&]*)/)[1]);
     assert.equal(name.length, 15, `expected 15 chars, got "${name}"`);
+  });
+
+  // The device stores up to PRESET_NAME_MAX_LEN *codepoints* (truncateUtf8 in
+  // presets.cpp), so an exported file can legitimately carry 15 emoji. Slicing
+  // by UTF-16 unit would split a surrogate pair and make encodeURIComponent
+  // throw URIError, aborting the whole import behind "Invalid presets file".
+  test('emoji name truncates to 15 codepoints without throwing', () => {
+    const url  = buildImportUrl({ slot: 0, name: '🔥'.repeat(20) });
+    const name = decodeURIComponent(url.match(/name=([^&]*)/)[1]);
+    assert.equal(Array.from(name).length, 15, `expected 15 codepoints, got "${name}"`);
+  });
+
+  test('name whose 15th UTF-16 unit is a high surrogate does not throw', () => {
+    const nm = 'ABCDEFGHIJKLMN' + '🔥' + 'x';
+    assert.doesNotThrow(() => buildImportUrl({ slot: 0, name: nm }));
+    const name = decodeURIComponent(buildImportUrl({ slot: 0, name: nm }).match(/name=([^&]*)/)[1]);
+    assert.equal(Array.from(name).length, 15);
   });
 
   test('special characters in name are percent-encoded', () => {
