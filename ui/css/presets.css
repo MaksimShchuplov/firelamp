@@ -1,5 +1,5 @@
 .presets{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 24px}
-.prbtn{flex:0 0 calc(25% - 6px);background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.1);color:#777;border-radius:12px;cursor:pointer;font-size:10px;text-transform:uppercase;letter-spacing:.05em;transition:all .2s;min-height:44px;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation;backdrop-filter:blur(8px)}
+.prbtn{flex:0 0 calc(25% - 6px);background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.1);color:#777;border-radius:12px;cursor:pointer;font-size:10px;text-transform:uppercase;letter-spacing:.05em;transition:all .2s;min-height:44px;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation;backdrop-filter:blur(8px);-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
 .prbtn.filled{border-style:solid;border-color:rgba(255,255,255,0.15);color:#ccc}
 .prbtn.act{background:rgba(255,140,40,0.15);border-color:rgba(255,140,40,0.5);color:#fff}
 .prbtn:active{transform:scale(0.92)}

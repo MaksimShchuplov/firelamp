@@ -25,16 +25,27 @@ document.getElementById('presave').onclick=doSave;
 document.getElementById('precancel').onclick=cancelSave;
 document.getElementById('prename').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSave();}if(e.key==='Escape')cancelSave();});
 [0,1,2,3,4,5,6,7].forEach(function(s){
-  var b=document.getElementById('pr'+s),pt=null;
-  function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(function(){pt=null;if(navigator.vibrate)navigator.vibrate(40);b.classList.add('shk');setTimeout(function(){b.classList.remove('shk');},250);
+  var b=document.getElementById('pr'+s),pt=null,skipClick=false;
+  // No preventDefault here: cancelling the first touchstart of a touch point
+  // suppresses panning for the whole gesture, so a swipe starting on the
+  // preset grid froze the page. touch-action:manipulation does not affect
+  // cancelability. The callout/selection this used to suppress is handled in
+  // CSS instead. Dropping it also restores focus-on-mousedown for the keyboard
+  // path below.
+  function onStart(e){pt=setTimeout(function(){pt=null;if(navigator.vibrate)navigator.vibrate(40);b.classList.add('shk');setTimeout(function(){b.classList.remove('shk');},250);
     if(presets[s]&&presets[s].name){
       showSheet(presets[s].name,ru?'Выберите действие:':'Choose an action:',
         [{label:ru?'Сохранить в этот слот':'Save to this slot',fn:function(){saveSlot(s);}},
          {label:ru?'Удалить пресет':'Delete preset',cls:'danger',fn:function(){deletePreset(s);}}]);
     }else saveSlot(s);
   },600);}
-  function onEnd(e){if(e.cancelable)e.preventDefault();if(pt){clearTimeout(pt);pt=null;if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(function(r){if(!r.ok)throw new Error('http_'+r.status);return r.json();}).then(function(x){applyState(x);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}else saveSlot(s);}}
-  b.addEventListener('touchstart',onStart,{passive:false});
+  function activate(){if(presets[s]&&presets[s].name){xf('/loadpreset?slot='+s).then(function(r){if(!r.ok)throw new Error('http_'+r.status);return r.json();}).then(function(x){applyState(x);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}else saveSlot(s);}
+  // skipClick covers the long-press release too, so the sheet is not shadowed
+  // by a load. Keyboard activation dispatches click with no pointer events, so
+  // it falls through and is the only path that reaches activate() directly.
+  function onEnd(e){if(e.cancelable)e.preventDefault();skipClick=true;setTimeout(function(){skipClick=false;},400);if(pt){clearTimeout(pt);pt=null;activate();}}
+  b.addEventListener('click',function(){if(skipClick)return;activate();});
+  b.addEventListener('touchstart',onStart,{passive:true});
   b.addEventListener('touchend',onEnd,{passive:false});
   b.addEventListener('touchmove',function(){if(pt){clearTimeout(pt);pt=null;}},{passive:true});
   b.addEventListener('mousedown',onStart);
