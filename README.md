@@ -136,6 +136,7 @@ mqtt:
     - name: "Fire Lamp"
       state_topic: "firelamp/state"
       command_topic: "firelamp/set"
+      availability_topic: "firelamp/avail"
       brightness_state_topic: "firelamp/state"
       brightness_command_topic: "firelamp/set"
       brightness_value_template: "{{ value_json.b }}"

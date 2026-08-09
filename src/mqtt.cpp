@@ -26,7 +26,10 @@ void mqttPublishState() {
              uiBright > 0 ? "ON" : "OFF",
              (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking, (int)uiBlend, (int)uiTheme);
     String topic = mqT + "/state";
-    mqttClient.publish(topic.c_str(), j);
+    // Retained so an HA restart repopulates the entity immediately instead of
+    // leaving it "unknown" until the next command. Safe only because the LWT in
+    // serviceMqtt() overrides availability when the lamp actually dies.
+    mqttClient.publish(topic.c_str(), j, true);
 }
 
 void initMqtt() {
@@ -91,21 +94,31 @@ void initMqtt() {
 // Home Assistant MQTT Discovery: a retained config message makes the lamp
 // appear in HA automatically (Settings → Devices) — no configuration.yaml.
 // Retained delivery also covers HA restarts without a birth-message listener.
-static void publishDiscovery() {
+// MAC-derived, stable across reboots. A random id would let a reconnect after a
+// WiFi blip run as a second client while the broker still holds the old session,
+// so the old session's will would fire AFTER the new birth message and pin a
+// live lamp to "offline". A fixed id makes the broker do a session takeover,
+// publishing the stale will during takeover instead.
+static void deviceUid(char *out, size_t len) {
     uint8_t mac[6];
     WiFi.macAddress(mac);
+    snprintf(out, len, "firelamp_%02x%02x%02x", mac[3], mac[4], mac[5]);
+}
+
+static void publishDiscovery() {
     char uid[20];
-    snprintf(uid, sizeof(uid), "firelamp_%02x%02x%02x", mac[3], mac[4], mac[5]);
+    deviceUid(uid, sizeof(uid));
     char topic[64];
     snprintf(topic, sizeof(topic), "homeassistant/light/%s/config", uid);
     // jsonEscape prevents a malicious topic prefix from injecting into the JSON
     // discovery payload published to the Home Assistant broker.
     String te = jsonEscape(mqT);
     const char *t = te.c_str();
-    char payload[896];
-    snprintf(payload, sizeof(payload),
+    char payload[1024];
+    int n = snprintf(payload, sizeof(payload),
         "{\"name\":\"Fire Lamp\",\"uniq_id\":\"%s\","
         "\"stat_t\":\"%s/state\",\"cmd_t\":\"%s/set\","
+        "\"avty_t\":\"%s/avail\","
         "\"stat_val_tpl\":\"{{ value_json.state }}\","
         // pl_on/pl_off are used in BOTH directions by HA's default light schema:
         // published to cmd_t, and string-compared against the templated state
@@ -116,7 +129,16 @@ static void publishDiscovery() {
         "\"bri_cmd_t\":\"%s/set\",\"bri_cmd_tpl\":\"{\\\"b\\\":{{ value }}}\",\"bri_scl\":100,"
         "\"dev\":{\"ids\":[\"%s\"],\"name\":\"Fire Lamp\",\"mdl\":\"FireLamp ESP32-S3\","
         "\"sw\":\"" FIRMWARE_VERSION "\"}}",
-        uid, t, t, t, t, uid);
+        uid, t, t, t, t, t, uid);
+    // Currently unreachable — handleSetMqtt strips " and \ so jsonEscape cannot
+    // expand the 64-char prefix, capping this at ~707 B. Kept because that is an
+    // implicit coupling between the sanitiser and this buffer: publishing
+    // truncated JSON to a retained discovery topic would break the HA entity
+    // silently, and snprintf already computed the length.
+    if (n < 0 || n >= (int)sizeof(payload)) {
+        LOG_WARN("MQTT discovery payload too long for topic prefix — not published");
+        return;
+    }
     mqttClient.publish(topic, payload, true);
 }
 
@@ -128,17 +150,22 @@ void serviceMqtt() {
         if (now - lastReconnectAttempt > 5000) {
             lastReconnectAttempt = now;
             char clientId[24];
-            snprintf(clientId, sizeof(clientId), "firelamp-%04x", (unsigned)random(0xffff));
-            bool connected = false;
+            deviceUid(clientId, sizeof(clientId));
+            String avail = mqT + "/avail";
+            // Retained will: the broker publishes "offline" if the lamp drops
+            // without a clean DISCONNECT (power cut), so HA stops showing a
+            // dead lamp as on. Paired with the retained state publish below —
+            // retaining state without this would pin an unplugged lamp to its
+            // last brightness forever.
+            bool connected = mqttClient.connect(
+                clientId,
+                mqU.length() > 0 ? mqU.c_str() : nullptr,
+                mqU.length() > 0 ? mqP.c_str() : nullptr,
+                avail.c_str(), 0, true, "offline");
 
-            if (mqU.length() > 0) {
-                connected = mqttClient.connect(clientId, mqU.c_str(), mqP.c_str());
-            } else {
-                connected = mqttClient.connect(clientId);
-            }
-            
             if (connected) {
                 LOG_INFO("MQTT connected to %s:%d", mqIp.c_str(), mqPt);
+                mqttClient.publish(avail.c_str(), "online", true);
                 String sub = mqT + "/set";
                 mqttClient.subscribe(sub.c_str());
                 publishDiscovery();
