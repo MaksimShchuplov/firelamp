@@ -7,7 +7,7 @@ function ul(){
  document.getElementById('lco').textContent=ru?'Охлаждение':'Cooling';
  document.getElementById('lsp').textContent=ru?'Искры':'Sparking';
  document.getElementById('rst').textContent=ru?'По умолчанию':'Reset to Default';
- var ck=document.getElementById('chk');if(!ck.disabled){ck.textContent=ru?'Проверить обновления':'Check for Update';ck.style.borderColor='#1e3a8a';ck.style.color='#60a5fa';}
+ var ck=document.getElementById('chk');if(!ck.disabled&&!ck.dataset.mode){ck.textContent=ru?'Проверить обновления':'Check for Update';ck.style.borderColor='#1e3a8a';ck.style.color='#60a5fa';}
  document.getElementById('rwifi').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
  document.getElementById('lbl').textContent=ru?'Плавность':'Blend';
  document.getElementById('lth').textContent=ru?'Тема':'Theme';

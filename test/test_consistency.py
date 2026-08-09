@@ -172,3 +172,24 @@ def test_mqtt_discovery_onoff_matches_callback():
     assert 'memcmp(payload, "ON"' in src and 'memcmp(payload, "OFF"' in src, \
         "mqtt.cpp: discovery advertises bare ON/OFF but the callback cannot parse them"
     assert 'value_json.state' in src, "mqtt.cpp: stat_val_tpl no longer yields the bare state"
+
+
+# ===========================================================================
+# PRESET_NAME_MAX_LEN is mirrored as a bare literal in the JS clamps and was
+# additionally mirrored as index.html's maxlength — which counts UTF-16 units
+# while the firmware counts codepoints. Pin both the number and the algorithm
+# shape, and assert maxlength stays off.
+# ===========================================================================
+
+def test_preset_name_len_mirrors_config():
+    n = _define("PRESET_NAME_MAX_LEN")
+    _AI = (_ROOT / "ui" / "js" / "ai.js").read_text(encoding="utf-8")
+    _TESTUI = (_ROOT / "test" / "test_ui.js").read_text(encoding="utf-8")
+    for label, src in (("presets.js", _PRESETS), ("ai.js", _AI), ("test_ui.js", _TESTUI)):
+        m = re.search(r"Array\.from\(.*?\)\.slice\(0,\s*(\d+)\)", src)
+        assert m, "%s: no codepoint clamp found" % label
+        assert int(m.group(1)) == n, "%s: clamp %s != PRESET_NAME_MAX_LEN %d" % (label, m.group(1), n)
+    tag = re.search(r"<input id=prename[^>]*>", _HTML)
+    assert tag, "index.html: #prename input not found"
+    assert "maxlength" not in tag.group(0), \
+        "index.html: maxlength counts UTF-16 units; the clamp belongs in doSave()"

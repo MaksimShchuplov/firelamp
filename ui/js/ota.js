@@ -21,7 +21,9 @@ function startOTA(){
   info.textContent=ru?'Скачивание... Не закрывайте страницу.':'Downloading... Do not close this page.';
   setTimeout(function(){pfil.style.width='88%';},50);
   var tid;
-  function showOtaError(msg){if(tid)clearInterval(tid);pfil.style.background='#ef4444';info.textContent=msg;enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.onclick=function(){location.reload();};}
+  // dataset.mode marks the button as carrying a non-default handler so ul()
+  // does not relabel it back to "Check for Update" on a language switch.
+  function showOtaError(msg){if(tid)clearInterval(tid);pfil.style.background='#ef4444';info.textContent=msg;enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.dataset.mode='reload';btn.onclick=function(){location.reload();};}
   function pollReboot(){
     var n=0,wentOffline=false,backOnline=0;
     tid=setInterval(function(){n++;
@@ -73,13 +75,13 @@ document.getElementById('chk').onclick=function(){
     document.getElementById('vinfo').textContent=(ru?'Текущая: ':'Current: ')+x.current+' → GitHub: '+x.latest;
     if(x.update_available){
       btn.textContent=ru?'Установить обновление ↑':'Install Update ↑';
-      btn.style.borderColor='#16a34a';btn.style.color='#4ade80';btn.disabled=false;
+      btn.style.borderColor='#16a34a';btn.style.color='#4ade80';btn.disabled=false;btn.dataset.mode='install';
       btn.onclick=function(){showSheet(ru?'Установить обновление?':'Install Update?',
         ru?'Лампа перезагрузится автоматически после прошивки.':'The lamp will reboot automatically after flashing.',
         [{label:ru?'Установить':'Install',cls:'primary',fn:startOTA}]);};
     }else{
       btn.textContent=ru?'Версия актуальна ✓':'Up to date ✓';btn.style.color='#4ade80';
-      setTimeout(function(){btn.textContent=ru?'Проверить обновления':'Check for Update';btn.style.color='#60a5fa';btn.disabled=false;},3000);
+      setTimeout(function(){btn.textContent=ru?'Проверить обновления':'Check for Update';btn.style.color='#60a5fa';btn.disabled=false;btn.dataset.mode='';},3000);
     }
   }).catch(function(){btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;});
 };

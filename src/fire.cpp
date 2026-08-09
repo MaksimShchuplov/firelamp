@@ -58,15 +58,17 @@ void buildHeatPalette() {
 //  BRIGHTNESS
 // =============================================================================
 
+// Pure: safe to call from either core. appliedRaw is written only by
+// applyBrightness() on Core 0, so a Core-1 caller that needs the raw value for
+// the brightness just written must derive it rather than read the atomic.
+static uint8_t brightToRaw(uint8_t bright) {
+    if (bright == 0) return 0;
+    int v = (int)(powf((float)bright / 100.0f, BRIGHT_GAMMA) * 255.0f + 0.5f);
+    return (uint8_t)(v < BRIGHT_FLOOR ? BRIGHT_FLOOR : v);
+}
+
 void applyBrightness() {
-    const uint8_t bright = uiBright.load(std::memory_order_relaxed);
-    uint8_t raw;
-    if (bright == 0) {
-        raw = 0;
-    } else {
-        int v = (int)(powf((float)bright / 100.0f, BRIGHT_GAMMA) * 255.0f + 0.5f);
-        raw = (uint8_t)(v < BRIGHT_FLOOR ? BRIGHT_FLOOR : v);
-    }
+    const uint8_t raw = brightToRaw(uiBright.load(std::memory_order_relaxed));
     if (raw != appliedRaw) {
         appliedRaw = raw;
         FastLED.setBrightness(raw);
@@ -113,8 +115,12 @@ void updatePowerCalc() {
     // leds[] is written by Core 0 without synchronisation; readings from Core 1
     // may reflect a partially-rendered frame. Acceptable for display — do NOT add
     // a mutex here as it would stall LEDTask.
+    // Derive from uiBright, not appliedRaw: Core 1 calls this immediately after
+    // setBright(), one frame before Core 0 stores the new appliedRaw, so reading
+    // the atomic would report the previous brightness's wattage.
     const float req = (float)calculate_unscaled_power_mW(leds, NUM_LEDS)
-                      * ((float)appliedRaw / 255.0f) / 1000.0f;
+                      * ((float)brightToRaw(uiBright.load(std::memory_order_relaxed)) / 255.0f)
+                      / 1000.0f;
     const float cap = ((float)PSU_VOLTS * (float)PSU_MAX_MA) / 1000.0f;
     const float w   = (req > cap) ? cap : req;
     currentPowerMw = (uint32_t)(w * 1000.0f);  // atomic uint32 write; avoids torn float read on Core 1

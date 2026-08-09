@@ -205,6 +205,14 @@ static void handleLog() {
 
 static void handleResetWifi() {
     if (!isWebRequest()) return;
+    // Same pre-flush as the other two reboot paths: the deferred NVS write runs
+    // on this very task, so a handler that reboots can never let it happen.
+    // wm.resetSettings() only clears nvs.net80211, so the lamp namespace would
+    // survive with a stale value.
+    if (prefsDirty.load(std::memory_order_relaxed)) {
+        if (flushPrefs()) prefsDirty.store(false, std::memory_order_relaxed);
+        else              LOG_WARN("resetwifi: NVS pre-flush failed — settings may not persist");
+    }
     server.send(200, "text/plain", "WiFi cleared — rebooting into setup mode...");
     server.client().stop();
     delay(200);

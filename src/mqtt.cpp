@@ -46,6 +46,11 @@ void initMqtt() {
         // 15 s PubSubClient default freezes the UI on every 5 s reconnect retry
         // when the broker is configured but unresponsive.
         mqttClient.setSocketTimeout(5);
+        // /surprise blocks Core 1 — and therefore mqttClient.loop(), the only
+        // PINGREQ source — for up to GEMINI_TIMEOUT_MS. PubSubClient's 15 s
+        // default would let the broker drop the session at 1.5x = 22.5 s and
+        // discard any firelamp/set command still in the socket buffer.
+        mqttClient.setKeepAlive(60);
         mqttClient.setServer(mqIp.c_str(), mqPt);
         mqttClient.setCallback([](char* topic, byte* payload, unsigned int length) {
             JsonDocument doc;

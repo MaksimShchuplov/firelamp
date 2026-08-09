@@ -13,7 +13,11 @@ function saveSlot(s){
 }
 function doSave(){
   if(pendingSlot<0)return;
-  var nm=document.getElementById('prename').value.trim();
+  // Clamp by codepoint here rather than with maxlength: the attribute counts
+  // UTF-16 units, so it capped at 7 emoji while the firmware stores 15
+  // codepoints — and once saveSlot() prefilled an over-length value the field
+  // became uneditable.
+  var nm=Array.from(document.getElementById('prename').value.trim()).slice(0,15).join('');
   if(!nm){document.getElementById('prename').focus();return;}
   document.getElementById('prein').classList.remove('show');
   var slot=pendingSlot;
