@@ -17,6 +17,9 @@ document.getElementById('aiksave').onclick=function(){
 };
 function askAI(){
   var btn=document.getElementById('surprise'),nm=document.getElementById('ainame');
+  // /surprise blocks Core 1 (and therefore the web server) for up to 25 s, so
+  // the 4 s-timeout poll would fail 3x and raise a false offline banner.
+  pullSeq++;clearInterval(pollTid);
   btn.disabled=true;nm.style.color='#fbbf24';nm.textContent='';
   var elapsed=0,etid=setInterval(function(){elapsed++;btn.textContent=(ru?'✨ Думаю ':'✨ Thinking ')+elapsed+'s…';},1000);
   btn.textContent=ru?'✨ Думаю 0s…':'✨ Thinking 0s…';
@@ -30,9 +33,11 @@ function askAI(){
     applyState(x);
     if(aiNmTid){clearTimeout(aiNmTid);aiNmTid=null;}clearActive();lastAiName=Array.from(x.name||'').slice(0,15).join('');nm.textContent=(lastAiName||'AI Effect')+' ✨';
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
+    pollTid=setInterval(function(){if(!document.hidden)pull();},5000);
   }).catch(function(e){
     clearTimeout(to);clearInterval(etid);
     btn.disabled=false;btn.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
+    pollTid=setInterval(function(){if(!document.hidden)pull();},5000);
     var msg=(e.name==='AbortError'||e.message==='timeout')?(ru?'⚠ AI не ответил (таймаут)':'⚠ AI timed out')
       :e.message==='no_key'?(ru?'⚠ Укажите ключ в настройках (?)':'⚠ Set API key in settings (?)')
       :e.message==='rate_limit'?(ru?'⚠ Лимит — подождите немного':'⚠ Rate limit — wait a moment')

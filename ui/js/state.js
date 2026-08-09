@@ -32,5 +32,16 @@ function applyState(x){
   if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);
   if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
 }
-function pull(){var seq=++pullSeq;fetch('/state').then(r=>r.json()).then(x=>{if(seq<pullSeq)return;applyState(x);}).catch(()=>{if(seq<pullSeq)return;pullFails++;if(pullFails>=3)showOffline();});}
+// Timeout MUST stay below the 5000 ms poll interval in poll.js: a rejection
+// that settles after the next tick is swallowed by the seq<pullSeq guard, and
+// pullFails would never reach 3. Without it a stalled TCP connection (lamp
+// unplugged while the AP still holds the station entry) leaves fetch hanging
+// for the kernel retransmit window and the offline banner never appears.
+// Skip applying while the user is mid-adjustment, or a poll in flight when a
+// slider moves rewrites the value under their finger — activeElement alone is
+// not enough, WebKit does not focus range inputs. Gate here rather than in
+// applyState: /loadpreset and /surprise must always apply.
+function pull(){var seq=++pullSeq,ac=new AbortController(),to=setTimeout(function(){ac.abort();},4000);
+ fetch('/state',{signal:ac.signal}).then(r=>r.json()).then(x=>{clearTimeout(to);if(seq<pullSeq||Date.now()-lastIn<1000)return;applyState(x);})
+ .catch(()=>{clearTimeout(to);if(seq<pullSeq)return;pullFails++;if(pullFails>=3)showOffline();});}
 document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});

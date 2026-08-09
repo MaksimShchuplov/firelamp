@@ -78,11 +78,28 @@ def test_state_js_clamps_match_config():
 # ===========================================================================
 
 def test_sliders_js_vib_bounds_match_config():
+    found = set()
     for m in re.finditer(r"vib\(\+(s\w+)\.value,(\d+),(\d+)\)", _SLIDERS):
         sid, lo, hi = m.group(1), int(m.group(2)), int(m.group(3))
         prefix = SLIDER_PARAMS[sid]
         assert lo == _define(prefix + "_MIN"), "vib %s lo" % sid
         assert hi == _define(prefix + "_MAX"), "vib %s hi" % sid
+        found.add(sid)
+    # Without this the test passes vacuously if the vib() call shape ever changes.
+    assert found == set(SLIDER_PARAMS), "vib() calls found for %r, expected %r" % (found, set(SLIDER_PARAMS))
+
+
+def test_slider_debounce_captures_value_at_input_time():
+    # Reading s*.value inside the 120 ms setTimeout lets a /state poll that lands
+    # mid-debounce rewrite the input, so the request transmits the polled value
+    # instead of the user's. Each handler must snapshot into a local first.
+    for sid in SLIDER_PARAMS:
+        m = re.search(r"%s\.addEventListener\('input'.*?\n" % sid, _SLIDERS)
+        assert m, "sliders.js: no input handler for %s" % sid
+        h = m.group(0)
+        assert re.search(r"var v=%s\.value;" % sid, h), "%s: value not snapshotted" % sid
+        assert re.search(r"setTimeout\(function\(\)\{xf\('[^']+\?v='\+v\);\}", h), \
+            "%s: debounce still reads the live DOM value" % sid
 
 
 # ===========================================================================

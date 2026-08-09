@@ -18,5 +18,5 @@ var vbl=document.getElementById('vbl'),sbl=document.getElementById('sbl');
 var R=document.documentElement,t1,t2,t3,t4,t5;
 var xf=function(u,o){var h=Object.assign({'X-Requested-With':'firelamp'},o&&o.headers);return fetch(u,Object.assign({},o,{headers:h}));};
 var ru=(localStorage.getItem('lang')==='ru')||(!localStorage.getItem('lang')&&navigator.language.startsWith('ru'));
-var pullFails=0,pullSeq=0;
+var pullFails=0,pullSeq=0,lastIn=0;
 var pendingSlot=-1,lastAiName='',aiNmTid=null;
