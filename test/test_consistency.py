@@ -138,3 +138,20 @@ def test_button_counts_match_config():
     m = re.search(r"pr\.slot>(\d+)", _PRESETS)
     assert m and int(m.group(1)) == _define("PRESET_COUNT") - 1, \
         "presets.js import slot bound vs PRESET_COUNT"
+
+
+# ===========================================================================
+# MQTT: pl_on/pl_off are used in BOTH directions by HA's default light schema
+# (published to cmd_t, and string-compared against the templated state
+# payload). If discovery advertises bare ON/OFF, the callback must accept
+# them; if it advertises JSON, stat_val_tpl must emit JSON. Changing one side
+# alone leaves the HA entity permanently "unknown".
+# ===========================================================================
+
+def test_mqtt_discovery_onoff_matches_callback():
+    src = (_ROOT / "src" / "mqtt.cpp").read_text(encoding="utf-8")
+    advertises_bare = r'\"pl_on\":\"ON\",\"pl_off\":\"OFF\"' in src
+    assert advertises_bare, "mqtt.cpp: discovery no longer advertises bare ON/OFF"
+    assert 'memcmp(payload, "ON"' in src and 'memcmp(payload, "OFF"' in src, \
+        "mqtt.cpp: discovery advertises bare ON/OFF but the callback cannot parse them"
+    assert 'value_json.state' in src, "mqtt.cpp: stat_val_tpl no longer yields the bare state"

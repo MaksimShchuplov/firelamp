@@ -49,8 +49,12 @@ void initMqtt() {
         mqttClient.setServer(mqIp.c_str(), mqPt);
         mqttClient.setCallback([](char* topic, byte* payload, unsigned int length) {
             JsonDocument doc;
-            DeserializationError err = deserializeJson(doc, payload, length);
-            if (err) return;
+            // HA's default light schema publishes payload_on/payload_off verbatim
+            // to cmd_t, so the bare ON/OFF form must be accepted alongside the
+            // JSON payloads that hand-written automations send.
+            if      (length == 2 && !memcmp(payload, "ON",  2)) doc["state"] = "ON";
+            else if (length == 3 && !memcmp(payload, "OFF", 3)) doc["state"] = "OFF";
+            else if (deserializeJson(doc, payload, length))     return;
 
             bool hadB     = doc.containsKey("b");
             bool hadState = doc.containsKey("state");
@@ -98,7 +102,11 @@ static void publishDiscovery() {
         "{\"name\":\"Fire Lamp\",\"uniq_id\":\"%s\","
         "\"stat_t\":\"%s/state\",\"cmd_t\":\"%s/set\","
         "\"stat_val_tpl\":\"{{ value_json.state }}\","
-        "\"pl_on\":\"{\\\"state\\\":\\\"ON\\\"}\",\"pl_off\":\"{\\\"state\\\":\\\"OFF\\\"}\","
+        // pl_on/pl_off are used in BOTH directions by HA's default light schema:
+        // published to cmd_t, and string-compared against the templated state
+        // payload. They must therefore match what stat_val_tpl yields (ON/OFF),
+        // or the entity never leaves "unknown".
+        "\"pl_on\":\"ON\",\"pl_off\":\"OFF\","
         "\"bri_stat_t\":\"%s/state\",\"bri_val_tpl\":\"{{ value_json.b }}\","
         "\"bri_cmd_t\":\"%s/set\",\"bri_cmd_tpl\":\"{\\\"b\\\":{{ value }}}\",\"bri_scl\":100,"
         "\"dev\":{\"ids\":[\"%s\"],\"name\":\"Fire Lamp\",\"mdl\":\"FireLamp ESP32-S3\","

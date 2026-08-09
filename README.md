@@ -140,9 +140,8 @@ mqtt:
       brightness_command_topic: "firelamp/set"
       brightness_value_template: "{{ value_json.b }}"
       brightness_command_template: '{"b": {{ value }} }'
-      on_off_command_topic: "firelamp/set"
-      payload_on: '{"state":"ON"}'
-      payload_off: '{"state":"OFF"}'
+      payload_on: "ON"
+      payload_off: "OFF"
       state_value_template: "{{ value_json.state }}"
 ```
 
