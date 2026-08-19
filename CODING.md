@@ -57,6 +57,10 @@ bool   flushPrefs();                               // write 6 UI params to NVS
 inline void markDirty();                           // in globals.h — mark NVS dirty, reset debounce
 ```
 
+Before changing anything that alters how the lamp *looks*, read `ROADMAP.md` —
+its "Rejected" section records visual behaviour that looks like a bug, is not,
+and has already been "fixed" and reverted more than once.
+
 ## Concurrency rules — never break these
 
 - All variables shared Core 0 ↔ Core 1 are `std::atomic<T>`. Do not use plain types.

@@ -148,6 +148,9 @@ mqtt:
 
 ---
 
+
+Deferred work, open questions, and ideas that were considered and turned down are recorded in [ROADMAP.md](ROADMAP.md).
+
 ## OTA Updates
 
 Every push to `main` builds a new release. The UI checks automatically 8 seconds after Wi-Fi connects.
