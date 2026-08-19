@@ -148,9 +148,6 @@ mqtt:
 
 ---
 
-
-Deferred work, open questions, and ideas that were considered and turned down are recorded in [ROADMAP.md](ROADMAP.md).
-
 ## OTA Updates
 
 Every push to `main` builds a new release. The UI checks automatically 8 seconds after Wi-Fi connects.
@@ -175,6 +172,8 @@ The file travels only over local Wi-Fi — no TLS to GitHub required.
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the dual-core task split, shared-state concurrency model (double-buffered palette, atomic parameter updates), OTA flow, PWA service worker strategy, and NVS partition layout.
+
+[ROADMAP.md](ROADMAP.md) records deferred work, open questions, and — worth reading before changing how the lamp looks — ideas that were considered and turned down.
 
 ---
 
