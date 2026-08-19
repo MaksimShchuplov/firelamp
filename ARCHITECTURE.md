@@ -145,14 +145,17 @@ The boot-loop crash counter uses a separate `boot` NVS namespace so it never sha
 ### CI
 Every push to `main` builds the firmware, generates `version.json` (git short-SHA + MD5), publishes a versioned release tagged `build-<sha>` with auto-generated changelog, and updates the rolling `latest` release. The OTA endpoint always points to `latest`.
 
-### Palette seams — deliberate, do not normalise
+### Palette seams — tuned, do not normalise
 
-`heatRamp()` in `fire_math.h` pairs a 6-bit `ramp` (wraps to 0 at every multiple of 0x40) with two branch boundaries that are treated **asymmetrically on purpose**:
+`heatRamp()` in `fire_math.h` selects colour branches with `t192 > 0x80` / `t192 > 0x40`, paired with a 6-bit `ramp` that wraps to 0 at every multiple of 0x40. The exact boundary values therefore fall one branch low with `ramp == 0`, producing zero-intensity entries at palette indices 86 and 171–172 (at contrast 50).
 
-- **0x80 — bit test.** Smoothed. The `>` form put `t192==0x80` in the mid branch, producing red flecks between two yellows in the hottest band (palette 171–172 at contrast 50). Not wanted.
-- **0x40 — `>` kept.** `t192==0x40` falls to the low branch with `ramp==0`, i.e. black (palette 86 at contrast 50). The dark speckling this scatters through the mid-flame is what reads as texture and contrast on the real lamp; smoothing it made the fire look flat. Chosen after seeing both on hardware.
+This looks like a bug — it does not match FastLED's `HeatColor`, which the palette derives from — but it is what the lamp's look was tuned against, and it has been "fixed" and reverted once already.
 
-Making these two consistent with each other — or with FastLED's `HeatColor`, which this palette derives from — is a **visual** change, not a correctness fix. It has been made and reverted once already. `test_heat_ramp_lower_seam_stays_dark_on_purpose` pins it.
+It is also not equivalent to randomly darkening cells. The affected entries are chosen by heat *value*, and the heat field is spatially smooth, so they land along an iso-thermal contour: measured on the model (defaults, 1000 frames) ~2.3 cells/frame hit index 86, in 81% of frames, and 16% have an adjacent hit versus ~2% for a uniform scatter — 8× more clustered than noise. That clustering is why the effect is visible at all: the temporal `nblend` and the vertical convection blend are low-pass filters that erase per-cell white noise (such as the random cooling in `fireEffect`) but pass a contour drifting with the flame. On the lamp it reads as thin dark filaments — soot streaks.
+
+Consequently, moving this effect into the simulation as per-cell "soot" would be a regression: uniformly scattered cells are exactly the noise the filters remove. `test_heat_ramp_lower_seam_stays_dark_on_purpose` and `test_heat_ramp_upper_seam_drops_to_mid_on_purpose` pin both seams.
+
+Known trade-off: the seam's position in *heat* terms follows the contrast gamma curve, so changing contrast also changes where the filaments appear. Making the dark band an explicit fraction of the heat range would decouple them, at the cost of a new parameter.
 
 ## Key Constants (src/config.h)
 

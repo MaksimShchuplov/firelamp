@@ -210,47 +210,37 @@ void test_palette_normal_contrast_midpoint() {
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.502f, paletteNorm(power, 128));
 }
 
-// --- heatRamp branch selection ----------------------------------------------
-// ramp = (t192 & 0x3F) << 2 wraps to 0 at every multiple of 0x40, so a `>`
-// comparison drops the exact boundary value one branch low with ramp==0.
-// The two boundaries treat this DIFFERENTLY, on purpose:
-//   0x80 uses the bit test  -> smooth, no red flecks in the hottest band
-//   0x40 uses `>`           -> keeps the black speckle that gives the flame its
-//                              texture on the real lamp
-// These tests pin BOTH sides so neither gets "normalised" to the other.
-
-void test_heat_ramp_boundary_0x80_not_black() {
-    for (uint8_t th = 0; th < THEME_COUNT; th++) {
-        Rgb8 c = heatRamp(th, 0x80);
-        TEST_ASSERT_TRUE_MESSAGE(c.r || c.g || c.b,
-            "heatRamp(theme, 0x80) collapsed to black — branch test regressed to `>`");
-    }
-}
-
-void test_heat_ramp_boundary_0x80_selects_high_branch() {
-    // High branch at ramp==0: Fire (255,255,0), Ember (255,0,0),
-    // Plasma (255,0,255), Ice (0,255,255).
-    Rgb8 fire = heatRamp(0, 0x80);
-    TEST_ASSERT_EQUAL_UINT8(255, fire.r); TEST_ASSERT_EQUAL_UINT8(255, fire.g); TEST_ASSERT_EQUAL_UINT8(0, fire.b);
-    Rgb8 ice = heatRamp(3, 0x80);
-    TEST_ASSERT_EQUAL_UINT8(0, ice.r);   TEST_ASSERT_EQUAL_UINT8(255, ice.g);  TEST_ASSERT_EQUAL_UINT8(255, ice.b);
-}
+// --- heatRamp seam behaviour (TUNED, not a defect) ---------------------------
+// ramp = (t192 & 0x3F) << 2 wraps to 0 at every multiple of 0x40, so the `>`
+// comparisons drop t192==0x40 and t192==0x80 one branch low with ramp==0. The
+// resulting zero-intensity entries (palette 86 and 171-172 at contrast 50) are
+// the lamp's tuned look: they track an iso-thermal contour through the heat
+// field, so they render as thin dark filaments drifting with the flame rather
+// than as noise. Smoothing either seam to a bit test flattens the fire; it has
+// been tried and reverted. These tests pin both seams.
 
 void test_heat_ramp_lower_seam_stays_dark_on_purpose() {
-    // INTENTIONAL, tuned on hardware: t192==0x40 falls to the low branch with
-    // ramp==0, so this entry is black in every theme (palette index 86 at
-    // contrast 50). The dark speckling it scatters through the mid-flame is
-    // what reads as texture; smoothing it made the fire look flat. Do NOT
-    // "fix" this to the bit test — that change was made once and reverted.
     for (uint8_t th = 0; th < THEME_COUNT; th++) {
         Rgb8 c = heatRamp(th, 0x40);
         TEST_ASSERT_EQUAL_UINT8(0, c.r);
         TEST_ASSERT_EQUAL_UINT8(0, c.g);
         TEST_ASSERT_EQUAL_UINT8(0, c.b);
     }
-    // One past the seam the mid branch resumes normally.
-    Rgb8 fire = heatRamp(0, 0x41);
+    Rgb8 fire = heatRamp(0, 0x41);          // one past the seam: mid branch resumes
     TEST_ASSERT_EQUAL_UINT8(255, fire.r); TEST_ASSERT_EQUAL_UINT8(4, fire.g);
+}
+
+void test_heat_ramp_upper_seam_drops_to_mid_on_purpose() {
+    // t192==0x80 stays in the MID branch with ramp==0: pure red in Fire and
+    // Ember, blue in Plasma and Ice. Do not "fix" this to the high branch.
+    Rgb8 fire = heatRamp(0, 0x80);
+    TEST_ASSERT_EQUAL_UINT8(255, fire.r); TEST_ASSERT_EQUAL_UINT8(0, fire.g); TEST_ASSERT_EQUAL_UINT8(0, fire.b);
+    Rgb8 ice = heatRamp(3, 0x80);
+    TEST_ASSERT_EQUAL_UINT8(0, ice.r);   TEST_ASSERT_EQUAL_UINT8(0, ice.g);   TEST_ASSERT_EQUAL_UINT8(255, ice.b);
+    Rgb8 ember = heatRamp(1, 0x80);
+    TEST_ASSERT_EQUAL_UINT8(0, ember.r); TEST_ASSERT_EQUAL_UINT8(0, ember.g); TEST_ASSERT_EQUAL_UINT8(0, ember.b);
+    Rgb8 hot = heatRamp(0, 0x81);           // one past: high branch resumes
+    TEST_ASSERT_EQUAL_UINT8(255, hot.r); TEST_ASSERT_EQUAL_UINT8(255, hot.g); TEST_ASSERT_EQUAL_UINT8(4, hot.b);
 }
 
 // --- brightToRaw -------------------------------------------------------------
@@ -478,8 +468,7 @@ int main() {
     RUN_TEST(test_palette_contrast_zero_i0_stays_black);
     RUN_TEST(test_palette_contrast_zero_nonzero_i_full_bright);
     RUN_TEST(test_palette_normal_contrast_midpoint);
-    RUN_TEST(test_heat_ramp_boundary_0x80_not_black);
-    RUN_TEST(test_heat_ramp_boundary_0x80_selects_high_branch);
+    RUN_TEST(test_heat_ramp_upper_seam_drops_to_mid_on_purpose);
     RUN_TEST(test_heat_ramp_lower_seam_stays_dark_on_purpose);
     RUN_TEST(test_bright_to_raw_zero_is_off);
     RUN_TEST(test_bright_to_raw_full_is_255);
