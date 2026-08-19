@@ -145,6 +145,15 @@ The boot-loop crash counter uses a separate `boot` NVS namespace so it never sha
 ### CI
 Every push to `main` builds the firmware, generates `version.json` (git short-SHA + MD5), publishes a versioned release tagged `build-<sha>` with auto-generated changelog, and updates the rolling `latest` release. The OTA endpoint always points to `latest`.
 
+### Palette seams — deliberate, do not normalise
+
+`heatRamp()` in `fire_math.h` pairs a 6-bit `ramp` (wraps to 0 at every multiple of 0x40) with two branch boundaries that are treated **asymmetrically on purpose**:
+
+- **0x80 — bit test.** Smoothed. The `>` form put `t192==0x80` in the mid branch, producing red flecks between two yellows in the hottest band (palette 171–172 at contrast 50). Not wanted.
+- **0x40 — `>` kept.** `t192==0x40` falls to the low branch with `ramp==0`, i.e. black (palette 86 at contrast 50). The dark speckling this scatters through the mid-flame is what reads as texture and contrast on the real lamp; smoothing it made the fire look flat. Chosen after seeing both on hardware.
+
+Making these two consistent with each other — or with FastLED's `HeatColor`, which this palette derives from — is a **visual** change, not a correctness fix. It has been made and reverted once already. `test_heat_ramp_lower_seam_stays_dark_on_purpose` pins it.
+
 ## Key Constants (src/config.h)
 
 - `COLUMNS 20`, `ROWS 40`, `NUM_LEDS 800`

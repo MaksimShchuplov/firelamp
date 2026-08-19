@@ -211,9 +211,13 @@ void test_palette_normal_contrast_midpoint() {
 }
 
 // --- heatRamp branch selection ----------------------------------------------
-// ramp = (t192 & 0x3F) << 2 wraps to 0 at every multiple of 0x40, so branch
-// selection must use the bit tests. With `>` the exact boundary values fall one
-// branch low with ramp==0 and collapse to that branch's zero-intensity colour.
+// ramp = (t192 & 0x3F) << 2 wraps to 0 at every multiple of 0x40, so a `>`
+// comparison drops the exact boundary value one branch low with ramp==0.
+// The two boundaries treat this DIFFERENTLY, on purpose:
+//   0x80 uses the bit test  -> smooth, no red flecks in the hottest band
+//   0x40 uses `>`           -> keeps the black speckle that gives the flame its
+//                              texture on the real lamp
+// These tests pin BOTH sides so neither gets "normalised" to the other.
 
 void test_heat_ramp_boundary_0x80_not_black() {
     for (uint8_t th = 0; th < THEME_COUNT; th++) {
@@ -232,13 +236,21 @@ void test_heat_ramp_boundary_0x80_selects_high_branch() {
     TEST_ASSERT_EQUAL_UINT8(0, ice.r);   TEST_ASSERT_EQUAL_UINT8(255, ice.g);  TEST_ASSERT_EQUAL_UINT8(255, ice.b);
 }
 
-void test_heat_ramp_boundary_0x40_selects_mid_branch() {
-    // Fire mid branch is (255, ramp, 0); at t192==0x40 ramp==0 → (255,0,0).
-    Rgb8 fire = heatRamp(0, 0x40);
-    TEST_ASSERT_EQUAL_UINT8(255, fire.r); TEST_ASSERT_EQUAL_UINT8(0, fire.g); TEST_ASSERT_EQUAL_UINT8(0, fire.b);
-    // Ice mid branch is (0, ramp, 255) → blue, not the low branch's black.
-    Rgb8 ice = heatRamp(3, 0x40);
-    TEST_ASSERT_EQUAL_UINT8(0, ice.r);   TEST_ASSERT_EQUAL_UINT8(0, ice.g);   TEST_ASSERT_EQUAL_UINT8(255, ice.b);
+void test_heat_ramp_lower_seam_stays_dark_on_purpose() {
+    // INTENTIONAL, tuned on hardware: t192==0x40 falls to the low branch with
+    // ramp==0, so this entry is black in every theme (palette index 86 at
+    // contrast 50). The dark speckling it scatters through the mid-flame is
+    // what reads as texture; smoothing it made the fire look flat. Do NOT
+    // "fix" this to the bit test — that change was made once and reverted.
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        Rgb8 c = heatRamp(th, 0x40);
+        TEST_ASSERT_EQUAL_UINT8(0, c.r);
+        TEST_ASSERT_EQUAL_UINT8(0, c.g);
+        TEST_ASSERT_EQUAL_UINT8(0, c.b);
+    }
+    // One past the seam the mid branch resumes normally.
+    Rgb8 fire = heatRamp(0, 0x41);
+    TEST_ASSERT_EQUAL_UINT8(255, fire.r); TEST_ASSERT_EQUAL_UINT8(4, fire.g);
 }
 
 // --- brightToRaw -------------------------------------------------------------
@@ -468,7 +480,7 @@ int main() {
     RUN_TEST(test_palette_normal_contrast_midpoint);
     RUN_TEST(test_heat_ramp_boundary_0x80_not_black);
     RUN_TEST(test_heat_ramp_boundary_0x80_selects_high_branch);
-    RUN_TEST(test_heat_ramp_boundary_0x40_selects_mid_branch);
+    RUN_TEST(test_heat_ramp_lower_seam_stays_dark_on_purpose);
     RUN_TEST(test_bright_to_raw_zero_is_off);
     RUN_TEST(test_bright_to_raw_full_is_255);
     RUN_TEST(test_bright_to_raw_low_clamps_to_floor);
