@@ -80,11 +80,16 @@ jobs:
           echo "{\"version\":\"${GIT_SHA}\",\"build_n\":${{ github.run_number }},\"date\":\"${BUILD_DATE}\",\"md5\":\"${MD5}\"}" > version.json
 
           # Changelog: commits since the previous build-* tag (or last 10 if no prior tag)
-          PREV_TAG=$(git tag --list 'build-*' --sort=-creatordate | sed -n '1p')
+          # Tag names embed a UTC timestamp, so a lexicographic sort is chronological
+          # and does not depend on tag type the way --sort=-creatordate does.
+          PREV_TAG=$(git tag --list 'build-*' | sort -r | sed -n '1p')
+          # `|| true`: an empty commit range makes git log output nothing, and under
+          # `bash -e` a non-zero status here kills the step before the `-z` fallback
+          # below can run. Same for a tag that is missing locally.
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s" | grep -v '^$')
+            CHANGELOG=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" || true)
           else
-            CHANGELOG=$(git log --pretty=format:"- %s" -10)
+            CHANGELOG=$(git log --pretty=format:"- %s" -10 || true)
           fi
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No new commits since last build"
@@ -101,6 +106,7 @@ jobs:
         with:
           artifacts: ".pio/build/esp32s3/firmware.bin,version.json"
           tag: "${{ env.BUILD_TAG }}"
+          commit: ${{ github.sha }}
           name: "Build ${{ env.BUILD_STAMP }} (${{ env.GIT_SHA }})"
           bodyFile: "changelog.txt"
           makeLatest: false
@@ -112,6 +118,7 @@ jobs:
         with:
           artifacts: ".pio/build/esp32s3/firmware.bin,version.json"
           tag: "latest"
+          commit: ${{ github.sha }}
           name: "Latest Firmware"
           bodyFile: "changelog.txt"
           allowUpdates: true
