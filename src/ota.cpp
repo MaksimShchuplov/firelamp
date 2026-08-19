@@ -158,7 +158,7 @@ static void handleUpdate() {
         return;
     }
     LOG_INFO("OTA written %u bytes — rebooting", (unsigned)written);
-    delay(100);
+    blankStripForRestart();
     ESP.restart();
 }
 

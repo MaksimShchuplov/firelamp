@@ -102,6 +102,11 @@
 #define OTA_TIP_PULSE_BPM       80      // beatsin8 speed for the tip fade shimmer
 #define OTA_TIP_PULSE_DEPTH     150     // beatsin8 high end
 
+// ---- Restart blanking -------------------------------------------------------
+// Time to let LEDTask push a black frame before a self-restart. Must cover a few
+// frames at the ~40 FPS WS2812B ceiling plus FastLED.show() for 800 LEDs (~24 ms).
+#define BLANK_SETTLE_MS         80
+
 // ---- Spark base rows --------------------------------------------------------
 #define SPARK_BASE_ROWS         3       // sparks can ignite in any of the bottom N rows
 

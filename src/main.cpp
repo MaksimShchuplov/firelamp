@@ -55,6 +55,7 @@ std::atomic<uint32_t> wifiRetryAt{0};
 std::atomic<uint32_t> lastPowerCalc{0};
 std::atomic<bool>    isBooting{true};
 std::atomic<bool>    isUpdating{false};
+std::atomic<bool>    isBlanking{false};
 std::atomic<uint8_t> otaProgress{0};
 
 // =============================================================================
@@ -62,12 +63,16 @@ std::atomic<uint8_t> otaProgress{0};
 // =============================================================================
 
 void setup() {
-    Serial.begin(115200);
-    safeBootCheck();
-
+    // FIRST, before Serial and any NVS access: WS2812B latches its last frame,
+    // so an unexpected reset (brownout, panic) while the strip was bright leaves
+    // it drawing peak current until we blank it. Every millisecond spent before
+    // this runs is a millisecond the rail stays loaded during re-init.
     FastLED.addLeds<WS2812B, LED_PIN, LED_COLOR_ORDER>(leds, NUM_LEDS);
     FastLED.setMaxPowerInVoltsAndMilliamps(PSU_VOLTS, PSU_MAX_MA);
     FastLED.clear(true);
+
+    Serial.begin(115200);
+    safeBootCheck();
 
 #if COLOR_TEST
     // Strip MUST show solid RED. Green/blue → wrong LED_COLOR_ORDER in config.h.

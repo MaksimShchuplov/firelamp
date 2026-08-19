@@ -98,6 +98,13 @@ void updatePowerCalc() {
 }
 
 void fireEffect() {
+    // Checked first: a pending self-restart must win over every other render
+    // mode so the strip is dark before the reset, whatever else is in flight.
+    if (isBlanking.load(std::memory_order_relaxed)) {
+        FastLED.clear();
+        return;
+    }
+
     if (isBooting.load(std::memory_order_relaxed)) {
         // Simple LED progress bar filling from bottom to top while WiFi connects
         CRGB color = heatPalette[activePal.load(std::memory_order_relaxed) & 1][BOOT_BAR_PALETTE_IDX];
@@ -187,4 +194,20 @@ void fireEffect() {
 
     if (millis() - lastPowerCalc > POWER_CALC_INTERVAL_MS)
         updatePowerCalc();
+}
+
+// WS2812B latches its last received frame, so ESP.restart() while the OTA bar is
+// lit leaves all 800 LEDs near white-hot (pal[200] is (255,255,84)) for the whole
+// bootloader window — a current peak at the exact moment the ESP re-initialises.
+// On a PSU sized below that draw the rail collapses, the ESP browns out, and the
+// still-latched frame makes it repeat: a self-sustaining reset loop that only a
+// power cycle clears. Drive the strip dark and let LEDTask push the black frame
+// before handing control to ESP.restart().
+void blankStripForRestart() {
+    if (!ledTaskHandle) {          // LEDTask never started — safe to drive directly
+        FastLED.clear(true);
+        return;
+    }
+    isBlanking.store(true, std::memory_order_relaxed);
+    delay(BLANK_SETTLE_MS);        // several LEDTask frames at ~40 FPS
 }

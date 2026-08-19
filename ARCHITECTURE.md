@@ -95,6 +95,8 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 1. On WiFi connect, `autoUpdateCheck` task fires after 8 s, fetches `version.json`, sets `updatePending` flag. Browser sees `"upd":1` in `/state` and shows a silent badge.
 2. Browser calls `/checkupdate` → ESP fetches `version.json` (cached 60 s) and compares SHA against `FIRMWARE_VERSION`.
 3. Browser calls `/update` (with `X-Requested-With: firelamp` CSRF header) → ESP flushes pending NVS writes, sends HTTP 200, closes the connection, then downloads `firmware.bin` via `HTTPClient`. Firmware is streamed in 512-byte chunks with a 1 ms `vTaskDelay` between each write so Core 0 (LEDs) stays responsive and `otaProgress` (0–100) stays fresh for the progress bar. `Update.setMD5()` is called **after** `Update.begin()` (begin resets the expected hash). While `isUpdating` is true `fireEffect()` renders a bottom-up fill bar using the current theme palette instead of fire. After the stream completes `isUpdating` is cleared and the ESP reboots. UI polls `/info` every 3 s until lamp responds, then auto-reloads.
+Before any self-restart (OTA, `/flash`, `/resetwifi`) the firmware drives the strip dark via `blankStripForRestart()` and waits `BLANK_SETTLE_MS` for LEDTask to push the black frame. WS2812B latches its last frame, so restarting while the OTA bar is full would hold all 800 LEDs near white-hot (`pal[200]` is `(255,255,84)`) across the entire bootloader window — a current peak precisely when the ESP is re-initialising. `setup()` likewise blanks the strip as its very first action, before `Serial.begin()` and any NVS access, so a frame latched by an *unexpected* reset (brownout, panic) is cleared as early as possible instead of sustaining the condition that caused it.
+
 4. `boot.cpp` counts consecutive hard crashes (panic/watchdog). On the third consecutive crash it calls `Update.rollBack()` + restart, reverting to the previous OTA slot.
 
 ### Surprise Me — Gemini AI effects
@@ -170,7 +172,7 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 | `GET /reset` | — | restore all defaults |
 | `GET /checkupdate` | — | compare version (60 s cache) |
 | `GET /update` | — | start OTA; ESP reboots on success |
-| `GET /info` | — | flash_mb, free_heap, ip, version, build |
+| `GET /info` | — | flash_mb, free_heap, ip, version, build, `reset` (last reset reason), `crashes` (consecutive-crash counter) |
 | `GET /deletepreset` | `slot=0..7` | clear a preset slot |
 | `GET /resetwifi` | — | clear credentials + reboot |
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini API key to NVS (`gemini` namespace); POST body keeps key out of URL/logs |

@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <esp_system.h>
+#include <Preferences.h>
 #include "globals.h"
 #include "text_utils.h"
 #include "net_helpers.h"
@@ -121,14 +123,40 @@ static void handleReset() {
     updatePowerCalc(); sendVal();
 }
 
+// Why the last boot happened, and how many consecutive crashes boot.cpp has
+// counted. Exposed because a lamp that reset unexpectedly is otherwise
+// undiagnosable after the fact — the /log ring buffer lives in RAM and does not
+// survive the very reset you want to explain.
+static const char *resetReasonName() {
+    switch (esp_reset_reason()) {
+        case ESP_RST_POWERON:  return "poweron";
+        case ESP_RST_SW:       return "sw";       // ESP.restart(), e.g. after OTA
+        case ESP_RST_PANIC:    return "panic";
+        case ESP_RST_INT_WDT:  return "int_wdt";
+        case ESP_RST_TASK_WDT: return "task_wdt";
+        case ESP_RST_WDT:      return "wdt";
+        case ESP_RST_BROWNOUT: return "brownout";
+        case ESP_RST_DEEPSLEEP:return "deepsleep";
+        case ESP_RST_EXT:      return "ext";
+        default:               return "unknown";
+    }
+}
+
 static void handleInfo() {
     char j[512];
     String ip = WiFi.localIP().toString();
+    uint32_t crashes = 0;
+    {
+        Preferences p;
+        p.begin("boot", true);
+        crashes = p.getUInt("crashes", 0);
+        p.end();
+    }
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
     snprintf(j, sizeof(j),
              "{\"flash_mb\":%u,\"free_heap\":%u,\"min_heap\":%u,"
              "\"rssi_dbm\":%d,\"uptime_s\":%lu,\"ip\":\"%s\","
-             "\"led_stack_free\":%lu,"
+             "\"led_stack_free\":%lu,\"reset\":\"%s\",\"crashes\":%lu,"
              "\"version\":\"" FIRMWARE_VERSION "\",\"build\":\"" __DATE__ " " __TIME__ "\"}",
              (unsigned)(ESP.getFlashChipSize() / (1024 * 1024)),
              (unsigned)ESP.getFreeHeap(),
@@ -136,7 +164,8 @@ static void handleInfo() {
              (int)WiFi.RSSI(),
              (unsigned long)(millis() / 1000),
              ip.c_str(),
-             (unsigned long)watermark);
+             (unsigned long)watermark,
+             resetReasonName(), (unsigned long)crashes);
     server.send(200, "application/json", j);
 }
 
@@ -217,6 +246,7 @@ static void handleResetWifi() {
     server.client().stop();
     delay(200);
     wm.resetSettings();
+    blankStripForRestart();
     ESP.restart();
 }
 

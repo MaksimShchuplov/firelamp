@@ -97,7 +97,7 @@ static void handleFlashDone() {
     server.send(200, "text/plain", "Flash complete — rebooting...");
     server.client().flush();
     server.client().stop();
-    delay(100);
+    blankStripForRestart();
     ESP.restart();
 }
 

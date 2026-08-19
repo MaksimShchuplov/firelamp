@@ -62,6 +62,7 @@ inline void markDirty() { prefsTouch.store(millis(), std::memory_order_relaxed);
 extern std::atomic<uint32_t> lastPowerCalc;  // written Core 0 (fireEffect) + Core 1 (handlers)
 extern std::atomic<bool>     isBooting;      // true while WiFi is connecting
 extern std::atomic<bool>     isUpdating;     // true while OTA firmware is streaming to flash
+extern std::atomic<bool>     isBlanking;     // render path: push a black frame before a self-restart
 extern std::atomic<uint8_t>  otaProgress;    // 0-100 during OTA download
 
 // ---- Task handles ----------------------------------------------------------
@@ -90,6 +91,10 @@ void recalcCooling();
 void updatePowerCalc();
 void fireEffect();
 void updateWind();
+// Drives the strip dark and waits for LEDTask to push it. Call before any
+// self-restart: WS2812B latches its last frame, so restarting while the OTA bar
+// is lit holds all 800 LEDs near white-hot across the whole bootloader window.
+void blankStripForRestart();
 
 void safeBootCheck();
 void markBootSuccess();
