@@ -116,6 +116,37 @@ violation. Left alone deliberately: the formulas are correct as shipped, the
 `y == 1` edge clamp carries a do-not-touch note, and bundling this into a
 commit that touches fire behaviour would muddy a bisect.
 
+### Skip the boot portal when credentials are saved
+**Trigger: step A (fire runs during the portal) has been seen working on hardware.**
+
+With saved credentials and the router not yet up, `wm.autoConnect()` fails its
+join and opens the config portal for the full `WIFI_PORTAL_TIMEOUT_S`, during
+which the web UI is unreachable and an open AP is advertised. Step B:
+`if (wm.getWiFiIsSaved()) wm.setEnableConfigPortal(false);` before
+`autoConnect` (returns after ≈22 s; `serviceNetwork()`'s reconnect loop and the
+`startNetServices()` latch already handle the late join), plus a fallback in
+`serviceNetwork()` that opens the portal after ~10 min without a link so stale
+credentials still have a recovery route. Must verify on hardware that
+WiFiManager frees port 80 after `stopConfigPortal()` and that STA re-associates
+after the portal timeout.
+
+### Gzip the UI blob
+**Trigger: page open feels slow on 2.4 GHz with several clients.**
+
+`/` serves ~48 KB uncompressed and uncached on every open; gzipped it is
+~14 KB. Not a defect. Needs the inline init `<script>` replaced by an
+immediate `/state` fetch (the blob becomes static) and an ETag, so it is a
+page-load contract change.
+
+### Host-side tests for the UI poll lifecycle
+**Trigger: the next regression in `state.js` / `ota.js` / `ai.js`.**
+
+`test_ui.js` covers the DD table and preset import only. `pausePoll` /
+`resumePoll`, the `lastIn` gate, `pollReboot()`'s success condition and
+`askAI()`'s OTA interaction are all plain functions over globals and could be
+exercised with a minimal DOM stub. Likewise `applyJsonParams()` (needs an
+ArduinoJson shim) and `presets.cpp` key construction on the C++ side.
+
 ### Keyboard access to preset long-press actions
 Save-to-filled-slot and delete are pointer-only. A keyboard route needs a new
 visible affordance, which is a UI design decision, not a surgical fix.
@@ -131,6 +162,20 @@ give 278 mm, against the documented "≥ 45 cm tall" frame. The lamp works, so
 the real build differs from the document. Needs the actual diameter, strip
 density, and whether the strip runs in rows or columns; the file cannot be
 corrected by calculation alone.
+
+### TLS certificate validation without a clock
+`WiFiClientSecure` is given the CA bundle but the firmware never calls
+`configTime()`, so at the first handshake the system clock reads 1970. mbedTLS
+should then reject every certificate as not-yet-valid — yet OTA and Gemini
+demonstrably work in the field. Either the Arduino core relaxes the time check
+or something else sets the clock; find out which before relying on it, and
+consider an explicit NTP sync before the first TLS use.
+
+### LAN threat model
+No endpoint is authenticated: anyone on the LAN can reach `/resetwifi`,
+`/setmqtt`, `/setgeminikey`, `/update` and `/flash`. The CSRF header stops
+cross-origin browser attacks only. This is the accepted design for a home lamp
+on a trusted network; recorded so it is a decision, not an oversight.
 
 ### PSU headroom
 The OTA progress bar used to hold all 800 LEDs near white-hot across the

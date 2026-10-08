@@ -49,7 +49,8 @@ void sendVal() {
     mqttPublishState();
 }
 
-// Uses the always-open global prefs handle (opened in startNetwork).
+// Uses the always-open global prefs handle (opened in loadSettings(), which
+// setup() calls before startNetwork()).
 bool flushPrefs() {
     bool ok = true;
     ok &= (prefs.putUChar("bright2",  uiBright)  != 0);

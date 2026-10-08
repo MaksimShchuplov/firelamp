@@ -71,9 +71,9 @@ get_version.py           — PlatformIO pre-build script: injects git SHA as FIR
 ### Shared-state concurrency
 All parameters shared between cores use `std::atomic<T>` — this makes atomicity a language contract rather than an ISA assumption, so the cross-core guarantee survives type changes and compiler upgrades.
 
-UI parameters (`uiBright`, `uiContrast`, `uiCooling`, `uiSparking`, `uiBlend`, `uiTheme`, `appliedRaw`, `currentPowerMw`, `updatePending`, `lastPowerCalc`) and `coolMax[ROWS]` are `std::atomic` — written from Core 1 (web handlers / `recalcCooling`), read from Core 0. `seq_cst` stores generate a full `memw` barrier on Xtensa LX7.
+UI parameters (`uiBright`, `uiContrast`, `uiCooling`, `uiSparking`, `uiBlend`, `uiTheme`), `updatePending` and `coolMax[ROWS]` are `std::atomic` — written from Core 1 (web handlers / MQTT / `recalcCooling` / the UpdChk task), read from Core 0. `appliedRaw` is the reverse: written by Core 0 in `applyBrightness()`, read by Core 1 for `/debug`. `currentPowerMw` and `lastPowerCalc` are written by both cores via `updatePowerCalc()`. `seq_cst` stores generate a full `memw` barrier on Xtensa LX7.
 
-`isBooting`, `isUpdating`, and `otaProgress` are `std::atomic` flags that gate two alternative `fireEffect()` render modes: a pulsing boot progress bar (set true in `setup()`, cleared after `startNetwork()` returns) and an OTA download progress bar (set true in `handleUpdate()` just before the firmware stream begins, cleared immediately after `http.end()`). Both are written Core 1, read Core 0.
+`isBooting`, `isUpdating`, and `otaProgress` are `std::atomic` flags that gate two alternative `fireEffect()` render modes: a pulsing boot progress bar (set true in `setup()`, cleared after `startNetwork()` returns) and an OTA download progress bar (set true in `handleUpdate()` after the HTTP 200, before the download; cleared only on the failure paths — on success it stays true so the bar holds until `blankStripForRestart()` and the restart). Both are written Core 1, read Core 0.
 
 `heatPalette` uses a **double-buffer + atomic index flip**: `buildHeatPalette()` writes into `heatPalette[(activePal & 1) ^ 1]`, then flips `activePal` with a `seq_cst` store; `fireEffect()` loads it with `acquire`, and that release/acquire pair — not the address dependency — is what publishes the palette stores to Core 0. `fireEffect()` snapshots `activePal` once per frame so a mid-frame flip cannot split palette reads, and `buildHeatPalette()` spaces flips `PALETTE_FLIP_MIN_MS` (one frame) apart so two flips can never land inside one frame.
 
@@ -93,8 +93,8 @@ The lamp is accessible as `http://firelamp.local` (mDNS) and as `firelamp` in th
 
 ### OTA update flow
 1. On WiFi connect, `autoUpdateCheck` task fires after 8 s, fetches `version.json`, sets `updatePending` flag. Browser sees `"upd":1` in `/state` and shows a silent badge.
-2. Browser calls `/checkupdate` → ESP fetches `version.json` (cached 60 s) and compares SHA against `FIRMWARE_VERSION`.
-3. Browser calls `/update` (with `X-Requested-With: firelamp` CSRF header) → ESP flushes pending NVS writes, sends HTTP 200, closes the connection, then downloads `firmware.bin` via `HTTPClient`. Firmware is streamed in 512-byte chunks with a 1 ms `vTaskDelay` between each write so Core 0 (LEDs) stays responsive and `otaProgress` (0–100) stays fresh for the progress bar. `Update.setMD5()` is called **after** `Update.begin()` (begin resets the expected hash). While `isUpdating` is true `fireEffect()` renders a bottom-up fill bar using the current theme palette instead of fire. After the stream completes `isUpdating` is cleared and the ESP reboots. UI polls `/info` every 3 s until lamp responds, then auto-reloads.
+2. Browser calls `/checkupdate` → ESP fetches `version.json` (cached 60 s) and compares the remote `build_n` against `BUILD_N` when both are CI builds (> 0), falling back to SHA inequality against `FIRMWARE_VERSION` for dev builds (`isNewerBuild`, `ota_utils.h`).
+3. Browser calls `/update` (with `X-Requested-With: firelamp` CSRF header) → ESP flushes pending NVS writes, sends HTTP 200, closes the connection, then downloads `firmware.bin` via `HTTPClient`. Firmware is streamed in 512-byte chunks with a 1 ms `vTaskDelay` between each write so Core 0 (LEDs) stays responsive and `otaProgress` (0–100) stays fresh for the progress bar. `Update.setMD5()` is called **after** `Update.begin()` (begin resets the expected hash). While `isUpdating` is true `fireEffect()` renders a bottom-up fill bar using the current theme palette instead of fire. After the stream completes and `Update.end()` verifies the MD5, `handleUpdate()` forces a fresh `version.json` fetch beforehand (no 60 s cache across the download), blanks the strip and reboots; `isUpdating` is cleared only if the flash fails. The UI polls `/info` every 3 s and treats the lamp as updated only when it answers with a fresh uptime **and** a version different from the one recorded at check time, then auto-reloads.
 Before any self-restart (OTA, `/flash`, `/resetwifi`) the firmware drives the strip dark via `blankStripForRestart()` and waits `BLANK_SETTLE_MS` for LEDTask to push the black frame. WS2812B latches its last frame, so restarting while the OTA bar is full would hold all 800 LEDs near white-hot (`pal[200]` is `(255,255,84)`) across the entire bootloader window — a current peak precisely when the ESP is re-initialising. `setup()` likewise blanks the strip as its very first action, before `Serial.begin()` and any NVS access, so a frame latched by an *unexpected* reset (brownout, panic) is cleared as early as possible instead of sustaining the condition that caused it.
 
 4. `boot.cpp` counts consecutive hard crashes (panic/watchdog). On the third consecutive crash it calls `Update.rollBack()` + restart, reverting to the previous OTA slot. `safeBootCheck()` is the first call in `setup()` (ahead of the LED driver, so a panic inside FastLED init is still counted). The counter is cleared by `markBootSuccess()` only once uptime passes `BOOT_STABLE_MS` (90 s, called from `serviceNetwork()`), so a crash in the first handlers, the UpdChk TLS fetch or the first MQTT connect still counts. The value that led to the current boot is kept in RAM (`bootCrashCount`) for `/info`.
@@ -143,7 +143,7 @@ The boot-loop crash counter uses a separate `boot` NVS namespace so it never sha
 | nvs2 | 384 KB | Reserved NVS space |
 
 ### CI
-Every push to `main` builds the firmware, generates `version.json` (git short-SHA + MD5), publishes a versioned release tagged `build-<sha>` with auto-generated changelog, and updates the rolling `latest` release. The OTA endpoint always points to `latest`.
+Every push to `main` builds the firmware, generates `version.json` (git short-SHA + MD5), publishes a versioned release tagged `build-<UTC yyyymmdd-hhmmss>-<sha>` (the timestamp makes a lexicographic sort chronological; the changelog step relies on it) pinned to the built commit, and updates the rolling `latest` release. Runs are serialised by a `concurrency` group; a run that is still *pending* when a newer push lands is replaced, so a commit may get no `build-*` release of its own — its commits appear in the next release's changelog. The OTA endpoint always points to `latest`.
 
 ### Palette seams — tuned, do not normalise
 
@@ -189,10 +189,19 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 | `GET /resetwifi` | — | clear credentials + reboot |
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini API key to NVS (`gemini` namespace); POST body keeps key out of URL/logs |
 | `GET /geminikey` | — | `{"set":true/false}` — check if key is configured |
-| `GET /surprise` | — | Synchronous Gemini call (blocks ≤25 s); HTTP 200 with full state + `"name"` |
+| `GET /surprise` | — | Synchronous Gemini call (blocks ≤25 s); 200 with full state + `"name"`; 400 `no_key`, 401 `auth_error`, 429 `rate_limit` (busy), 502 `http_error`/`parse_failed`, 504 `timeout` |
 | `POST /setmqtt` | `ip,pt,u,p,t` | save MQTT broker config; `p=-` clears stored password |
 | `GET /getmqtt` | — | `{"ip","pt","u","p_set":bool,"t"}` — password never returned |
 | `GET /sw.js` | — | Service Worker script (no CSRF required; `Cache-Control: no-cache`) |
+| `GET /` | — | the UI page (PROGMEM) + inline init script with current params |
+| `GET /manifest.json` | — | PWA manifest (no CSRF) |
+| `GET /log` | — | last 30 log lines as HTML, auto-refresh (no CSRF) |
+| `GET /debug` | — | heap, stack, SSID, all params — **CSRF required** |
+| `GET /getpresets` | — | all 8 slots as JSON (no CSRF) |
+| `GET /savepreset` | `slot,name[,b,c,co,sp,bl,th]` | save live params (or explicit ones, used by import) |
+| `GET /loadpreset` | `slot` | apply a slot; returns full state |
+| `GET /flash` | — | manual-flash recovery page (no CSRF) |
+| `POST /flash` | multipart `firmware` | write the uploaded image; CSRF header checked at upload start |
 
 ## Hardware Notes
 
