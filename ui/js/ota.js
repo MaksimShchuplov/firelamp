@@ -21,8 +21,8 @@ function startOTA(){
   info.textContent=ru?'Скачивание... Не закрывайте страницу.':'Downloading... Do not close this page.';
   setTimeout(function(){pfil.style.width='88%';},50);
   var tid;
-  // dataset.mode marks the button as carrying a non-default handler so ul()
-  // does not relabel it back to "Check for Update" on a language switch.
+  // dataset.mode tells ul() which label the button currently carries, so a
+  // language switch translates it instead of resetting it to "Check for Update".
   function showOtaError(msg){if(tid)clearInterval(tid);pfil.style.background='#ef4444';info.textContent=msg;enableOtaEls();otaActive=false;resumePoll();btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.dataset.mode='reload';btn.onclick=function(){location.reload();};}
   function pollReboot(){
     var n=0,wentOffline=false,backOnline=0;
@@ -33,16 +33,16 @@ function startOTA(){
           if(n>10){showOtaError(ru?'Обновление не удалось. Обновите страницу.':'Update failed. Refresh the page to try again.');}
           return;
         }
-        // Lamp responded after going offline. Confirm it actually rebooted by
-        // checking uptime — a freshly booted ESP has uptime_s < 120.
-        // Without this check, a single transient /info failure followed by a
-        // recovery (e.g. OTA flash failed on ESP side) would trigger a premature
-        // page reload while the old firmware is still running.
-        // A real reboot yields uptime_s < 120. Responding with high uptime after
-        // going offline means the ESP-side flash failed and the old firmware is
-        // still running — bail after a few confirmations instead of looping the
-        // "Rebooting…" bar forever.
-        if(d.uptime_s!==undefined&&d.uptime_s>=120){
+        // Lamp responded after going offline. Success needs BOTH a fresh boot
+        // (uptime_s < 120) and a version different from the one we started
+        // with: if the lamp was itself booted < 120 s ago, a failed flash
+        // followed by the old firmware answering would otherwise read as
+        // success. Comparing against the pre-update version (not x.latest) is
+        // immune to a release published between check and install. High
+        // uptime or the same version after going offline means the ESP-side
+        // flash failed — bail after a few confirmations instead of looping
+        // the "Rebooting…" bar forever.
+        if((d.uptime_s!==undefined&&d.uptime_s>=120)||(otaCur&&d.version===otaCur)){
           if(++backOnline>=5)showOtaError(ru?'Обновление не удалось. Обновите страницу.':'Update failed. Refresh the page to try again.');
           return;
         }
@@ -72,6 +72,7 @@ document.getElementById('chk').onclick=function(){
   btn.disabled=true;
   xf('/checkupdate').then(r=>r.json()).then(x=>{
     if(x.error){btn.textContent=ru?'Ошибка проверки':'Check failed';btn.disabled=false;return;}
+    otaCur=x.current;
     document.getElementById('vinfo').textContent=(ru?'Текущая: ':'Current: ')+x.current+' → GitHub: '+x.latest;
     if(x.update_available){
       btn.textContent=ru?'Установить обновление ↑':'Install Update ↑';

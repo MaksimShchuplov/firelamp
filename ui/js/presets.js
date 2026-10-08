@@ -52,6 +52,9 @@ document.getElementById('prename').addEventListener('keydown',function(e){if(e.k
   b.addEventListener('touchstart',onStart,{passive:true});
   b.addEventListener('touchend',onEnd,{passive:false});
   b.addEventListener('touchmove',function(){if(pt){clearTimeout(pt);pt=null;}},{passive:true});
+  // touchstart is passive now, so the browser may take the gesture over (scroll,
+  // system gesture) and end it with touchcancel instead of touchend.
+  b.addEventListener('touchcancel',function(){if(pt){clearTimeout(pt);pt=null;}},{passive:true});
   b.addEventListener('mousedown',onStart);
   b.addEventListener('mouseup',onEnd);
   b.addEventListener('mouseleave',function(){if(pt){clearTimeout(pt);pt=null;}});
