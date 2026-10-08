@@ -8,7 +8,7 @@ document.getElementById('rwifi').onclick=function(){
 var otaEls=['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','rst','chk','rwifi','surprise','ibtn','len','lru'];
 function enableOtaEls(){otaEls.forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=false;});}
 function startOTA(){
-  pullSeq++;clearInterval(pollTid);
+  otaActive=true;pausePoll();
   otaEls.forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
   var btn=document.getElementById('chk'),info=document.getElementById('vinfo');
   btn.textContent=ru?'Прошивка...':'Flashing...';
@@ -23,7 +23,7 @@ function startOTA(){
   var tid;
   // dataset.mode marks the button as carrying a non-default handler so ul()
   // does not relabel it back to "Check for Update" on a language switch.
-  function showOtaError(msg){if(tid)clearInterval(tid);pfil.style.background='#ef4444';info.textContent=msg;enableOtaEls();pollTid=setInterval(function(){if(!document.hidden)pull();},5000);btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.dataset.mode='reload';btn.onclick=function(){location.reload();};}
+  function showOtaError(msg){if(tid)clearInterval(tid);pfil.style.background='#ef4444';info.textContent=msg;enableOtaEls();otaActive=false;resumePoll();btn.textContent=ru?'Обновить страницу':'Refresh page';btn.style.borderColor='#ef4444';btn.style.color='#ef4444';btn.dataset.mode='reload';btn.onclick=function(){location.reload();};}
   function pollReboot(){
     var n=0,wentOffline=false,backOnline=0;
     tid=setInterval(function(){n++;

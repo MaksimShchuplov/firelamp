@@ -32,16 +32,25 @@ function applyState(x){
   if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);
   if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
 }
-// Timeout MUST stay below the 5000 ms poll interval in poll.js: a rejection
-// that settles after the next tick is swallowed by the seq<pullSeq guard, and
-// pullFails would never reach 3. Without it a stalled TCP connection (lamp
-// unplugged while the AP still holds the station entry) leaves fetch hanging
-// for the kernel retransmit window and the offline banner never appears.
-// Skip applying while the user is mid-adjustment, or a poll in flight when a
-// slider moves rewrites the value under their finger — activeElement alone is
-// not enough, WebKit does not focus range inputs. Gate here rather than in
-// applyState: /loadpreset and /surprise must always apply.
-function pull(){var seq=++pullSeq,ac=new AbortController(),to=setTimeout(function(){ac.abort();},4000);
- fetch('/state',{signal:ac.signal}).then(r=>r.json()).then(x=>{clearTimeout(to);if(seq<pullSeq||Date.now()-lastIn<1000)return;applyState(x);})
+// The one pause/resume path for polling. OTA and Surprise Me both block the
+// lamp for tens of seconds; a poll in that window would fail 3x and raise a
+// false offline banner. pullSeq++ in pausePoll() also discards any poll
+// already in flight.
+function pausePoll(){pollPaused=true;pullSeq++;clearInterval(pollTid);}
+function resumePoll(){clearInterval(pollTid);pollPaused=false;pollTid=setInterval(function(){if(!document.hidden&&!pollPaused)pull();},5000);}
+// Timeout MUST stay below the 5000 ms poll interval: a rejection that settles
+// after the next tick is swallowed by the seq<pullSeq guard, and pullFails
+// would never reach 3. Without it a stalled TCP connection (lamp unplugged
+// while the AP still holds the station entry) leaves fetch hanging for the
+// kernel retransmit window and the offline banner never appears.
+// A response is discarded if a slider moved while the request was in flight
+// (lastIn changed) or within the last second (a poll sent inside the 120 ms
+// debounce): applying it would rewrite the value under the user's finger, and
+// activeElement is no guard — WebKit does not focus range inputs. Gated here,
+// not in applyState: /loadpreset, /surprise, /reset and /settheme apply their
+// own responses and must never be suppressed. A discarded response still
+// counts as the lamp answering, so the offline banner logic runs first.
+function pull(){var seq=++pullSeq,li=lastIn,ac=new AbortController(),to=setTimeout(function(){ac.abort();},4000);
+ fetch('/state',{signal:ac.signal}).then(r=>r.json()).then(x=>{clearTimeout(to);pullFails=0;hideOffline();if(seq<pullSeq||lastIn!==li||Date.now()-lastIn<1000)return;applyState(x);})
  .catch(()=>{clearTimeout(to);if(seq<pullSeq)return;pullFails++;if(pullFails>=3)showOffline();});}
-document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&!pollPaused)pull();});
