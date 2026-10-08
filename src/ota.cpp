@@ -162,14 +162,23 @@ static void handleUpdate() {
     ESP.restart();
 }
 
+// One successful fetch per boot sets the badge; a failure (no DNS yet, GitHub
+// unreachable, or the cache lock busy) is retried with quadrupling back-off
+// instead of leaving the badge off until the next reboot.
 static void autoUpdateCheck(void *) {
-    vTaskDelay(pdMS_TO_TICKS(OTA_CHECK_DELAY_MS));
-    {
-        String ver, md5;
-        uint32_t buildN;
-        if (fetchVersionInfo(ver, md5, buildN))
-            updatePending = isNewerBuild(buildN, ver);
-    }  // ver, md5 destructors run here before vTaskDelete
+    uint32_t wait = OTA_CHECK_DELAY_MS;
+    for (int attempt = 0; attempt < OTA_CHECK_MAX_TRIES; attempt++) {
+        vTaskDelay(pdMS_TO_TICKS(wait));
+        bool ok;
+        {
+            String ver, md5;
+            uint32_t buildN;
+            ok = fetchVersionInfo(ver, md5, buildN);
+            if (ok) updatePending = isNewerBuild(buildN, ver);
+        }  // ver, md5 destructors run here, before the next sleep / vTaskDelete
+        if (ok) break;
+        wait = min(wait * 4, (uint32_t)OTA_CHECK_RETRY_MAX_MS);
+    }
     vTaskDelete(NULL);
 }
 

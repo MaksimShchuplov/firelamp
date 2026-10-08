@@ -97,6 +97,8 @@
 // used to go uncounted because markBootSuccess() ran at the end of setup().
 #define BOOT_STABLE_MS          90000
 #define UPDCHK_STACK_BYTES      12288   // autoUpdateCheck: TLS handshake + HTTPClient needs ~10 KB stack
+#define OTA_CHECK_RETRY_MAX_MS  1800000 // back-off ceiling for the boot-time version check (8 s → 32 s → 128 s → 512 s → 30 min)
+#define OTA_CHECK_MAX_TRIES     6       // then give up: a lamp with no internet must not pin the 12 KB stack forever
 #define OTA_DOWNLOAD_TIMEOUT_MS 60000   // per-chunk idle timeout for firmware binary stream; version.json uses HTTP_TIMEOUT_MS
 
 // ---- Boot animation (Core 0, isBooting render path) ------------------------
