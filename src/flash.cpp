@@ -56,19 +56,20 @@ static void handleFlashPage() {
 static void handleFlashUpload() {
     HTTPUpload &up = server.upload();
     if (up.status == UPLOAD_FILE_START) {
+        // s_flashAuth is the header check only. Update errors are left in
+        // Update.hasError() so handleFlashDone() can report the real text; clearing
+        // the auth flag here used to turn every write/begin failure into a 403.
         s_flashAuth = (server.header("X-Requested-With") == "firelamp");
-        if (s_flashAuth && !Update.begin(UPDATE_SIZE_UNKNOWN)) {
+        if (s_flashAuth && !Update.begin(UPDATE_SIZE_UNKNOWN))
             LOG_ERROR("Flash: Update.begin: %s", Update.errorString());
-            s_flashAuth = false;
-        }
     } else if (up.status == UPLOAD_FILE_WRITE) {
-        if (s_flashAuth && Update.write(up.buf, up.currentSize) != up.currentSize) {
-            LOG_ERROR("Flash: write failed at offset %u", (unsigned)up.totalSize);
-            Update.abort();
-            s_flashAuth = false;
-        }
+        // No abort() on failure: it would replace the real error with "Aborted",
+        // and write() returns 0 instantly once an error is set, so the remaining
+        // chunks are cheap.
+        if (s_flashAuth && !Update.hasError() && Update.write(up.buf, up.currentSize) != up.currentSize)
+            LOG_ERROR("Flash: write failed at offset %u: %s", (unsigned)up.totalSize, Update.errorString());
     } else if (up.status == UPLOAD_FILE_END) {
-        if (s_flashAuth && !Update.end(true))
+        if (s_flashAuth && !Update.hasError() && !Update.end(true))
             LOG_ERROR("Flash: Update.end: %s", Update.errorString());
     } else if (up.status == UPLOAD_FILE_ABORTED) {
         if (s_flashAuth) Update.abort();
@@ -83,6 +84,7 @@ static void handleFlashDone() {
     }
     if (Update.hasError()) {
         String e = Update.errorString();
+        Update.abort();          // resets _size so a retry's Update.begin() is not refused as "already running"
         s_flashAuth = false;
         server.send(500, "text/plain", String("Flash failed: ") + e);
         return;
