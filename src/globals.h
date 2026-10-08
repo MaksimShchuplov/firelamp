@@ -11,10 +11,11 @@ extern CRGB    leds[NUM_LEDS];
 extern uint8_t heat[ROWS][COLUMNS];
 
 // Double-buffered palette. buildHeatPalette() writes the inactive buffer then
-// flips activePal with a seq_cst atomic store (acts as full memory barrier —
-// ensures all palette stores are visible to Core 0 before the index flip).
-// fireEffect() snapshots activePal once per frame so a mid-frame flip cannot
-// cause split-palette rendering.
+// flips activePal with a seq_cst store; fireEffect() reads it with acquire, and
+// that release/acquire pair is what makes the palette stores visible to Core 0
+// before the new index is observed. fireEffect() snapshots activePal once per
+// frame so a mid-frame flip cannot split palette reads, and buildHeatPalette()
+// spaces flips PALETTE_FLIP_MIN_MS apart so two flips can never land in one.
 extern CRGB                 heatPalette[2][256];
 extern std::atomic<uint8_t> activePal;
 

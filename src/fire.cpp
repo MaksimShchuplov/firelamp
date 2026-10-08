@@ -18,6 +18,13 @@ void buildHeatPalette() {
     lastContrast = contrast;
     lastTheme    = theme;
 
+    // Space flips one frame apart (see PALETTE_FLIP_MIN_MS). Core 1 only, so a
+    // plain static is correct; blocks ≤30 ms only when two palette changes land
+    // in the same serviceNetwork() pass.
+    static uint32_t lastFlip = 0;
+    const uint32_t  since    = millis() - lastFlip;
+    if (since < PALETTE_FLIP_MIN_MS) delay(PALETTE_FLIP_MIN_MS - since);
+
     const uint8_t next  = (activePal.load() & 1) ^ 1;
     const float   power = palettePower(contrast);   // hoisted: one powf per entry, not two
     for (int i = 0; i < 256; i++) {
@@ -27,10 +34,12 @@ void buildHeatPalette() {
         const Rgb8     c    = heatRamp(theme, t192);
         heatPalette[next][i] = CRGB(c.r, c.g, c.b);
     }
-    // seq_cst store generates a full memory barrier (memw on LX7) automatically,
-    // ensuring all palette stores above are visible to Core 0 before the index
-    // flip. The explicit asm is no longer needed.
+    // seq_cst store + the acquire loads in fireEffect() form the release/acquire
+    // pair that makes every palette store above visible to Core 0 before it can
+    // observe the new index. Relying on the address dependency alone (relaxed
+    // load) is an ISA assumption, not a language guarantee.
     activePal.store(next, std::memory_order_seq_cst);
+    lastFlip = millis();
 }
 
 // =============================================================================
@@ -107,7 +116,7 @@ void fireEffect() {
 
     if (isBooting.load(std::memory_order_relaxed)) {
         // Simple LED progress bar filling from bottom to top while WiFi connects
-        CRGB color = heatPalette[activePal.load(std::memory_order_relaxed) & 1][BOOT_BAR_PALETTE_IDX];
+        CRGB color = heatPalette[activePal.load(std::memory_order_acquire) & 1][BOOT_BAR_PALETTE_IDX];
         color.fadeLightBy(beatsin8(BOOT_BAR_PULSE_BPM, 0, BOOT_BAR_PULSE_DEPTH));
         int t = millis() / BOOT_ROW_ADVANCE_MS;
         int rowsToFill = (t >= ROWS) ? ROWS : t;
@@ -126,7 +135,7 @@ void fireEffect() {
     if (isUpdating.load(std::memory_order_relaxed)) {
         const uint8_t pct    = otaProgress.load(std::memory_order_relaxed);
         const uint8_t filled = (uint8_t)(((uint32_t)pct * ROWS) / 100);
-        const CRGB   *pal    = heatPalette[activePal.load(std::memory_order_relaxed) & 1];
+        const CRGB   *pal    = heatPalette[activePal.load(std::memory_order_acquire) & 1];
         FastLED.clear();
         for (int y = 0; y < filled; y++) {
             const int base = (ROWS - 1 - y) * COLUMNS;
@@ -184,7 +193,7 @@ void fireEffect() {
 
     // 4. Render with temporal blend.
     // Snapshot activePal once — a mid-frame flip must not split palette reads.
-    const CRGB    *pal   = heatPalette[activePal.load(std::memory_order_relaxed) & 1];
+    const CRGB    *pal   = heatPalette[activePal.load(std::memory_order_acquire) & 1];
     const uint8_t  blend = uiBlend.load(std::memory_order_relaxed);
     for (int y = 0; y < ROWS; y++) {
         const uint16_t base = (uint16_t)(ROWS - 1 - y) * COLUMNS;

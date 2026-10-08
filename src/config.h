@@ -114,6 +114,13 @@
 #define OTA_TIP_PULSE_BPM       80      // beatsin8 speed for the tip fade shimmer
 #define OTA_TIP_PULSE_DEPTH     150     // beatsin8 high end
 
+// ---- Palette double-buffer ---------------------------------------------------
+// Core 0 snapshots activePal once per frame and reads that buffer for the
+// whole frame. Two flips inside one frame (HTTP and MQTT both changing the
+// palette in one serviceNetwork() pass) would overwrite the buffer it is still
+// reading, so buildHeatPalette() spaces flips at least one ~25 ms frame apart.
+#define PALETTE_FLIP_MIN_MS     30
+
 // ---- Restart blanking -------------------------------------------------------
 // Time to let LEDTask push a black frame before a self-restart. Must cover a few
 // frames at the ~40 FPS WS2812B ceiling plus FastLED.show() for 800 LEDs (~24 ms).
