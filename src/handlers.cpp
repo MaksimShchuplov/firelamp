@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_system.h>
-#include <Preferences.h>
 #include "globals.h"
 #include "text_utils.h"
 #include "net_helpers.h"
@@ -123,10 +122,11 @@ static void handleReset() {
     updatePowerCalc(); sendVal();
 }
 
-// Why the last boot happened, and how many consecutive crashes boot.cpp has
-// counted. Exposed because a lamp that reset unexpectedly is otherwise
-// undiagnosable after the fact — the /log ring buffer lives in RAM and does not
-// survive the very reset you want to explain.
+// Why the last boot happened, and how many consecutive crashes led to it (the
+// RAM copy safeBootCheck() takes before markBootSuccess() zeroes NVS). Exposed
+// because a lamp that reset unexpectedly is otherwise undiagnosable after the
+// fact — the /log ring buffer lives in RAM and does not survive the very reset
+// you want to explain.
 static const char *resetReasonName() {
     switch (esp_reset_reason()) {
         case ESP_RST_POWERON:  return "poweron";
@@ -145,13 +145,6 @@ static const char *resetReasonName() {
 static void handleInfo() {
     char j[512];
     String ip = WiFi.localIP().toString();
-    uint32_t crashes = 0;
-    {
-        Preferences p;
-        p.begin("boot", true);
-        crashes = p.getUInt("crashes", 0);
-        p.end();
-    }
     uint32_t watermark = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
     snprintf(j, sizeof(j),
              "{\"flash_mb\":%u,\"free_heap\":%u,\"min_heap\":%u,"
@@ -165,7 +158,7 @@ static void handleInfo() {
              (unsigned long)(millis() / 1000),
              ip.c_str(),
              (unsigned long)watermark,
-             resetReasonName(), (unsigned long)crashes);
+             resetReasonName(), (unsigned long)bootCrashCount);
     server.send(200, "application/json", j);
 }
 

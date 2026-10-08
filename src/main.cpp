@@ -36,6 +36,7 @@ std::atomic<uint32_t> currentPowerMw{0};
 std::atomic<bool>     updatePending{false};
 
 TaskHandle_t ledTaskHandle = NULL;
+uint32_t     bootCrashCount = 0;
 
 char        logBuf[LOG_BUF_LINES][LOG_BUF_WIDTH] = {};
 int         logHead = 0;
@@ -63,16 +64,21 @@ std::atomic<uint8_t> otaProgress{0};
 // =============================================================================
 
 void setup() {
-    // FIRST, before Serial and any NVS access: WS2812B latches its last frame,
-    // so an unexpected reset (brownout, panic) while the strip was bright leaves
-    // it drawing peak current until we blank it. Every millisecond spent before
-    // this runs is a millisecond the rail stays loaded during re-init.
+    // safeBootCheck() first. On power-on / SW / brownout boots it is a single
+    // esp_reset_reason() call, so it does not delay the blank below in the
+    // rail-collapse case (brownout is not counted). It must precede the LED
+    // driver: a panic inside FastLED init would otherwise reset the chip before
+    // the crash counter is incremented, and the OTA rollback it exists for
+    // could never fire.
+    Serial.begin(115200);
+    safeBootCheck();
+
+    // Then blank the strip before any further NVS access: WS2812B latches its
+    // last frame, so an unexpected reset while the strip was bright leaves it
+    // drawing peak current until we do this.
     FastLED.addLeds<WS2812B, LED_PIN, LED_COLOR_ORDER>(leds, NUM_LEDS);
     FastLED.setMaxPowerInVoltsAndMilliamps(PSU_VOLTS, PSU_MAX_MA);
     FastLED.clear(true);
-
-    Serial.begin(115200);
-    safeBootCheck();
 
 #if COLOR_TEST
     // Strip MUST show solid RED. Green/blue → wrong LED_COLOR_ORDER in config.h.
@@ -110,7 +116,9 @@ void setup() {
     
     startNetwork(); // joins WiFi → starts web server (non-blocking)
     isBooting.store(false, std::memory_order_relaxed);
-    markBootSuccess();  // firmware initialised without crashing — cancel OTA rollback
+    // markBootSuccess() is deliberately NOT called here: serviceNetwork() calls
+    // it once uptime passes BOOT_STABLE_MS, so a crash in the first handlers,
+    // the UpdChk TLS fetch or the first MQTT connect still counts toward rollback.
 
     // LEDTask has been rendering throughout the WiFi join — the watermark is
     // meaningful by now. A shrinking value across framework upgrades is the

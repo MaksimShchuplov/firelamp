@@ -67,6 +67,10 @@ extern std::atomic<uint8_t>  otaProgress;    // 0-100 during OTA download
 
 // ---- Task handles ----------------------------------------------------------
 extern TaskHandle_t ledTaskHandle;   // set in setup(); used for stack watermark queries
+// Consecutive crashes that led to THIS boot. Written once by safeBootCheck() on
+// Core 1 before any reader exists; read by /info. A RAM copy is needed because
+// markBootSuccess() zeroes the NVS counter once the firmware proves stable.
+extern uint32_t bootCrashCount;
 
 // ---- Structured logging ----------------------------------------------------
 // All log output includes a millisecond timestamp so serial captures are

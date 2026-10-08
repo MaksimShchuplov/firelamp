@@ -86,6 +86,11 @@
 // ---- OTA / update check ----------------------------------------------------
 #define VERSION_CACHE_MS        60000   // re-fetch version.json at most once per minute
 #define OTA_CHECK_DELAY_MS      8000    // delay after WiFi connect before background OTA check
+// Uptime after which this firmware counts as good and the crash counter is
+// cleared. Must outlast the first UpdChk TLS fetch (8 s delay + handshake),
+// the first MQTT connect and the first HTTP handlers — a crash in any of those
+// used to go uncounted because markBootSuccess() ran at the end of setup().
+#define BOOT_STABLE_MS          90000
 #define UPDCHK_STACK_BYTES      12288   // autoUpdateCheck: TLS handshake + HTTPClient needs ~10 KB stack
 #define OTA_DOWNLOAD_TIMEOUT_MS 60000   // per-chunk idle timeout for firmware binary stream; version.json uses HTTP_TIMEOUT_MS
 

@@ -193,3 +193,25 @@ def test_preset_name_len_mirrors_config():
     assert tag, "index.html: #prename input not found"
     assert "maxlength" not in tag.group(0), \
         "index.html: maxlength counts UTF-16 units; the clamp belongs in doSave()"
+
+
+# ===========================================================================
+# Boot-loop rollback arming. safeBootCheck() must run before the LED driver
+# (a panic inside FastLED init must still be counted), and the counter must be
+# cleared from serviceNetwork() after BOOT_STABLE_MS, never from setup() — a
+# crash in the first handlers / TLS fetch / MQTT connect must still count.
+# Both were regressed once by an "optimisation" that moved them.
+# ===========================================================================
+
+def test_boot_rollback_stays_armed():
+    main = (_ROOT / "src" / "main.cpp").read_text(encoding="utf-8")
+    net = (_ROOT / "src" / "network.cpp").read_text(encoding="utf-8")
+    setup = main[main.index("void setup()"):]
+    assert setup.index("safeBootCheck()") < setup.index("FastLED.addLeds"), \
+        "main.cpp: safeBootCheck() must precede FastLED init"
+    assert not re.search(r"^\s*markBootSuccess\(\);", main, re.M), \
+        "main.cpp: markBootSuccess() must not be called from setup()"
+    assert "BOOT_STABLE_MS" in net and "markBootSuccess()" in net, \
+        "network.cpp: markBootSuccess() must be gated on BOOT_STABLE_MS"
+    assert _define("BOOT_STABLE_MS") > _define("OTA_CHECK_DELAY_MS") + 10000, \
+        "BOOT_STABLE_MS must outlast the first UpdChk TLS fetch"

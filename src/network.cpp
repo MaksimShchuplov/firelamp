@@ -112,6 +112,14 @@ void serviceNetwork() {
 
     serviceMqtt();
 
+    // Crash counter stays armed until the firmware has run long enough to have
+    // exercised its risky first-minute paths (see BOOT_STABLE_MS).
+    static bool bootMarked = false;
+    if (!bootMarked && millis() > BOOT_STABLE_MS) {
+        bootMarked = true;
+        markBootSuccess();
+    }
+
     // Refresh per-row cooling caps periodically so they vary over time rather than
     // staying frozen at the single random sample taken on the last parameter change.
     static uint32_t lastCoolRecalc = 0;

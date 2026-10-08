@@ -16,6 +16,7 @@ void safeBootCheck() {
     Preferences p;
     p.begin("boot", false);
     uint32_t crashes = p.getUInt("crashes", 0) + 1;
+    bootCrashCount = crashes;
     if (crashes >= 3) {
         LOG_ERROR("boot loop detected — rolling back firmware");
         p.end();
@@ -36,8 +37,10 @@ void safeBootCheck() {
     }
 }
 
-// Call once setup() completes successfully — signals the firmware is stable
-// regardless of WiFi state, and cancels any pending OTA auto-rollback.
+// Called from serviceNetwork() once uptime passes BOOT_STABLE_MS — not from
+// setup() — so a crash in the first handlers, the UpdChk TLS fetch or the
+// first MQTT connect still counts. Signals the firmware is stable regardless
+// of WiFi state, and cancels any pending OTA auto-rollback.
 void markBootSuccess() {
     Preferences p;
     p.begin("boot", false);
