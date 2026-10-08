@@ -76,6 +76,11 @@
   #define BUILD_N 0
 #endif
 
+// ---- MQTT -------------------------------------------------------------------
+#define MQTT_CONNECT_TIMEOUT_MS 1500    // TCP connect bound (explicit overload — core-version units do not matter)
+#define MQTT_RECONNECT_MIN_MS   5000    // first retry interval after a failed connect
+#define MQTT_RECONNECT_MAX_MS   60000   // exponential back-off ceiling while the broker stays down
+
 // ---- Fire algorithm tuning constants (magic numbers extracted) -------------
 #define SPARK_MIN_VARIANCE      40      // random range width for spark heat: [SPARK_INTENSITY-SPARK_MIN_VARIANCE .. SPARK_INTENSITY]
 #define WIND_LERP_ALPHA         0.1f    // exponential smoothing coefficient for wind direction

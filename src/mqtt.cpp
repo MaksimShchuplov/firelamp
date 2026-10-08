@@ -29,7 +29,14 @@ void mqttPublishState() {
     // Retained so an HA restart repopulates the entity immediately instead of
     // leaving it "unknown" until the next command. Safe only because the LWT in
     // serviceMqtt() overrides availability when the lamp actually dies.
-    mqttClient.publish(topic.c_str(), j, true);
+    if (!mqttClient.publish(topic.c_str(), j, true)) {
+        // Half-open socket (broker vanished without FIN): every publish blocks
+        // for the socket timeout, which lands on every slider handler. Drop the
+        // socket so the next serviceMqtt() pass takes the reconnect path. stop(),
+        // not disconnect() — a DISCONNECT write would block on the same buffer.
+        LOG_WARN("MQTT publish failed — dropping socket");
+        espClient.stop();
+    }
 }
 
 void initMqtt() {
@@ -45,9 +52,9 @@ void initMqtt() {
     if (mqIp.length() > 0) {
         // HA discovery config (~700 B) exceeds PubSubClient's 256 B default buffer.
         mqttClient.setBufferSize(1024);
-        // connect() blocks Core 1 (web server) while waiting for CONNACK; the
-        // 15 s PubSubClient default freezes the UI on every 5 s reconnect retry
-        // when the broker is configured but unresponsive.
+        // Bounds only the CONNACK wait once TCP is up (PubSubClient default is
+        // 15 s). The TCP connect itself is bounded separately in serviceMqtt()
+        // via the explicit-timeout WiFiClient::connect overload.
         mqttClient.setSocketTimeout(5);
         // /surprise blocks Core 1 — and therefore mqttClient.loop(), the only
         // PINGREQ source — for up to GEMINI_TIMEOUT_MS. PubSubClient's 15 s
@@ -146,33 +153,40 @@ void serviceMqtt() {
     if (mqIp.length() == 0 || WiFi.status() != WL_CONNECTED) return;
     
     if (!mqttClient.connected()) {
-        unsigned long now = millis();
-        if (now - lastReconnectAttempt > 5000) {
-            lastReconnectAttempt = now;
-            char clientId[24];
-            deviceUid(clientId, sizeof(clientId));
-            String avail = mqT + "/avail";
-            // Retained will: the broker publishes "offline" if the lamp drops
-            // without a clean DISCONNECT (power cut), so HA stops showing a
-            // dead lamp as on. Paired with the retained state publish below —
-            // retaining state without this would pin an unplugged lamp to its
-            // last brightness forever.
-            bool connected = mqttClient.connect(
-                clientId,
-                mqU.length() > 0 ? mqU.c_str() : nullptr,
-                mqU.length() > 0 ? mqP.c_str() : nullptr,
-                avail.c_str(), 0, true, "offline");
+        static unsigned long backoff = MQTT_RECONNECT_MIN_MS;
+        if (millis() - lastReconnectAttempt < backoff) return;
+        char clientId[24];
+        deviceUid(clientId, sizeof(clientId));
+        String avail = mqT + "/avail";
+        // TCP connect first, with an explicit bound: the default connect() can
+        // hold Core 1 for several seconds against a dead or silent broker.
+        // PubSubClient::connect() reuses an already-open client, so this is
+        // library-safe. Retained will: the broker publishes "offline" if the
+        // lamp drops without a clean DISCONNECT (power cut), so HA stops showing
+        // a dead lamp as on. Paired with the retained state publish — retaining
+        // state without this would pin an unplugged lamp to its last brightness.
+        bool connected = espClient.connect(mqIp.c_str(), mqPt, MQTT_CONNECT_TIMEOUT_MS)
+                      && mqttClient.connect(
+                             clientId,
+                             mqU.length() > 0 ? mqU.c_str() : nullptr,
+                             mqU.length() > 0 ? mqP.c_str() : nullptr,
+                             avail.c_str(), 0, true, "offline");
+        // Measured from the END of the attempt so the blocking time is not
+        // charged against the back-off; with the old start-stamped 5 s gate a
+        // dead broker kept Core 1 blocked ~3 s of every 5 s.
+        lastReconnectAttempt = millis();
 
-            if (connected) {
-                LOG_INFO("MQTT connected to %s:%d", mqIp.c_str(), mqPt);
-                mqttClient.publish(avail.c_str(), "online", true);
-                String sub = mqT + "/set";
-                mqttClient.subscribe(sub.c_str());
-                publishDiscovery();
-                mqttPublishState();
-            } else {
-                LOG_WARN("MQTT connect failed, rc=%d", mqttClient.state());
-            }
+        if (connected) {
+            backoff = MQTT_RECONNECT_MIN_MS;
+            LOG_INFO("MQTT connected to %s:%d", mqIp.c_str(), mqPt);
+            mqttClient.publish(avail.c_str(), "online", true);
+            String sub = mqT + "/set";
+            mqttClient.subscribe(sub.c_str());
+            publishDiscovery();
+            mqttPublishState();
+        } else {
+            backoff = min(backoff * 2, (unsigned long)MQTT_RECONNECT_MAX_MS);
+            LOG_WARN("MQTT connect failed, rc=%d — next try in %lu ms", mqttClient.state(), backoff);
         }
     } else {
         mqttClient.loop();
