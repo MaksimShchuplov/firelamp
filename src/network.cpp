@@ -67,6 +67,17 @@ void startNetwork() {
         }
     });
 
+    // While the config portal is open the boot bar would otherwise run for the
+    // whole portal timeout: the bar masks the STA join, and a beaconing AP is
+    // not one. Run the fire instead.
+    wm.setAPCallback([](WiFiManager *) {
+        isBooting.store(false, std::memory_order_relaxed);
+        LOG_WARN("config portal open — fire running");
+    });
+    // WiFiManager's own portal OTA restarts without passing through our
+    // handlers; blank the strip there too (see blankStripForRestart).
+    wm.setPreOtaUpdateCallback(blankStripForRestart);
+
     wm.setConnectTimeout(10);
     wm.setConfigPortalTimeout(WIFI_PORTAL_TIMEOUT_S);
     wm.setConnectRetries(2);
