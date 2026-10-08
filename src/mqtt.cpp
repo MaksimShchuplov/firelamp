@@ -71,7 +71,10 @@ void initMqtt() {
             else if (length == 3 && !memcmp(payload, "OFF", 3)) doc["state"] = "OFF";
             else if (deserializeJson(doc, payload, length))     return;
 
-            bool hadB     = doc.containsKey("b");
+            // Numeric only: {"b":null} or a string b would otherwise be treated
+            // as b=0 and switch the lamp off. Floats are accepted — automations
+            // send 50.5 — and truncate through the (int) cast below.
+            bool hadB     = doc["b"].is<int>() || doc["b"].is<float>();
             bool hadState = doc.containsKey("state");
             static uint8_t last_b = BRIGHT_DEFAULT;
 
@@ -112,18 +115,26 @@ static void deviceUid(char *out, size_t len) {
     snprintf(out, len, "firelamp_%02x%02x%02x", mac[3], mac[4], mac[5]);
 }
 
+static void discoveryTopic(char *out, size_t len) {
+    char uid[20];
+    deviceUid(uid, sizeof(uid));
+    snprintf(out, len, "homeassistant/light/%s/config", uid);
+}
+
 static void publishDiscovery() {
     char uid[20];
     deviceUid(uid, sizeof(uid));
     char topic[64];
-    snprintf(topic, sizeof(topic), "homeassistant/light/%s/config", uid);
+    discoveryTopic(topic, sizeof(topic));
     // jsonEscape prevents a malicious topic prefix from injecting into the JSON
     // discovery payload published to the Home Assistant broker.
     String te = jsonEscape(mqT);
     const char *t = te.c_str();
     char payload[1024];
     int n = snprintf(payload, sizeof(payload),
-        "{\"name\":\"Fire Lamp\",\"uniq_id\":\"%s\","
+        // name:null = entity named after the device only. HA ≥ 2023.8 prepends
+        // dev.name to a non-null entity name, giving "Fire Lamp Fire Lamp".
+        "{\"name\":null,\"uniq_id\":\"%s\","
         "\"stat_t\":\"%s/state\",\"cmd_t\":\"%s/set\","
         "\"avty_t\":\"%s/avail\","
         "\"stat_val_tpl\":\"{{ value_json.state }}\","
@@ -213,7 +224,7 @@ static void handleSetMqtt() {
 
     // Reject characters that would break MQTT topic syntax or JSON embedding.
     // MQTT wildcards (#, +) produce illegal topics; " and \ break the discovery
-    // payload (jsonEscape doubles \, which can truncate the fixed 896-byte buffer).
+    // payload (jsonEscape doubles \, which can truncate the 1024-byte payload buffer in publishDiscovery()).
     for (int i = (int)t.length() - 1; i >= 0; i--) {
         char c = t[i];
         if (c == '#' || c == '+' || c == '"' || c == '\\' || (uint8_t)c < 0x21 || (uint8_t)c > 0x7E)
@@ -235,6 +246,21 @@ static void handleSetMqtt() {
     p.end();
 
     server.send(200, "application/json", "{\"ok\":true}");
+    if (mqttClient.connected()) {
+        // A clean DISCONNECT discards the will, so publish the retained offline
+        // ourselves — under the OLD prefix, initMqtt() below reloads mqT.
+        String avail = mqT + "/avail";
+        mqttClient.publish(avail.c_str(), "offline", true);
+        if (ip.length() == 0 || ip != mqIp) {
+            // Disabled or broker changed: an empty retained payload deletes the
+            // HA entity instead of leaving it pointing at a lamp that will never
+            // publish again. A prefix-only change needs no removal — the
+            // MAC-keyed discovery topic is simply overwritten on reconnect.
+            char topic[64];
+            discoveryTopic(topic, sizeof(topic));
+            mqttClient.publish(topic, "", true);
+        }
+    }
     mqttClient.disconnect();
     initMqtt();
 }
