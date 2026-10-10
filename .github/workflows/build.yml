@@ -61,7 +61,12 @@ jobs:
         run: pytest test/ -v --tb=short
 
       - name: Run JS tests
-        run: node test/test_ui.js
+        run: |
+          node test/test_ui.js
+          node test/test_ui_behaviour.js
+
+      - name: UI mutation check
+        run: node test/ui_mutants.js
 
       - name: Run C++ native unit tests
         run: make -C test/native

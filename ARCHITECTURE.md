@@ -20,6 +20,8 @@ pio run -e esp32s3 -t upload && pio device monitor   # flash + monitor
 make test                    # all suites; or individually:
 make -C test/native          # C++ unit tests (Unity): text_utils, ota_utils, mqtt_state, fire/palette formulas
 node test/test_ui.js         # UI JS tests (node:test): DD table, dynDesc
+node test/test_ui_behaviour.js  # real ui/js scripts on a virtual clock: polling, sliders, OTA, AI, presets
+make mutants                 # every fixed UI bug re-introduced; the behaviour suite must fail on each
 python3 -m pytest test/ -q   # build scripts + config.h↔UI consistency (test_consistency.py)
 ```
 
@@ -55,6 +57,9 @@ ui/
 test/
   native/       — Unity C++ unit tests (make -C test/native)
   test_ui.js    — UI JS tests (node test/test_ui.js)
+  ui_harness.js — loads the real ui/js scripts into a vm with a stub DOM, virtual clock, hand-driven fetch
+  test_ui_behaviour.js — behavioural UI tests on that harness
+  ui_mutants.js — mutation check: re-introduces each historical UI bug
   test_*.py     — build-script tests + config.h↔UI consistency checks (python3 -m pytest test/ -q)
 partitions_ota_4mb.csv   — custom partition table (two 1.75 MB OTA slots + NVS)
 build_page.py            — PlatformIO pre-build script: assembles ui/ files into src/page.h

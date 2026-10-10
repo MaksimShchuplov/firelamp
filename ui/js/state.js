@@ -35,9 +35,11 @@ function applyState(x){
 // The one pause/resume path for polling. OTA and Surprise Me both block the
 // lamp for tens of seconds; a poll in that window would fail 3x and raise a
 // false offline banner. pullSeq++ in pausePoll() also discards any poll
-// already in flight.
+// already in flight. pollTid is assigned ONLY here, so the interval exists
+// exactly while polling is not paused — its callback needs no pause check.
+// visibilitychange is not an interval and does need one (see below).
 function pausePoll(){pollPaused=true;pullSeq++;clearInterval(pollTid);}
-function resumePoll(){clearInterval(pollTid);pollPaused=false;pollTid=setInterval(function(){if(!document.hidden&&!pollPaused)pull();},5000);}
+function resumePoll(){clearInterval(pollTid);pollPaused=false;pollTid=setInterval(function(){if(!document.hidden)pull();},5000);}
 // Timeout MUST stay below the 5000 ms poll interval: a rejection that settles
 // after the next tick is swallowed by the seq<pullSeq guard, and pullFails
 // would never reach 3. Without it a stalled TCP connection (lamp unplugged

@@ -138,14 +138,12 @@ after the portal timeout.
 immediate `/state` fetch (the blob becomes static) and an ETag, so it is a
 page-load contract change.
 
-### Host-side tests for the UI poll lifecycle
-**Trigger: the next regression in `state.js` / `ota.js` / `ai.js`.**
+### Host-side tests for the C++ glue
+**Trigger: the next regression in `params.cpp`, `presets.cpp` or `gemini.cpp`.**
 
-`test_ui.js` covers the DD table and preset import only. `pausePoll` /
-`resumePoll`, the `lastIn` gate, `pollReboot()`'s success condition and
-`askAI()`'s OTA interaction are all plain functions over globals and could be
-exercised with a minimal DOM stub. Likewise `applyJsonParams()` (needs an
-ArduinoJson shim) and `presets.cpp` key construction on the C++ side.
+The UI half is done (`test/test_ui_behaviour.js`, mutation-checked). On the C++
+side `applyJsonParams()` needs an ArduinoJson shim to run natively, and
+`presets.cpp` key construction / `gemini.cpp` response parsing are untested.
 
 ### Keyboard access to preset long-press actions
 Save-to-filled-slot and delete are pointer-only. A keyboard route needs a new

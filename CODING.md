@@ -131,12 +131,18 @@ Each step is one file. Read only that file.
 
 ```bash
 make test                            # all suites: C++ (Unity), UI JS (node:test), Python (pytest)
+make mutants                         # re-introduce every fixed UI bug; each must fail the suite (~10 s, also in CI)
 node --check ui/js/<changed>.js      # syntax check any edited JS (it ships minified in PROGMEM)
 ```
 
 No hardware needed — everything is native and takes <5 s total. If a change
 touches a header-only helper (`text_utils.h`, `ota_utils.h`, `mqtt_state.h`) or a
 formula mirrored in `test/native/test_main.cpp`, update the test in the same commit.
+
+`test/test_ui_behaviour.js` runs the REAL `ui/js` scripts (in `JS_FILES` order, plus
+once as the minified blob that ships) against a virtual clock and a hand-driven
+`fetch` — see `test/ui_harness.js`. When you fix a UI bug, add the test that would
+have caught it AND a mutant in `test/ui_mutants.js` that re-introduces the bug.
 
 `test/test_consistency.py` cross-checks config.h ranges/defaults against their UI
 mirrors (index.html slider attrs, state.js clamps, sliders.js vib bounds, globals.js
