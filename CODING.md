@@ -131,7 +131,7 @@ Each step is one file. Read only that file.
 
 ```bash
 make test                            # all suites: C++ (Unity), UI JS (node:test), Python (pytest)
-make mutants                         # re-introduce every fixed UI bug; each must fail the suite (~10 s, also in CI)
+make mutants                         # re-introduce every fixed UI bug + hunted regressions; each must fail the suite (~2.5 min, also in CI)
 node --check ui/js/<changed>.js      # syntax check any edited JS (it ships minified in PROGMEM)
 ```
 

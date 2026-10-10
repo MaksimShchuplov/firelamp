@@ -5,8 +5,12 @@ function dynDesc(sid,val){
   document.getElementById(sid.replace('s','d')).textContent=t;
 }
 function dynAll(){dynDesc('sb',+sb.value);dynDesc('sc',+sc.value);dynDesc('sco',+sco.value);dynDesc('ssp',+ssp.value);dynDesc('sbl',+sbl.value);}
-function showOffline(){var b=document.getElementById('offb');b.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';b.classList.add('show');}
-function hideOffline(){document.getElementById('offb').classList.remove('show');}
+// The banner is hidden by sliding it off-screen (CSS transform), not display:none,
+// so it stays in the accessibility tree; aria-hidden keeps a screen reader from
+// announcing a stale "Lamp not responding" once the lamp is back. Clearing the
+// text instead would show an empty red strip during the slide-out transition.
+function showOffline(){var b=document.getElementById('offb');b.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';b.setAttribute('aria-hidden','false');b.classList.add('show');}
+function hideOffline(){var b=document.getElementById('offb');b.classList.remove('show');b.setAttribute('aria-hidden','true');}
 function showSheet(title,msg,btns){
   document.getElementById('shtit').textContent=title;
   document.getElementById('shmsg').textContent=msg;

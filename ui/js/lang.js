@@ -51,7 +51,8 @@ function ul(){
  var ks=document.getElementById('aikeystatus');
  if(ks.dataset.ks==='ok')ks.textContent=ru?'Ключ сохранён ✓':'Key saved ✓';
  else if(ks.dataset.ks==='notset')ks.textContent=ru?'Ключ не задан':'No key set';
- else if(ks.dataset.ks==='error')ks.textContent=ru?'Ошибка':'Error';
+ else if(ks.dataset.ks==='savefail')ks.textContent=ru?'Ошибка сохранения':'Save failed';
+ else if(ks.dataset.ks==='neterr')ks.textContent=ru?'Ошибка сети':'Network error';
  var sp2=document.getElementById('surprise');if(sp2&&!sp2.disabled)sp2.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
  var vi=document.getElementById('vinfo');if(vi.textContent==='● Доступно обновление'||vi.textContent==='● Update available'){vi.textContent=ru?'● Доступно обновление':'● Update available';}
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';

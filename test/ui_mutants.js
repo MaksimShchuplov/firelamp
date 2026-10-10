@@ -17,7 +17,7 @@
  * poll interval's callback — pollTid is assigned only by resumePoll(), so the
  * interval cannot exist while paused and that check was removed as dead code.
  *
- * Run with:  node test/ui_mutants.js [--only <area|id-substring>] [--verbose]
+ * Run with:  node test/ui_mutants.js [--only <area|id-substring>] [--suite <glob>] [--verbose]
  *            (exit 1 if any mutant survives or is stale)
  */
 const { spawn } = require('node:child_process');
@@ -99,6 +99,15 @@ const MUTANTS = [
   { id: 'preset-blocks-scroll',
     why: 'preventDefault on touchstart cancelled panning for the whole gesture',
     file: 'js/presets.js', find: 'function onStart(e){pt=setTimeout(', replace: 'function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(' },
+  { id: 'keysave-neterr-generic',
+    why: 'both key-save failures shared one generic "error" state, so a language switch replaced "Network error" with "Ошибка"',
+    file: 'js/ai.js', find: "s.dataset.ks='neterr'", replace: "s.dataset.ks='error'" },
+  { id: 'mqtt-hint-erased',
+    why: 'with no stored password the field placeholder was set to \'\', wiping the "Password (optional)" hint',
+    file: 'js/mqtt.js', find: ':mqpHint;', replace: ":'';" },
+  { id: 'offline-banner-stays-exposed',
+    why: 'the banner hides by transform, so without aria-hidden a screen reader kept reading "Lamp not responding" after recovery',
+    file: 'js/ui.js', find: "b.classList.remove('show');b.setAttribute('aria-hidden','true');", replace: "b.classList.remove('show');" },
 ];
 
 // Optional second list: plausible regressions found by an adversarial mutation hunt.
@@ -109,11 +118,13 @@ function sourceHas(m) {
   return fs.readFileSync(path.join(ROOT, 'ui', m.file), 'utf-8').includes(m.find);
 }
 
+let SUITE = 'test/ui/*.test.js';
+
 function runSuite(m) {
   return new Promise(resolve => {
-    const child = spawn(process.execPath, ['--test', 'test/ui/*.test.js'], {
-      cwd: ROOT, env: Object.assign({}, process.env, { UI_MUTATION: JSON.stringify(m) }),
-    });
+    const env = Object.assign({}, process.env);
+    if (m) env.UI_MUTATION = JSON.stringify(m); else delete env.UI_MUTATION;
+    const child = spawn(process.execPath, ['--test', SUITE], { cwd: ROOT, env });
     let out = '';
     child.stdout.on('data', d => { out += d; });
     child.stderr.on('data', d => { out += d; });
@@ -125,6 +136,17 @@ async function main() {
   const args = process.argv.slice(2);
   const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
   const verbose = args.includes('--verbose');
+  if (args.includes('--suite')) SUITE = args[args.indexOf('--suite') + 1];
+
+  // Baseline: the suite must be green on unmutated code, or every "kill" below
+  // would just be the pre-existing failure.
+  const base = await runSuite(null);
+  const baseFail = ((base.match(/^# fail (\d+)/m) || [0, '1'])[1]) | 0;
+  if (baseFail > 0 || !/^# pass \d+/m.test(base)) {
+    console.log(`BASELINE RED — ${SUITE} fails on unmutated code; fix that first:\n` +
+      [...base.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map(x => '  ' + x[1]).join('\n'));
+    process.exit(2);
+  }
   const all = MUTANTS.concat(HUNT).filter(m => !only || m.id.includes(only) || (m.area || '') === only);
   const equivalent = all.filter(m => m.equivalent);
   const live = all.filter(m => !m.equivalent);

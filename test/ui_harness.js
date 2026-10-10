@@ -36,13 +36,20 @@ function mutationsFromEnv() {
   return Array.isArray(v) ? v : [v];
 }
 
-// Initial input values, as the browser would see them from index.html.
+// Initial input values and placeholders, as the browser would see them from index.html.
 function htmlInputValues() {
   const html = fs.readFileSync(path.join(UI, 'index.html'), 'utf-8');
-  const out = {};
+  const out = { values: {}, placeholders: {} };
+  out.attrs = {};
+  for (const m of html.matchAll(/<\w+[^>]*\bid=(\w+)[^>]*>/g)) {
+    const a = m[0].match(/\baria-hidden=(\w+)/);
+    if (a) out.attrs[m[1]] = { 'aria-hidden': a[1] };
+  }
   for (const m of html.matchAll(/<input[^>]*\bid=(\w+)[^>]*>/g)) {
     const v = m[0].match(/\bvalue=([^\s>]+)/);
-    if (v) out[m[1]] = v[1];
+    if (v) out.values[m[1]] = v[1];
+    const p = m[0].match(/\bplaceholder=(?:"([^"]*)"|([^\s>]+))/);
+    if (p) out.placeholders[m[1]] = p[1] !== undefined ? p[1] : p[2];
   }
   return out;
 }
@@ -72,7 +79,7 @@ async function flush() { for (let i = 0; i < 8; i++) await new Promise(r => setI
 // --------------------------------------------------------------------------
 // DOM stub — auto-vivifying elements, enough of the API the scripts touch.
 // --------------------------------------------------------------------------
-function makeDom(initialValues) {
+function makeDom(initial) {
   const listeners = new Map();          // document-level
   const els = new Map();
 
@@ -95,9 +102,14 @@ function makeDom(initialValues) {
     const ls = new Map();
     const el = {
       id: id || '', tagName: (tag || 'div').toUpperCase(),
-      value: id && initialValues[id] !== undefined ? String(initialValues[id]) : '',
-      textContent: '', innerHTML: '', placeholder: '', disabled: false, hidden: false,
-      files: [], dataset: {}, onclick: null, children: [],
+      value: id && initial.values[id] !== undefined ? String(initial.values[id]) : '',
+      placeholder: id && initial.placeholders[id] !== undefined ? initial.placeholders[id] : '',
+      textContent: '', innerHTML: '', disabled: false, hidden: false,
+      files: [], dataset: {}, onclick: null, children: [], attrs: {},
+      setAttribute(k, v) { el.attrs[k] = String(v); },
+      getAttribute(k) { return Object.prototype.hasOwnProperty.call(el.attrs, k) ? el.attrs[k] : null; },
+      removeAttribute(k) { delete el.attrs[k]; },
+      hasAttribute(k) { return Object.prototype.hasOwnProperty.call(el.attrs, k); },
       style: { cssText: '', setProperty(k, v) { this[k] = String(v); } },
       classList: classList(),
       addEventListener(type, fn) { if (!ls.has(type)) ls.set(type, []); ls.get(type).push(fn); },
@@ -119,6 +131,7 @@ function makeDom(initialValues) {
       appendChild(c) { el.children.push(c); return c; },
       insertAdjacentElement(_, c) { return c; },
     };
+    if (id && initial.attrs[id]) Object.assign(el.attrs, initial.attrs[id]);
     return el;
   }
 

@@ -1,0 +1,1259 @@
+[
+ {
+  "id": "state/pause-no-seq-bump",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "pollPaused=true;pullSeq++;",
+  "replace": "pollPaused=true;",
+  "why": "A poll that was in flight when OTA or Surprise Me started is still applied, or counts as a failure. A slow lamp (2 earlier timeouts) then shows a false 'Lamp not responding' banner during Surprise or OTA, which is the exact problem pausePoll exists to prevent."
+ },
+ {
+  "id": "state/catch-no-seq-guard",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "clearTimeout(to);if(seq<pullSeq)return;pullFails++",
+  "replace": "clearTimeout(to);pullFails++",
+  "why": "A poll that has been superseded or paused still counts as a failure when it times out, so the false offline banner appears during Surprise Me or OTA, or after fewer than 3 real consecutive failures."
+ },
+ {
+  "id": "state/applyState-no-banner-clear",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "pullFails=0;hideOffline();\n  var ae",
+  "replace": "var ae",
+  "why": "After the lamp comes back, tapping a preset, Surprise, Reset or a theme succeeds but 'Lamp not responding' stays up until the next poll. pullFails also stays at 2-3, so one later hiccup brings the banner straight back."
+ },
+ {
+  "id": "state/resume-keeps-paused-flag",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "pollPaused=false;",
+  "replace": "",
+  "why": "After one Surprise Me or a failed OTA, returning to the tab never refreshes right away. The user sees stale sliders for up to 5 s for the rest of the session."
+ },
+ {
+  "id": "state/w-truthy",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "if(x.w!=null)",
+  "replace": "if(x.w)",
+  "why": "After brightness is set to 0 (or MQTT OFF), the power readout keeps showing the last non-zero wattage, e.g. 12.3 W, for a lamp that is off."
+ },
+ {
+  "id": "state/th-truthy",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "if(x.th!==undefined)pth(x.th)",
+  "replace": "if(x.th)pth(x.th)",
+  "why": "When another client, MQTT/Home Assistant, Reset or a preset switches the lamp back to Fire, this page keeps highlighting the old theme and keeps the old ambient colours."
+ },
+ {
+  "id": "state/upd-zero-shows",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "if(x.upd&&",
+  "replace": "if(x.upd!==undefined&&",
+  "why": "'● Update available' shows on every page load even when the firmware is current."
+ },
+ {
+  "id": "state/upd-overwrites-vinfo",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "if(!vi.textContent){vi.style.color",
+  "replace": "if(true){vi.style.color",
+  "why": "Within 5 s of a check, the version comparison line ('Current: x → GitHub: y') is replaced by the generic amber badge, so the user loses the version info right when deciding whether to install."
+ },
+ {
+  "id": "state/upd-ignores-chk-disabled",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "if(x.upd&&!document.getElementById('chk').disabled)",
+  "replace": "if(x.upd)",
+  "why": "During a check the amber badge flashes in. When /checkupdate answers it overwrites the text but not the colour, so 'Current: x → GitHub: y' is left in amber (#fbbf24) instead of the normal colour."
+ },
+ {
+  "id": "state/upd-color-dropped",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "vi.style.color='#fbbf24';",
+  "replace": "",
+  "why": "The update badge appears in the default grey and is easy to miss, so the 'silent badge' no longer draws attention."
+ },
+ {
+  "id": "state/pb-off-toggle-noforce",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "classList.toggle('off',n===0)",
+  "replace": "classList.toggle('off')",
+  "why": "Every brightness input or poll flips the 'off' styling, so the page flickers between lit and dimmed while dragging and shows the wrong state at rest."
+ },
+ {
+  "id": "state/dynDesc-wrong-id",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "dynDesc(se.id,n)",
+  "replace": "dynDesc(ve.id,n)",
+  "why": "The description under every slider ('Off', 'Very dim', 'Tall flames', ...) never updates from slider moves, polls, presets or Surprise."
+ },
+ {
+  "id": "state/guard-c-checks-sb",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "if(x.c!==undefined&&ae!==sc)",
+  "replace": "if(x.c!==undefined&&ae!==sb)",
+  "why": "On Chrome/Firefox or with the keyboard, a focused contrast slider is overwritten by the poll. For example, the user adjusts with the arrow keys, pauses for more than 1 s while /setc is still queued on the single-threaded ESP, and the thumb jumps back."
+ },
+ {
+  "id": "state/guard-b-dropped",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "if(x.b!==undefined&&ae!==sb)",
+  "replace": "if(x.b!==undefined)",
+  "why": "A keyboard or desktop user holding focus on the brightness slider has it rewritten by a poll that lands more than 1 s after their last keypress."
+ },
+ {
+  "id": "state/pth-ar2-typo",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "s.setProperty('--ar2',t[3])",
+  "replace": "s.setProperty('--ar2',t[2])",
+  "why": "The ambient glow's second colour stop takes the wrong channel, e.g. Ice theme gets a red component of 230 instead of 8, so the background glow is the wrong hue."
+ },
+ {
+  "id": "state/gate-window-5s",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "Date.now()-lastIn<1000",
+  "replace": "Date.now()-lastIn<5000",
+  "why": "After any slider touch, the next poll is always thrown away, so changes made from another phone or Home Assistant appear about 5 s late."
+ },
+ {
+  "id": "sliders-globals/ssp-no-cleartimeout",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "clearTimeout(t4);",
+  "replace": "",
+  "why": "Dragging the Sparking slider sends one HTTP request per input event (dozens per drag) to the single-threaded ESP web server. The /state poll gets delayed, the lamp steps through every intermediate value, and a slow poll can trigger false offline failures."
+ },
+ {
+  "id": "sliders-globals/sbl-no-lastIn",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "var v=sbl.value;lastIn=Date.now();",
+  "replace": "var v=sbl.value;",
+  "why": "On a phone, the Blend slider jumps back to its old value right after the user releases it. The lamp receives /setbl?v=200, but the UI shows 50 until the next poll 5 s later."
+ },
+ {
+  "id": "sliders-globals/sco-no-lastIn",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "var v=sco.value;lastIn=Date.now();",
+  "replace": "var v=sco.value;",
+  "why": "The Cooling slider snaps back to the stale value under the user's finger on touch devices."
+ },
+ {
+  "id": "sliders-globals/sbl-no-clearActive",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "xf('/setbl?v='+v);},120);clearActive();",
+  "replace": "xf('/setbl?v='+v);},120);",
+  "why": "After the user tweaks Blend, the preset button still shows as active and the AI effect name stays on screen, although the lamp no longer matches either."
+ },
+ {
+  "id": "sliders-globals/theme-no-clearActive",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": ".then(applyState).catch(function(){});clearActive();};});",
+  "replace": ".then(applyState).catch(function(){});};});",
+  "why": "After a theme change, the UI still shows a preset (or an AI effect name) as active although the theme differs from it."
+ },
+ {
+  "id": "sliders-globals/reset-no-clearActive",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "document.getElementById('rst').onclick=function(){xf('/reset').then(function(r){return r.json();}).then(applyState).catch(function(){});clearActive();};",
+  "replace": "document.getElementById('rst').onclick=function(){xf('/reset').then(function(r){return r.json();}).then(applyState).catch(function(){});};",
+  "why": "After Reset to defaults, the previously loaded preset is still highlighted as active."
+ },
+ {
+  "id": "sliders-globals/theme-index-off-by-one",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "xf('/settheme?v='+t)",
+  "replace": "xf('/settheme?v='+(t+1))",
+  "why": "Tapping Fire selects Ember and tapping Plasma selects Ice. Tapping Ice sends v=4, which the server rejects with 400 {\"error\":\"invalid\"}, so nothing changes."
+ },
+ {
+  "id": "sliders-globals/vib-and",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "(v==min||v==max)",
+  "replace": "(v==min&&v==max)",
+  "why": "Android users lose the haptic tick when any slider reaches its end stop."
+ },
+ {
+  "id": "sliders-globals/sco-vib-wrong-min",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "vib(+sco.value,20,150)",
+  "replace": "vib(+sco.value,0,150)",
+  "why": "No haptic feedback at the Cooling slider's minimum. The python consistency suite catches this; the behaviour suite does not."
+ },
+ {
+  "id": "sliders-globals/ssp-no-live-label",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "psp(+ssp.value);",
+  "replace": "",
+  "why": "While dragging Sparking, the number and description next to it do not change, so the user cannot see what value they are choosing."
+ },
+ {
+  "id": "sliders-globals/sc-calls-pb",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "pc(+sc.value);",
+  "replace": "pb(+sc.value);",
+  "why": "Dragging Contrast moves the Brightness slider and label instead (contrast 0 even greys the page out as 'off'), and the Contrast label does not update. The UI then disagrees with the lamp."
+ },
+ {
+  "id": "sliders-globals/reset-no-catch",
+  "area": "sliders-globals",
+  "file": "js/sliders.js",
+  "find": "then(applyState).catch(function(){});clearActive();};\n",
+  "replace": "then(applyState);clearActive();};\n",
+  "why": "Nothing changes on screen. The only effect is an 'Uncaught (in promise)' console error when the lamp is unreachable. Low severity, but observable through the unhandledrejection event."
+ },
+ {
+  "id": "ota/never-online-no-timeout",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "if(n>10){showOtaError",
+  "replace": "if(n>100){showOtaError",
+  "why": "When the ESP-side download fails right after sending 200 (lamp keeps running the old firmware and never reboots), the UI sits on 'Rebooting...' with every control disabled and polling paused for ~5 minutes instead of ~38 s."
+ },
+ {
+  "id": "ota/offline-cap-raised",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "if(n>20){showOtaError",
+  "replace": "if(n>200){showOtaError",
+  "why": "If the lamp never comes back (bricked, rolled back onto a different IP, power cut), the page stays on 'Lamp rebooting...' with controls disabled for ~10 minutes instead of ~68 s before telling the user to refresh."
+ },
+ {
+  "id": "ota/interval-1s",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "},3000);\n  }",
+  "replace": "},1000);\n  }",
+  "why": "Every normal OTA (35 s flash + reboot) ends with the false 'Lamp not responding. Refresh manually.' error instead of the automatic success/reload; the 1 s interval with a 2 s abort also leaves two probes in flight at once."
+ },
+ {
+  "id": "ota/no-cleartimeout-then",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "then(function(r){clearTimeout(to);return r.json();})",
+  "replace": "then(function(r){return r.json();})",
+  "why": "Narrow: a slow /info body during download is treated as 'went offline', so later old-firmware answers can raise a premature 'Update failed'. Not reachable with the harness's instant Response bodies, and unlikely on a LAN, but not provably a no-op."
+ },
+ {
+  "id": "ota/no-clearinterval-success",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "        clearInterval(tid);\n",
+  "replace": "        \n",
+  "why": "Practically none. The reload usually wins, and at worst a redundant /info probe and a second reload are scheduled. The difference shows only as extra network traffic."
+ },
+ {
+  "id": "ota/showerr-no-clearinterval",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "if(tid)clearInterval(tid);pfil",
+  "replace": "pfil",
+  "why": "After a failed OTA with the old firmware still answering, the page silently stops syncing (no /state polls ever fire, offline banner can never appear). /info keeps being hammered every 3 s and the message and button are rewritten every tick, or flip to 'Lamp not responding' later."
+ },
+ {
+  "id": "ota/uptodate-stays-disabled",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "btn.style.color='#60a5fa';btn.disabled=false;",
+  "replace": "btn.style.color='#60a5fa';",
+  "why": "After one 'Up to date' check the button reads 'Check for Update' but is permanently disabled until page reload. lang.js skips relabelling a disabled chk, so a language switch also leaves it untranslated."
+ },
+ {
+  "id": "ota/checkfailed-stays-disabled",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "btn.textContent=ru?'Ошибка проверки':'Check failed';btn.disabled=false;",
+  "replace": "btn.textContent=ru?'Ошибка проверки':'Check failed';",
+  "why": "After a failed GitHub check (e.g. transient TLS failure) the user cannot retry without reloading the page."
+ },
+ {
+  "id": "ota/neterr-stays-disabled",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "btn.textContent=ru?'Ошибка сети':'Network error';btn.disabled=false;",
+  "replace": "btn.textContent=ru?'Ошибка сети':'Network error';",
+  "why": "One dropped /checkupdate request (WiFi blip) leaves the update button dead until reload."
+ },
+ {
+  "id": "ota/chk-not-in-otaEls",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "'rst','chk','rwifi'",
+  "replace": "'rst','rwifi'",
+  "why": "After any failed OTA the 'Refresh page' button the error tells you to press is disabled and does nothing, because chk is disabled by startOTA (via the dataset path: chk is disabled when Install is clicked) and never re-enabled."
+ },
+ {
+  "id": "ota/update-reject-no-doafter",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "Try again.');},doAfter);",
+  "replace": "Try again.');});",
+  "why": "In browsers that surface the ESP's immediate connection close as a network error, the UI freezes on 'Flashing...' forever with all controls disabled and polling paused, even though the lamp updates and reboots fine."
+ },
+ {
+  "id": "ota/resetwifi-wrong-endpoint",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "xf('/resetwifi')",
+  "replace": "xf('/reset')",
+  "why": "'Reset WiFi' silently restores all fire parameters to defaults instead of clearing credentials. The lamp never enters FireLamp-Setup mode while the button claims 'Rebooting...'."
+ },
+ {
+  "id": "ota/rwifi-not-disabled",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;",
+  "replace": "b.textContent=ru?'Перезагрузка...':'Rebooting...';",
+  "why": "The button stays live during the reboot, so a second tap reopens the sheet and can fire a second /resetwifi at the restarting lamp."
+ },
+ {
+  "id": "ota/uptime-gt-120",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "d.uptime_s>=120",
+  "replace": "d.uptime_s>120",
+  "why": "Only at exactly uptime_s==120 with a changed version, where declaring success is arguably correct anyway. No meaningful user impact; this is a pure boundary gap."
+ },
+ {
+  "id": "ota/wentoffline-set-in-then",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "clearTimeout(to);return r.json();}",
+  "replace": "clearTimeout(to);wentOffline=true;return r.json();}",
+  "why": "If the lamp still answers /info for ~15 s after accepting the update (slow download start), the UI declares 'Update failed', stops watching, and then the lamp reboots into the new firmware with no automatic reload. The n>10 never-offline path also becomes dead code."
+ },
+ {
+  "id": "ota/uptodate-restore-300ms",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "btn.dataset.mode='';},3000);",
+  "replace": "btn.dataset.mode='';},300);",
+  "why": "The 'Up to date ✓' confirmation flashes for 0.3 s, too short to read, so the user cannot tell the check completed."
+ },
+ {
+  "id": "ai-ui/ai-interval-not-cleared-on-success",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "clearTimeout(to);clearInterval(etid);\n    if(r.status===429)",
+  "replace": "clearTimeout(to);\n    if(r.status===429)",
+  "why": "After a successful Surprise the button label goes back to 'Thinking Ns…' within a second and keeps counting forever, even though the button is enabled."
+ },
+ {
+  "id": "ai-ui/ai-interval-not-cleared-on-error",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "clearTimeout(to);clearInterval(etid);\n    btn.textContent",
+  "replace": "clearTimeout(to);\n    btn.textContent",
+  "why": "After any Surprise error the button keeps counting up 'Thinking Ns…' with no end, while it is enabled and idle."
+ },
+ {
+  "id": "ai-ui/ai-abort-at-25s",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "ac.abort();},30000)",
+  "replace": "ac.abort();},25000)",
+  "why": "A Gemini answer taking 25 to 30 s is applied on the lamp, but the UI already shows 'AI timed out', keeps the old slider values and drops the effect name."
+ },
+ {
+  "id": "ai-ui/ai-timeout-not-cleared-on-success",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "clearTimeout(to);clearInterval(etid);\n    if(r.status===429)",
+  "replace": "clearInterval(etid);\n    if(r.status===429)",
+  "why": "Only in a very narrow window: a response whose body finishes after the 30 s mark is reported as 'AI timed out' even though it arrived. In practice ESP replies are a single small send, so this is almost never visible."
+ },
+ {
+  "id": "ai-ui/ai-abort-maps-to-generic",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "e.name==='AbortError'",
+  "replace": "e.name==='TimeoutError'",
+  "why": "When the lamp never answers, the user gets a generic '⚠ Error' instead of '⚠ AI timed out'."
+ },
+ {
+  "id": "ai-ui/ai-no-key-code-typo",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "e.message==='no_key'",
+  "replace": "e.message==='nokey'",
+  "why": "A user who has not set a key sees '⚠ Error' instead of being told to set the API key in settings."
+ },
+ {
+  "id": "ai-ui/ai-auth-code-typo",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "e.message==='auth_error'",
+  "replace": "e.message==='auth'",
+  "why": "With an invalid Gemini key the user sees '⚠ Error' instead of '⚠ Invalid API key'."
+ },
+ {
+  "id": "ai-ui/ai-parse-code-typo",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "e.message==='parse_failed'",
+  "replace": "e.message==='parse_error'",
+  "why": "An unparseable Gemini reply shows '⚠ Error' instead of '⚠ AI response error'."
+ },
+ {
+  "id": "ai-ui/ai-success-keeps-fade-timer",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "if(aiNmTid){clearTimeout(aiNmTid);aiNmTid=null;}clearActive();",
+  "replace": "clearActive();",
+  "why": "If the user retries within 4 s of an error and the retry succeeds, the new effect name disappears a moment after it appears."
+ },
+ {
+  "id": "ai-ui/ai-error-no-clear-prev-fade",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "if(aiNmTid)clearTimeout(aiNmTid);\n",
+  "replace": "",
+  "why": ""
+ },
+ {
+  "id": "ai-ui/ai-start-no-color-reset",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "btn.disabled=true;nm.style.color='#fbbf24';nm.textContent='';",
+  "replace": "btn.disabled=true;nm.textContent='';",
+  "why": "An effect name that arrives within 4 s of an error is shown in error red instead of amber."
+ },
+ {
+  "id": "ai-ui/ai-no-disable-on-start",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "btn.disabled=true;nm.style.color",
+  "replace": "nm.style.color",
+  "why": "A double tap sends two /surprise requests. The second gets 429 and shows 'Rate limit', re-enables the button and resumes polling while the first request still blocks the lamp, which can raise a false offline banner. Two elapsed counters also fight over the label."
+ },
+ {
+  "id": "ai-ui/key-empty-guard-dropped",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "if(!v)return;",
+  "replace": "",
+  "why": "Tapping Save with an empty field posts key= and the firmware returns 400, so the user sees 'Save failed' plus a 1.5 s disabled ✗ button instead of nothing happening."
+ },
+ {
+  "id": "ai-ui/key-no-trim",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "getElementById('aikey').value.trim()",
+  "replace": "getElementById('aikey').value",
+  "why": "A key pasted with a trailing space or newline is rejected by the firmware (it refuses bytes below 0x21), so the user sees 'Save failed' for a valid key."
+ },
+ {
+  "id": "ai-ui/key-field-not-cleared",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "if(x.ok){document.getElementById('aikey').value='';",
+  "replace": "if(x.ok){",
+  "why": "After a successful save the API secret stays visible in the input field."
+ },
+ {
+  "id": "ai-ui/key-ok-dataset-wrong",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "s.style.color='#4ade80';s.dataset.ks='ok';",
+  "replace": "s.style.color='#4ade80';s.dataset.ks='saved';",
+  "why": "After saving a key, switching language leaves the status 'Key saved ✓' untranslated."
+ },
+ {
+  "id": "ai-ui/key-catch-no-reenable",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "b.textContent='✗';\n    setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';b.disabled=false;},1500);",
+  "replace": "b.textContent='✗';\n    setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);",
+  "why": "After one network failure the Save key button stays disabled until the page is reloaded."
+ },
+ {
+  "id": "ai-ui/key-no-content-type",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": ",'Content-Type':'application/x-www-form-urlencoded'",
+  "replace": "",
+  "why": "fetch sends text/plain, so the ESP WebServer puts the body in arg 'plain' and server.arg('key') is empty. Every save returns 400 'Save failed', and the key can never be set."
+ },
+ {
+  "id": "ai-ui/key-no-encode",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "'key='+encodeURIComponent(v)",
+  "replace": "'key='+v",
+  "why": "A key containing +, & or % is mangled on the wire and either saved wrong or rejected. Real Gemini keys use only [A-Za-z0-9_-], so this is low impact."
+ },
+ {
+  "id": "ai-ui/key-no-csrf",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "headers:{'X-Requested-With':'firelamp',",
+  "replace": "headers:{",
+  "why": "The firmware's isWebRequest() rejects the POST, so the key is never saved and the user sees Save failed or Network error."
+ },
+ {
+  "id": "ai-ui/sheet-action-no-hide",
+  "area": "ai-ui",
+  "file": "js/ui.js",
+  "find": "e.onclick=function(){hideSheet();b.fn();};",
+  "replace": "e.onclick=function(){b.fn();};",
+  "why": "After choosing an action in any sheet (Install, preset Delete or Rename, Reset WiFi) the sheet stays open over the page."
+ },
+ {
+  "id": "ai-ui/sheet-buttons-accumulate",
+  "area": "ai-ui",
+  "file": "js/ui.js",
+  "find": "c.innerHTML='';",
+  "replace": "",
+  "why": "Every new sheet also shows the buttons from earlier sheets, including stale actions bound to the old slot or to OTA install."
+ },
+ {
+  "id": "ai-ui/sheet-dim-no-dismiss",
+  "area": "ai-ui",
+  "file": "js/ui.js",
+  "find": "document.getElementById('shdim').onclick=hideSheet;",
+  "replace": "",
+  "why": "Tapping outside the action sheet no longer dismisses it."
+ },
+ {
+  "id": "ai-ui/sheet-hide-keeps-dim",
+  "area": "ai-ui",
+  "file": "js/ui.js",
+  "find": "function hideSheet(){document.getElementById('shdim').classList.remove('show');",
+  "replace": "function hideSheet(){",
+  "why": "After any sheet closes, the dim overlay stays over the whole page and blocks every tap until reload, because clicking the dim calls the same broken hideSheet."
+ },
+ {
+  "id": "ai-ui/sheet-cancel-no-handler",
+  "area": "ai-ui",
+  "file": "js/ui.js",
+  "find": "cl.onclick=hideSheet;",
+  "replace": "",
+  "why": "The Cancel button in every sheet does nothing."
+ },
+ {
+  "id": "ai-ui/dyndesc-exclusive-upper",
+  "area": "ai-ui",
+  "file": "js/ui.js",
+  "find": "val<=a[i][1]",
+  "replace": "val<a[i][1]",
+  "why": "Values on a bucket's upper edge get the wrong description, falling back to bucket 0. For example brightness 25 and 100 both read 'Off'."
+ },
+ {
+  "id": "ai-ui/dyndesc-global-replace",
+  "area": "ai-ui",
+  "file": "js/ui.js",
+  "find": "sid.replace('s','d')",
+  "replace": "sid.replace(/s/g,'d')",
+  "why": "For 'ssp' the code looks up #ddp, which does not exist, so the null deref throws a TypeError inside ps(). applyState then aborts at sparking, so blend and theme are never applied, and the sparking description never updates."
+ },
+ {
+  "id": "ai-ui/dyndesc-ignores-lang",
+  "area": "ai-ui",
+  "file": "js/ui.js",
+  "find": "r[ru?'ru':'en']",
+  "replace": "r['en']",
+  "why": "Russian users see every slider description in English."
+ },
+ {
+  "id": "ai-ui/dynall-misses-blend",
+  "area": "ai-ui",
+  "file": "js/ui.js",
+  "find": "dynDesc('ssp',+ssp.value);dynDesc('sbl',+sbl.value);",
+  "replace": "dynDesc('ssp',+ssp.value);",
+  "why": "After switching language, the blend slider's description stays in the old language until the slider moves."
+ },
+ {
+  "id": "presets/active-off-by-one",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "b.classList.toggle('act',i===activePreset);",
+  "replace": "b.classList.toggle('act',i===activePreset+1);",
+  "why": "The highlight lands on the slot after the one the user loaded."
+ },
+ {
+  "id": "presets/clearactive-keeps-name",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "activePreset=-1;lastAiName='';document.getElementById('ainame').textContent='';",
+  "replace": "activePreset=-1;document.getElementById('ainame').textContent='';",
+  "why": "After the user changes the AI effect with a slider, saving to an empty slot still offers the stale AI name."
+ },
+ {
+  "id": "presets/delete-keeps-active",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "if(activePreset===s)activePreset=-1;fetchPresets();",
+  "replace": "fetchPresets();",
+  "why": "A deleted preset's empty '+' button stays highlighted as active."
+ },
+ {
+  "id": "presets/save-success-no-cleartimeout",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": ".then(function(){clearTimeout(to);activePreset=slot;",
+  "replace": ".then(function(){activePreset=slot;",
+  "why": "If the user saves a second preset within 8 s of the first, the stale timer clears pendingSlot and the check button silently does nothing."
+ },
+ {
+  "id": "presets/save-uses-pendingSlot-late",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "activePreset=slot;pendingSlot=-1;fetchPresets();",
+  "replace": "activePreset=pendingSlot;pendingSlot=-1;fetchPresets();",
+  "why": "If the user opens another slot before the save response arrives, the wrong slot is highlighted (or none if they cancelled)."
+ },
+ {
+  "id": "presets/save-clamp-14",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": ".slice(0,15).join('');\n  if(!nm)",
+  "replace": ".slice(0,14).join('');\n  if(!nm)",
+  "why": "Preset names lose their 15th character even though the firmware stores 15 codepoints."
+ },
+ {
+  "id": "presets/save-no-trim",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "document.getElementById('prename').value.trim()",
+  "replace": "document.getElementById('prename').value",
+  "why": "A whitespace-only name is accepted and saved as a blank-looking preset. Leading and trailing spaces also count toward the 15-character limit."
+ },
+ {
+  "id": "presets/save-no-encode",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "'&name='+encodeURIComponent(nm)",
+  "replace": "'&name='+nm",
+  "why": "Names containing &, # or + are cut or corrupted: 'R&B' is saved as 'R'."
+ },
+ {
+  "id": "presets/cancel-no-reset",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "function cancelSave(){pendingSlot=-1;",
+  "replace": "function cancelSave(){",
+  "why": "If the user presses Escape to cancel and then Enter (the input is still focused), the preset is saved anyway."
+ },
+ {
+  "id": "presets/escape-key-typo",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "if(e.key==='Escape')cancelSave();",
+  "replace": "if(e.key==='Esc')cancelSave();",
+  "why": "Escape does not close the preset-name box."
+ },
+ {
+  "id": "presets/skipclick-window-short",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "skipClick=false;},400);",
+  "replace": "skipClick=false;},40);",
+  "why": "On browsers or devices where the synthetic click arrives more than 40 ms after touchend, one tap loads the preset twice."
+ },
+ {
+  "id": "presets/touchmove-no-cancel",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "b.addEventListener('touchmove',function(){if(pt){clearTimeout(pt);pt=null;}},{passive:true});",
+  "replace": "",
+  "why": "On iOS, which sends touchmove but no touchcancel during a scroll, a swipe that starts on a preset pops the action sheet or name box mid-scroll."
+ },
+ {
+  "id": "presets/mouseleave-no-cancel",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "b.addEventListener('mouseleave',function(){if(pt){clearTimeout(pt);pt=null;}});",
+  "replace": "",
+  "why": "On desktop, pressing a preset and dragging off it still opens the long-press sheet."
+ },
+ {
+  "id": "presets/onend-no-null",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "if(pt){clearTimeout(pt);pt=null;activate();}",
+  "replace": "if(pt){clearTimeout(pt);activate();}",
+  "why": "After one click, releasing any later drag over that preset reloads it."
+ },
+ {
+  "id": "presets/load-no-ok-check",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "if(!r.ok)throw new Error('http_'+r.status);return r.json();",
+  "replace": "return r.json();",
+  "why": "Tapping a preset that was deleted from another device highlights it as loaded, keeps its stale name and never refreshes the list."
+ },
+ {
+  "id": "presets/load-no-active",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "applyState(x);activePreset=s;updPresetBtns();",
+  "replace": "applyState(x);updPresetBtns();",
+  "why": "The loaded preset is never highlighted."
+ },
+ {
+  "id": "presets/empty-tap-no-save",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "applyState(x);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}else saveSlot(s);}",
+  "replace": "applyState(x);activePreset=s;updPresetBtns();}).catch(function(){fetchPresets();});}}",
+  "why": "Tapping an empty '+' slot does nothing, so the user cannot save a preset with a tap."
+ },
+ {
+  "id": "presets/import-slot-gt8",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "pr.slot>7",
+  "replace": "pr.slot>8",
+  "why": "An out-of-range import entry is sent to the lamp. The firmware rejects it with 400, so the only harm is a wasted request that briefly blocks the single-threaded web server."
+ },
+ {
+  "id": "presets/import-slot-negative-allowed",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "pr.slot<0||",
+  "replace": "",
+  "why": "A request with an invalid slot is sent to the lamp. The firmware rejects it, so this is a wasted request with no data change."
+ },
+ {
+  "id": "presets/import-key-missing-th",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "['b','c','co','sp','bl','th'].forEach",
+  "replace": "['b','c','co','sp','bl'].forEach",
+  "why": "Imported presets lose their colour theme and are saved with the live theme instead."
+ },
+ {
+  "id": "presets/import-parallel",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "q=q.then(function(){return xf(u).catch(function(){});});",
+  "replace": "q=Promise.all([q,xf(u).catch(function(){})]);",
+  "why": "All saves hit the single-threaded ESP32 WebServer at once, so some requests time out or are dropped and presets are missing after import."
+ },
+ {
+  "id": "presets/import-no-catch-inner",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "return xf(u).catch(function(){});",
+  "replace": "return xf(u);",
+  "why": "One failed save aborts every remaining slot in the import, with no error shown."
+ },
+ {
+  "id": "presets/import-no-clear-value",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "var f=this.files[0];this.value='';",
+  "replace": "var f=this.files[0];",
+  "why": "Re-importing the same file, for example after a failed or partial import, silently does nothing."
+ },
+ {
+  "id": "presets/export-wrong-endpoint",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "fetch('/getpresets').then(r=>r.json()).then(function(d){\n    var a",
+  "replace": "fetch('/state').then(r=>r.json()).then(function(d){\n    var a",
+  "why": "Export downloads the live lamp state instead of the presets, so the exported file cannot be imported back."
+ },
+ {
+  "id": "presets/export-revoke-immediate",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "setTimeout(function(){URL.revokeObjectURL(a.href);},2000);",
+  "replace": "URL.revokeObjectURL(a.href);",
+  "why": "In Firefox and Safari the download fails or saves an empty file because the blob URL is revoked before the download starts."
+ },
+ {
+  "id": "presets/fetchpresets-no-updbtns",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "presets=d;updPresetBtns();",
+  "replace": "presets=d;",
+  "why": "After page load all buttons stay unlabelled, so saved presets are invisible until some other action redraws them."
+ },
+ {
+  "id": "presets/saveslot-prefill-ignore-existing",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "inp.value=presets[s]&&presets[s].name?presets[s].name:lastAiName||",
+  "replace": "inp.value=lastAiName||",
+  "why": "Overwriting an existing preset replaces its name with 'Preset 1' or the AI name, unless the user retypes it."
+ },
+ {
+  "id": "presets/saveslot-index-off",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "(ru?'Пресет ':'Preset ')+(s+1)",
+  "replace": "(ru?'Пресет ':'Preset ')+s",
+  "why": "Default names are off by one ('Preset 0' for the first slot)."
+ },
+ {
+  "id": "presets/dosave-no-pending-guard",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "if(pendingSlot<0)return;\n",
+  "replace": "",
+  "why": "Enter after cancelling, or a keyboard Tab to the collapsed check button, sends a save for slot -1. The firmware rejects it."
+ },
+ {
+  "id": "presets/dosave-empty-not-blocked",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "if(!nm){document.getElementById('prename').focus();return;}",
+  "replace": "",
+  "why": "An empty name hides the box and sends a nameless save, which the firmware either rejects or stores as an unnamed slot that still shows as '+'."
+ },
+ {
+  "id": "presets/dosave-keeps-sheet",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "document.getElementById('prein').classList.remove('show');\n  var slot",
+  "replace": "\n  var slot",
+  "why": "The name box stays open after saving, so a second tap re-saves the preset."
+ },
+ {
+  "id": "presets/delete-wrong-param",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "'/deletepreset?slot='+s",
+  "replace": "'/deletepreset?s='+s",
+  "why": "Deleting a preset fails silently (the firmware returns 400) and the preset stays."
+ },
+ {
+  "id": "lang-mqtt/escape-wrong-key",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "e.key==='Escape'&&",
+  "replace": "e.key==='Esc'&&",
+  "why": "Escape no longer closes the help modal. Keyboard users have to tab to the X button."
+ },
+ {
+  "id": "lang-mqtt/ibtn-no-geminikey-fetch",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "fetch('/geminikey').then(r=>r.json()).then(function(x){",
+  "replace": "Promise.resolve({}).then(function(x){",
+  "why": "The help modal always says 'No key set', even when a Gemini key is stored on the lamp."
+ },
+ {
+  "id": "lang-mqtt/ibtn-no-dataset-ks",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "s.dataset.ks=x.set?'ok':'notset';",
+  "replace": "",
+  "why": "After switching language, the key status stays in the old language."
+ },
+ {
+  "id": "lang-mqtt/ibtn-ks-inverted",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "s.dataset.ks=x.set?'ok':'notset';",
+  "replace": "s.dataset.ks=x.set?'notset':'ok';",
+  "why": "With a key stored, switching language flips the status to 'No key set'."
+ },
+ {
+  "id": "lang-mqtt/ibtn-color-inverted",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "s.style.color=x.set?'#4ade80':'#f87171';",
+  "replace": "s.style.color=x.set?'#f87171':'#4ade80';",
+  "why": "'Key saved' shows in red and 'No key set' in green."
+ },
+ {
+  "id": "lang-mqtt/ibtn-no-focus",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "document.getElementById('mcls').focus();",
+  "replace": "",
+  "why": "Keyboard and screen-reader focus stays behind the modal overlay instead of moving into the dialog."
+ },
+ {
+  "id": "lang-mqtt/len-stores-ru",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "ru=false;localStorage.setItem('lang','en');",
+  "replace": "ru=false;localStorage.setItem('lang','ru');",
+  "why": "After choosing English, the page comes back in Russian on the next load."
+ },
+ {
+  "id": "lang-mqtt/lru-no-persist",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "ru=true;localStorage.setItem('lang','ru');",
+  "replace": "ru=true;",
+  "why": "The Russian choice is forgotten on reload for users whose browser locale is not ru."
+ },
+ {
+  "id": "lang-mqtt/lang-act-not-toggled",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "document.getElementById('lru').classList.toggle('act',ru);",
+  "replace": "",
+  "why": "The RU button is never highlighted, so neither button looks selected when Russian is active."
+ },
+ {
+  "id": "lang-mqtt/lang-html-lang-inverted",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "document.documentElement.lang=ru?'ru':'en';",
+  "replace": "document.documentElement.lang=ru?'en':'ru';",
+  "why": "Screen readers pronounce Russian text with English rules and vice versa, and hyphenation and spell-check use the wrong language."
+ },
+ {
+  "id": "lang-mqtt/chk-check-branch-ignores-disabled",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "var ck=document.getElementById('chk');if(!ck.disabled){",
+  "replace": "var ck=document.getElementById('chk');if(true){",
+  "why": "A language switch during a check wipes 'Checking...' or 'Up to date ✓' and shows 'Check for Update' on a button that is still disabled."
+ },
+ {
+  "id": "lang-mqtt/vinfo-compare-only-en",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "if(vi.textContent==='● Доступно обновление'||vi.textContent==='● Update available')",
+  "replace": "if(vi.textContent==='● Update available')",
+  "why": "The update badge stays in Russian after switching to English."
+ },
+ {
+  "id": "lang-mqtt/offb-retranslated-always",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "if(ob.classList.contains('show'))ob.textContent",
+  "replace": "ob.textContent",
+  "why": ""
+ },
+ {
+  "id": "lang-mqtt/offb-not-retranslated",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';",
+  "replace": "",
+  "why": "The offline banner stays in the old language after a switch."
+ },
+ {
+  "id": "lang-mqtt/ks-error-not-retranslated",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "else if(ks.dataset.ks==='neterr')ks.textContent=ru?'Ошибка сети':'Network error';",
+  "replace": "",
+  "why": "ul() no longer re-translates the network-error key status, so a language switch leaves it in the old language"
+ },
+ {
+  "id": "lang-mqtt/ks-ok-retranslate-wrong-key",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "if(ks.dataset.ks==='ok')",
+  "replace": "if(ks.dataset.ks==='set')",
+  "why": "'Key saved ✓' stays in English after switching to Russian."
+ },
+ {
+  "id": "lang-mqtt/surprise-relabel-while-busy",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "if(sp2&&!sp2.disabled)",
+  "replace": "if(sp2)",
+  "why": "For up to 1 s the busy button reads 'Surprise Me', until the 1 s ticker rewrites it. This is a brief visual glitch."
+ },
+ {
+  "id": "lang-mqtt/ul-no-dynAll",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": " dynAll();\n}",
+  "replace": "\n}",
+  "why": "Slider value descriptions stay in the old language after a switch."
+ },
+ {
+  "id": "lang-mqtt/mq-pw-not-encoded",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "'&p='+encodeURIComponent(p)",
+  "replace": "'&p='+p",
+  "why": "Passwords containing &, +, % or = are saved corrupted, and MQTT authentication fails."
+ },
+ {
+  "id": "lang-mqtt/mq-user-param-name",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "'&u='+encodeURIComponent(u)",
+  "replace": "'&user='+encodeURIComponent(u)",
+  "why": "The username is never saved (server.arg('u') is empty), so the broker rejects the login."
+ },
+ {
+  "id": "lang-mqtt/mq-wrong-endpoint",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "fetch('/setmqtt'",
+  "replace": "fetch('/mqtt'",
+  "why": "The save goes to a 404 route. The UI shows 'Network Error' or 'Error', and the config is never saved."
+ },
+ {
+  "id": "lang-mqtt/mq-no-csrf",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "headers:{'X-Requested-With':'firelamp','Content-Type'",
+  "replace": "headers:{'Content-Type'",
+  "why": "isWebRequest() rejects the request, so MQTT settings can never be saved from the UI."
+ },
+ {
+  "id": "lang-mqtt/mq-no-content-type",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": ",'Content-Type':'application/x-www-form-urlencoded'",
+  "replace": "",
+  "why": "The browser sends text/plain, so WebServer does not parse the form args. ip, u, p and t arrive empty and the broker config is wiped."
+ },
+ {
+  "id": "lang-mqtt/mq-get-method",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "{method:'POST',",
+  "replace": "{",
+  "why": "Every save fails with 'Network Error'."
+ },
+ {
+  "id": "lang-mqtt/mq-catch-no-unlock",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "st.textContent=ru?'Ошибка сети':'Network Error';st.style.color='#f87171';\n    setTimeout(function(){st.textContent='';btn.disabled=false;},1500);",
+  "replace": "st.textContent=ru?'Ошибка сети':'Network Error';st.style.color='#f87171';",
+  "why": "After one network failure the Save MQTT button stays disabled until the page is reloaded."
+ },
+ {
+  "id": "lang-mqtt/mq-unlock-delay-skipped-on-error",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "else{st.textContent=ru?'Ошибка':'Error';st.style.color='#f87171';}",
+  "replace": "else{st.textContent=ru?'Ошибка':'Error';st.style.color='#f87171';return;}",
+  "why": "A server-side rejection leaves the button permanently disabled."
+ },
+ {
+  "id": "lang-mqtt/mq-ok-inverted",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "if(x.ok){",
+  "replace": "if(!x.ok){",
+  "why": "A successful save shows 'Error' and a failed one shows 'Saved ✓'."
+ },
+ {
+  "id": "lang-mqtt/mq-no-lock",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "  btn.disabled=true;\n",
+  "replace": "\n",
+  "why": "A double-tap sends two saves, causing two NVS writes and two initMqtt reconnects."
+ },
+ {
+  "id": "lang-mqtt/mq-pw-wrong-field",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "var p=document.getElementById('mqp').value.trim();",
+  "replace": "var p=document.getElementById('mqu').value.trim();",
+  "why": "The username is saved as the password, so broker authentication fails."
+ },
+ {
+  "id": "lang-mqtt/load-mqtt-pt-into-ip",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "if(x.pt) document.getElementById('mqpt').value=x.pt;",
+  "replace": "if(x.pt) document.getElementById('mqip').value=x.pt;",
+  "why": "The broker IP field shows '1883' and the port field is blank. Saving without noticing breaks the config."
+ },
+ {
+  "id": "lang-mqtt/load-mqtt-p-set-inverted",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "pf.placeholder=x.p_set?",
+  "replace": "pf.placeholder=!x.p_set?",
+  "why": "The page claims a password is saved when none is, and hides it when one is."
+ },
+ {
+  "id": "lang-mqtt/load-mqtt-never-called",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "setTimeout(loadMqtt, 500);",
+  "replace": "",
+  "why": "The MQTT form is always empty, so the next save overwrites the stored config with blanks and the default topic."
+ },
+ {
+  "id": "lang-mqtt/load-mqtt-wrong-endpoint",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": "fetch('/getmqtt')",
+  "replace": "fetch('/mqtt')",
+  "why": "The stored MQTT settings never populate the form, and the error is silently swallowed."
+ },
+ {
+  "id": "state/ps-no-int-trunc",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "Math.max(lo,Math.min(hi,n|0))",
+  "replace": "Math.max(lo,Math.min(hi,n))",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file. It applies (no \"UI_MUTATION #\" line) and the suite reports # pass 37, # fail 0, so it survives.\n\nWhy it is equivalent: `ps(lo,hi,ve,se,n)` in ui/js/state.js line 1 is only called through pb, pc, pco, psp and pbl. Every value those receive is already a whole number in the 32-bit integer range, and for such a number `n|0 === n`, so the mutant behaves the same. The callers:\n\n1. The slider input handlers in sliders.js pass `+sX.value`. The inputs are `type=range` with integer min/max and the default step of 1 (index.html lines 56-68), so the value is a"
+ },
+ {
+  "id": "state/pco-wrong-lo",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "ps(20,150,vco,sco,n)",
+  "replace": "ps(0,150,vco,sco,n)",
+  "equivalent": true,
+  "why": "I re-ran the mutant (ps(20,…) changed to ps(0,…) in pco) and got \"# pass 37 / # fail 0\". No \"UI_MUTATION #\" line appeared, so the mutation applied and it survives.\n\nWhy it is equivalent: the lower bound only matters when pco gets a value below 20 (or a non-number, which `n|0` turns into 0). No caller can send one.\n\n1. **Slider input** (sliders.js:4) calls pco(+sco.value). The range input is `min=20 max=150` (index.html:62), so the browser never reports less than 20.\n2. **applyState** (state.js:28) is fed by the /state poll, /loadpreset (presets.js:46) and /surprise (ai.js:33). It only calls pc"
+ },
+ {
+  "id": "state/success-no-clearTimeout",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "then(x=>{clearTimeout(to);",
+  "replace": "then(x=>{",
+  "equivalent": true,
+  "why": "I ran the mutant myself and it applied cleanly (no \"UI_MUTATION #\" line). The suite reported \"# pass 37 / # fail 0\", so it survives.\n\nWhy it is equivalent. In pull() (ui/js/state.js:55-57), `to` is a local timer whose only job is to call `ac.abort()` 4 s after the request starts. `ac` is local too. Its signal goes only to this one fetch('/state'), and nothing else ever touches `ac` or `to`. With the mutation, the success callback no longer clears the timer. But that callback only runs after both fetch() and r.json() have resolved, so the response body has already been read in full. Aborting an"
+ },
+ {
+  "id": "state/pb-css-var-unclamped",
+  "area": "state",
+  "file": "js/state.js",
+  "find": "R.style.setProperty('--b',n)",
+  "replace": "R.style.setProperty('--b',sb.value)",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported pass 37, fail 0, so it survives.\n\nWhy it is equivalent: in pb(n), the line n=ps(0,100,vb,sb,n) runs ps, and ps first sets n=Math.max(0,Math.min(100,n|0)). That makes n a whole number from 0 to 100, and it can never be -0 because Math.max(0,-0) returns +0. ps then sets se.value=n on sb and returns that same n. In ui/index.html, sb is <input type=range min=0 max=100> with the default step of 1. A browser cleans up a range input's value by clamping it and snapping it to the step. A "
+ },
+ {
+  "id": "sliders-globals/xf-header-order",
+  "area": "sliders-globals",
+  "file": "js/globals.js",
+  "find": "Object.assign({'X-Requested-With':'firelamp'},o&&o.headers)",
+  "replace": "Object.assign({},o&&o.headers,{'X-Requested-With':'firelamp'})",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported \"# pass 37 / # fail 0\", so it survives.\n\nWhy it is equivalent: the only definition is `xf` in /home/user/firelamp/ui/js/globals.js:19. The two merge orders, `{X-Requested-With, ...o.headers}` and `{...o.headers, X-Requested-With}`, can only behave differently when a caller passes `o.headers`. They differ in which value wins if that object contains a 'X-Requested-With' key, and in the key order of the merged object. I grepped every `xf(` call in ui/js/*.js:\n- ai.js:27 passes `{sig"
+ },
+ {
+  "id": "sliders-globals/xf-opts-override-headers",
+  "area": "sliders-globals",
+  "file": "js/globals.js",
+  "find": "Object.assign({},o,{headers:h})",
+  "replace": "Object.assign({headers:h},o)",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported 37 passing and 0 failing, so the claim that it survives is correct.\n\nWhy it is equivalent: `xf` first builds `h = Object.assign({'X-Requested-With':'firelamp'}, o && o.headers)`. The original then calls `Object.assign({}, o, {headers:h})`, and the mutant calls `Object.assign({headers:h}, o)`. The two results can only differ when `o` has its own `headers` property, because only then would `o.headers` replace `h` in the mutant. When `o` is undefined, `Object.assign` skips it. When "
+ },
+ {
+  "id": "ota/uptime-undefined-guard-dropped",
+  "area": "ota",
+  "file": "js/ota.js",
+  "find": "d.uptime_s!==undefined&&d.uptime_s>=120",
+  "replace": "d.uptime_s>=120",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported # pass 37, # fail 0, so it survives.\n\nIt is also equivalent. The line is ui/js/ota.js:45, inside the rebootProbe `/info` handler. `d` comes from `r.json()`, so it is plain parsed JSON with no getters and reading `d.uptime_s` has no side effects. Original: `d.uptime_s!==undefined && d.uptime_s>=120`. Mutant: `d.uptime_s>=120`. The two can only differ when `d.uptime_s` is undefined, and in that case `undefined>=120` turns undefined into NaN, which compares false. So the mutant is f"
+ },
+ {
+  "id": "ai-ui/ai-429-status-check-dropped",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "if(r.status===429)throw new Error('rate_limit');",
+  "replace": "",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported # pass 37, # fail 0, so it survives.\n\nIt is equivalent for any response the firmware can actually send. In src/gemini.cpp:handleSurprise there are only two ways to return HTTP 429:\n- the busy gate at line 163: server.send(429, \"application/json\", \"{\\\"error\\\":\\\"rate_limit\\\"}\")\n- the error mapping at lines 185-191, where err==\"rate_limit\" gives code 429 and the body is String(\"{\\\"error\\\":\\\"\") + err + \"\\\"}\", which is again {\"error\":\"rate_limit\"}.\n\nSo every 429 the lamp sends has a v"
+ },
+ {
+  "id": "ai-ui/ai-fade-not-nulled",
+  "area": "ai-ui",
+  "file": "js/ai.js",
+  "find": "nm.style.color='#fbbf24';aiNmTid=null;},4000)",
+  "replace": "nm.style.color='#fbbf24';},4000)",
+  "equivalent": true,
+  "why": "I ran the mutant myself and it applied cleanly: no \"UI_MUTATION #\" line, and the result was \"# pass 37 / # fail 0\", so it survives.\n\nProof that it is equivalent: `aiNmTid` is declared in ui/js/globals.js:22. The only places that read it are both in ui/js/ai.js:\n- line 34, on success: `if(aiNmTid){clearTimeout(aiNmTid);aiNmTid=null;}`\n- line 49, on error: `if(aiNmTid)clearTimeout(aiNmTid);`, which is immediately followed by `aiNmTid=setTimeout(...)` on line 50.\n\nNo other file uses it. The mutant only changes things after the 4 s timer has fired: `aiNmTid` keeps the old, already-fired timer hand"
+ },
+ {
+  "id": "presets/save-timeout-no-reset",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "ac.abort();pendingSlot=-1;},8000);",
+  "replace": "ac.abort();},8000);",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported \"# pass 37 / # fail 0\", so it survives.\n\nProof of equivalence:\n1. The signal really reaches the fetch. `xf` (ui/js/globals.js:19) is `fetch(u, Object.assign({}, o, {headers:h}))`, so `{signal: ac.signal}` is passed to `fetch`. The `.then`/`.catch` in `doSave` (presets.js:25) are attached straight to that fetch promise, with no extra wrapper.\n2. The timer callback can only run while the fetch promise is still pending. Both the `.then` and the `.catch` call `clearTimeout(to)` first"
+ },
+ {
+  "id": "presets/enter-no-preventdefault",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "if(e.key==='Enter'){e.preventDefault();doSave();}",
+  "replace": "if(e.key==='Enter'){doSave();}",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file. It applied cleanly (no \"UI_MUTATION #\" line) and the suite reported \"# pass 37 / # fail 0\", so it survives.\n\nWhy it is equivalent:\n1. The default action that preventDefault could suppress does not exist here. In ui/index.html, #prename is a single-line `<input type=text>` inside `<div class=prein>`. The grep for \"form\" found no form element on the page, so Enter cannot trigger an implicit form submission. A single-line text input does not insert a newline on Enter either.\n2. Focus does not move to anything Enter would activate. doSave() only remove"
+ },
+ {
+  "id": "presets/import-no-refresh-on-fail",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "q.then(fetchPresets,fetchPresets);",
+  "replace": "q.then(fetchPresets);",
+  "equivalent": true,
+  "why": "I ran the mutant myself without editing any file. It applied cleanly (no \"UI_MUTATION #\" line) and the suite reported # pass 37 / # fail 0, so it survives.\n\nIt is also equivalent, and here is why. In ui/js/presets.js (the import handler, lines 75-85), q starts as Promise.resolve(), which is fulfilled. Each later link is q=q.then(function(){return xf(u).catch(function(){});}).\n- Inside a link, xf (globals.js:19) only builds headers with Object.assign and returns fetch(u, opts). Here o is undefined, so `o&&o.headers` and Object.assign({}, undefined, {...}) are both safe.\n- Under the WHATWG spec,"
+ },
+ {
+  "id": "presets/import-not-array-ok",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "if(!Array.isArray(d))throw 0;",
+  "replace": "",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file. The suite reported \"# pass 37, # fail 0\" and no \"UI_MUTATION #\" line, so the mutation applied and survived.\n\nProof of equivalence (ui/js/presets.js:74-86):\n1. If the guard is removed and the input is a real array, nothing changes.\n2. For any other JSON.parse result (object, string, number, boolean, null), d.forEach(...) on line 76 is reached. The only statement before it is `var q=Promise.resolve()`, which has no side effects.\n3. d.forEach cannot be callable on any of these:\n   - null throws a TypeError on property access.\n   - Number, Boolean and "
+ },
+ {
+  "id": "lang-mqtt/escape-no-show-guard",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "if(e.key==='Escape'&&document.getElementById('mod').classList.contains('show'))",
+  "replace": "if(e.key==='Escape')",
+  "equivalent": true,
+  "why": "I ran the mutant myself and it applied cleanly. The suite reported # pass 37, # fail 0, so it survives.\n\nProof that the change is equivalent: with the guard removed, pressing Escape while the help modal is closed now calls document.getElementById('mcls').click(). That button has exactly one handler, at ui/js/lang.js:72: `onclick=function(){document.getElementById('mod').classList.remove('show')}`. When the modal is closed, #mod has no 'show' class, so remove('show') does nothing. Nothing else could react to the extra click:\n- No other click listener exists on #mcls, and there is no document- o"
+ },
+ {
+  "id": "lang-mqtt/mcls-toggle",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "document.getElementById('mod').classList.remove('show')",
+  "replace": "document.getElementById('mod').classList.toggle('show')",
+  "equivalent": true,
+  "why": "I ran the mutant myself without editing any file. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported \"# pass 37 / # fail 0\", so it survives.\n\nIt is equivalent because `toggle('show')` only behaves differently from `remove('show')` when #mod does not already have `show`. That situation can't happen when the #mcls click handler runs:\n\n1. In ui/index.html:26-27, #mcls is a child of #mod.\n2. ui/css/modal.css:1-2 sets `.mod{display:none}`. Only `.mod.show` sets `display:flex`.\n3. So whenever #mod lacks `show`, #mcls is not rendered. It can't be clicked, focused, activated from th"
+ },
+ {
+  "id": "lang-mqtt/ul-chk-check-colour-dropped",
+  "area": "lang-mqtt",
+  "file": "js/lang.js",
+  "find": "ck.style.borderColor='#1e3a8a';ck.style.color='#60a5fa';",
+  "replace": "",
+  "equivalent": true,
+  "why": "I re-ran the mutant without editing any file and got \"# pass 37 / # fail 0\", with no \"UI_MUTATION #\" line, so the mutation applied and survived.\n\nProof of equivalence. The removed statements only run in ul()'s else-branch, which needs two things: chk is enabled, and dataset.mode is neither 'install' nor 'reload'. ul() is called in two places: once at load (lang.js:60) and from the len/lru language buttons. The only code that writes chk's style is in ota.js (index.html sets the initial inline style; state.js only styles vinfo). Below is every state where that branch can run, with the colors chk"
+ },
+ {
+  "id": "lang-mqtt/mq-default-topic-dropped",
+  "area": "lang-mqtt",
+  "file": "js/mqtt.js",
+  "find": ".value.trim()||'firelamp';",
+  "replace": ".value.trim();",
+  "equivalent": true,
+  "why": "I re-ran it without editing anything. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported # pass 37 / # fail 0, so it survives.\n\nWhy it is equivalent: the only thing `t` is used for in ui/js/mqtt.js is the `&t=` field of the POST /setmqtt body. The response handler never reads `t`, and the #mqt input is never written back from it. When the field is empty or only whitespace, the original sends `t=firelamp` and the mutant sends `t=`. The firmware handles both the same way. In src/mqtt.cpp handleSetMqtt(), line 214 is `String t = server.arg(\"t\"); if (t.length() == 0) t = \"firela"
+ }
+]

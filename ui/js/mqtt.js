@@ -21,6 +21,9 @@ document.getElementById('mqsave').onclick=function(){
   });
 };
 
+// The HTML hint ("Password (optional)") is restored when no password is stored;
+// overwriting it with '' left an unlabelled field.
+var mqpHint=document.getElementById('mqp').placeholder;
 function loadMqtt(){
   fetch('/getmqtt').then(r=>r.json()).then(function(x){
     if(x.ip) document.getElementById('mqip').value=x.ip;
@@ -28,7 +31,7 @@ function loadMqtt(){
     if(x.u) document.getElementById('mqu').value=x.u;
     // Password is write-only on the server; show a placeholder when one is saved.
     var pf=document.getElementById('mqp');
-    pf.placeholder=x.p_set?(ru?'Сохранён (введите для замены, - для удаления)':'Saved (enter to replace, - to clear)'):'';
+    pf.placeholder=x.p_set?(ru?'Сохранён (введите для замены, - для удаления)':'Saved (enter to replace, - to clear)'):mqpHint;
     if(x.t) document.getElementById('mqt').value=x.t;
   }).catch(()=>{});
 }
