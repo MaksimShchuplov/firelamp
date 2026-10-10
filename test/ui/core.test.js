@@ -1,42 +1,17 @@
 'use strict';
 /**
- * Behavioural tests for the browser UI: polling lifecycle, sliders, OTA, AI and
- * presets. Runs the real ui/js scripts (see ui_harness.js) against a virtual
- * clock and a hand-driven fetch(), so timing races are reproduced exactly.
- *
- * Every historical bug fixed in these paths has a test here, and
- * test/ui_mutants.js re-introduces each one to prove the suite catches it.
- *
- * Run with:  node test/test_ui_behaviour.js
+ * Core behavioural UI tests — written against the bugs fixed in this code.
+ * test/ui_mutants.js re-introduces each of them and requires a failure here.
+ * Run all UI behaviour suites with:  node --test test/ui/
  */
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
-const { loadUI } = require('./ui_harness.js');
-
-const EMPTY_SLOTS = Array.from({ length: 8 }, (_, i) => ({ slot: i, name: '' }));
-
-/** Load the UI and settle the requests every page load makes. */
-async function boot(opts) {
-  const ui = loadUI(opts);
-  await ui.flush();
-  await ui.respond(ui.last('/getpresets'), (opts && opts.presets) || EMPTY_SLOTS);
-  await ui.respond(ui.last('/state'), ui.state());
-  return ui;
-}
-
-const val = (ui, id) => String(ui.el(id).value);
-const offline = ui => ui.el('offb').classList.contains('show');
-
-async function moveSlider(ui, id, v) {
-  ui.el(id).value = String(v);
-  ui.el(id).dispatch('input');
-  await ui.flush();
-}
-
-/** Let the in-flight /state poll time out (4 s abort) without answering it. */
-async function stallPoll(ui) { await ui.advance(5000); }
+const {
+  EMPTY_SLOTS, FILLED, boot, val, offline, moveSlider, stallPoll,
+  sheetButton, checkAndInstall, rebootProbe, startedOTA,
+} = require('../ui_helpers.js');
 
 // ===========================================================================
 describe('poll lifecycle (state.js / poll.js)', () => {
@@ -213,34 +188,6 @@ describe('sliders (sliders.js)', () => {
 });
 
 // ===========================================================================
-// OTA helpers: drive the real Check → Install sheet → startOTA path.
-function sheetButton(ui, label) {
-  const kids = ui.el('shbtns').children;
-  for (let i = kids.length - 1; i >= 0; i--) if (kids[i].textContent === label) return kids[i];
-  throw new Error(`sheet button "${label}" not found`);
-}
-async function checkAndInstall(ui, current, latest) {
-  ui.el('chk').click();
-  await ui.respond(ui.last('/checkupdate'), { current, latest, update_available: true });
-  ui.el('chk').click();                                  // now the install handler
-  sheetButton(ui, 'Install').click();
-  await ui.flush();
-}
-/** Advance to the next /info probe; answer it with `body`, or let it time out if null. */
-async function rebootProbe(ui, body) {
-  const before = ui.callsTo('/info').length;
-  for (let i = 0; i < 10 && ui.callsTo('/info').length === before; i++) await ui.advance(1000);
-  const c = ui.last('/info');
-  assert.ok(ui.callsTo('/info').length > before, 'expected an /info probe');
-  if (body) await ui.respond(c, body); else await ui.advance(2100);
-}
-async function startedOTA(ui) {
-  await checkAndInstall(ui, 'aaa', 'bbb');
-  await ui.respond(ui.last('/update'), 'Update starting...');
-  await ui.advance(5000);                                // doAfter → pollReboot
-  await rebootProbe(ui, null);                           // lamp goes offline
-}
-
 describe('OTA (ota.js)', () => {
   test('starting OTA pauses polling for the whole update', async () => {
     const ui = await boot();
@@ -376,7 +323,6 @@ describe('Surprise Me (ai.js)', () => {
 });
 
 // ===========================================================================
-const FILLED = EMPTY_SLOTS.map((s, i) => (i === 0 ? { slot: 0, name: 'Cozy', b: 40, c: 50, co: 46, sp: 26, bl: 50, th: 0 } : s));
 
 describe('preset buttons (presets.js)', () => {
   test('a tap loads a filled preset exactly once despite the synthetic click', async () => {
@@ -447,7 +393,7 @@ js = "".join(open(os.path.join(root, "ui", p), encoding="utf-8").read() for p in
 sys.stdout.write(ns["minify_js"](js))
 `;
     let blob;
-    try { blob = execFileSync('python3', ['-c', py, path.resolve(__dirname, '..', 'build_page.py')], { encoding: 'utf-8' }); }
+    try { blob = execFileSync('python3', ['-c', py, path.resolve(__dirname, '..', '..', 'build_page.py')], { encoding: 'utf-8' }); }
     catch (e) { t.skip('python3 unavailable: ' + e.message); return; }
     const ui = await boot({ bundle: blob });
     await moveSlider(ui, 'sb', 30);

@@ -63,7 +63,7 @@ jobs:
       - name: Run JS tests
         run: |
           node test/test_ui.js
-          node test/test_ui_behaviour.js
+          node --test 'test/ui/*.test.js'
 
       - name: UI mutation check
         run: node test/ui_mutants.js

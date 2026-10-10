@@ -141,7 +141,7 @@ page-load contract change.
 ### Host-side tests for the C++ glue
 **Trigger: the next regression in `params.cpp`, `presets.cpp` or `gemini.cpp`.**
 
-The UI half is done (`test/test_ui_behaviour.js`, mutation-checked). On the C++
+The UI half is done (`test/test/ui/*.test.js`, mutation-checked). On the C++
 side `applyJsonParams()` needs an ArduinoJson shim to run natively, and
 `presets.cpp` key construction / `gemini.cpp` response parsing are untested.
 

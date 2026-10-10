@@ -1,9 +1,11 @@
 'use strict';
 /**
- * Mutation check for test_ui_behaviour.js.
+ * Mutation check for the behavioural UI suites in test/ui/*.test.js.
  *
- * Each mutant below re-introduces a bug that was actually fixed in these UI
- * paths. The behavioural suite must FAIL against every one of them; a mutant
+ * MUTANTS below re-introduces a bug that was actually fixed in these UI paths;
+ * ui_mutants_hunt.json holds plausible regressions found by an adversarial
+ * mutation hunt (entries marked equivalent carry a proof and are skipped).
+ * Each non-equivalent mutant The behavioural suite must FAIL against every one of them; a mutant
  * that survives means a regression of that bug would ship green.
  *
  * Mutants are applied in memory by ui_harness.js (UI_MUTATION env) — source
@@ -15,14 +17,15 @@
  * poll interval's callback — pollTid is assigned only by resumePoll(), so the
  * interval cannot exist while paused and that check was removed as dead code.
  *
- * Run with:  node test/ui_mutants.js        (exit 1 if any mutant survives or is stale)
+ * Run with:  node test/ui_mutants.js [--only <area|id-substring>] [--verbose]
+ *            (exit 1 if any mutant survives or is stale)
  */
-const { spawnSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
+const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
-const SUITE = path.join(__dirname, 'test_ui_behaviour.js');
 
 const MUTANTS = [
   { id: 'slider-reads-live-value',
@@ -98,33 +101,63 @@ const MUTANTS = [
     file: 'js/presets.js', find: 'function onStart(e){pt=setTimeout(', replace: 'function onStart(e){if(e.cancelable)e.preventDefault();pt=setTimeout(' },
 ];
 
+// Optional second list: plausible regressions found by an adversarial mutation hunt.
+const HUNT_FILE = path.join(__dirname, 'ui_mutants_hunt.json');
+const HUNT = (fs.existsSync(HUNT_FILE) ? require(HUNT_FILE) : []).map(m => Object.assign({ hunted: true }, m));
+
 function sourceHas(m) {
   return fs.readFileSync(path.join(ROOT, 'ui', m.file), 'utf-8').includes(m.find);
 }
 
-let survived = 0, stale = 0;
-for (const m of MUTANTS) {
-  if (!sourceHas(m)) {
-    stale++;
-    console.log(`STALE     ${m.id} — find-string no longer in ui/${m.file}; update the mutant`);
-    continue;
-  }
-  const r = spawnSync(process.execPath, [SUITE], {
-    env: Object.assign({}, process.env, { UI_MUTATION: JSON.stringify(m) }),
-    encoding: 'utf-8',
+function runSuite(m) {
+  return new Promise(resolve => {
+    const child = spawn(process.execPath, ['--test', 'test/ui/*.test.js'], {
+      cwd: ROOT, env: Object.assign({}, process.env, { UI_MUTATION: JSON.stringify(m) }),
+    });
+    let out = '';
+    child.stdout.on('data', d => { out += d; });
+    child.stderr.on('data', d => { out += d; });
+    child.on('close', () => resolve(out));
   });
-  // A harness/load error also exits non-zero; only assertion failures count as a kill.
-  const out = r.stdout + r.stderr;
-  const failed = (out.match(/^# fail (\d+)/m) || [0, '0'])[1] | 0;
-  const loadErr = /UI_MUTATION #\d+/.test(out);
-  if (loadErr) { stale++; console.log(`STALE     ${m.id} — harness rejected the mutation`); continue; }
-  if (failed > 0) {
-    const names = [...out.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map(x => x[1]).filter(n => !/^(poll lifecycle|sliders|OTA|Surprise|preset|shipped)/.test(n));
-    console.log(`killed    ${m.id}  (${failed} failing: ${names.slice(0, 2).join('; ')}${names.length > 2 ? '; …' : ''})`);
-  } else {
-    survived++;
-    console.log(`SURVIVED  ${m.id} — ${m.why}`);
-  }
 }
-console.log(`\n${MUTANTS.length - survived - stale}/${MUTANTS.length} killed, ${survived} survived, ${stale} stale`);
-process.exit(survived || stale ? 1 : 0);
+
+async function main() {
+  const args = process.argv.slice(2);
+  const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
+  const verbose = args.includes('--verbose');
+  const all = MUTANTS.concat(HUNT).filter(m => !only || m.id.includes(only) || (m.area || '') === only);
+  const equivalent = all.filter(m => m.equivalent);
+  const live = all.filter(m => !m.equivalent);
+
+  const results = new Array(live.length);
+  let next = 0;
+  const workers = Math.max(2, Math.min(8, os.cpus().length - 1));
+  await Promise.all(Array.from({ length: workers }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= live.length) return;
+      const m = live[i];
+      if (!sourceHas(m)) { results[i] = { m, status: 'STALE', note: `find-string no longer in ui/${m.file}` }; continue; }
+      const out = await runSuite(m);
+      if (/UI_MUTATION #\d+/.test(out)) { results[i] = { m, status: 'STALE', note: 'harness rejected the mutation' }; continue; }
+      const failed = ((out.match(/^# fail (\d+)/m) || [0, '0'])[1]) | 0;
+      const names = [...out.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map(x => x[1])
+        .filter(n => !/\.test\.js$/.test(n) && !/^(poll lifecycle|sliders|OTA|Surprise|preset|shipped)/.test(n));
+      results[i] = failed > 0 ? { m, status: 'killed', note: names.slice(0, 2).join('; ') } : { m, status: 'SURVIVED', note: m.why };
+    }
+  }));
+
+  let survived = 0, stale = 0;
+  for (const r of results) {
+    if (r.status === 'SURVIVED') survived++;
+    if (r.status === 'STALE') stale++;
+    if (r.status !== 'killed' || verbose)
+      console.log(`${r.status.padEnd(9)} ${r.m.id}${r.status === 'killed' ? '  (' + r.note + ')' : ' — ' + String(r.note).slice(0, 160)}`);
+  }
+  const hist = results.filter(r => !r.m.hunted), hunt = results.filter(r => r.m.hunted);
+  const k = rs => rs.filter(r => r.status === 'killed').length;
+  console.log(`\nhistorical ${k(hist)}/${hist.length} killed · hunted ${k(hunt)}/${hunt.length} killed · ` +
+              `${survived} survived · ${stale} stale · ${equivalent.length} documented-equivalent skipped`);
+  process.exit(survived || stale ? 1 : 0);
+}
+main();

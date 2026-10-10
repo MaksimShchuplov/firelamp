@@ -4,10 +4,10 @@
 test:
 	$(MAKE) -C test/native
 	node test/test_ui.js
-	node test/test_ui_behaviour.js
+	node --test 'test/ui/*.test.js'
 	python3 -m pytest test/ -q
 
 # Re-introduces every bug already fixed in the UI poll/slider/OTA/AI/preset paths
-# and requires test_ui_behaviour.js to fail on each (~10 s; run in CI).
+# and requires test/ui/*.test.js to fail on each (~10 s; run in CI).
 mutants:
 	node test/ui_mutants.js
