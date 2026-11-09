@@ -8,6 +8,7 @@
 #include "../../src/mqtt_state.h"
 #include "../../src/fire_math.h"
 #include "../../src/lava_math.h"
+#include "../../src/aurora_math.h"
 
 // Define firmware identity before including ota_utils.h so the #ifndef guards
 // in that header are skipped and these values are used throughout the tests.
@@ -525,6 +526,84 @@ void test_lava_colour_brightens_monotonically_into_a_blob() {
     }
 }
 
+// =============================================================================
+//  Aurora (aurora_math.h)
+// =============================================================================
+
+void test_aurora_waves_are_seamless_across_the_tube_join() {
+    // Column COLUMNS is column 0 again: every travelling wave must agree there.
+    for (float t = 0.0f; t < 120.0f; t += 3.7f) {
+        TEST_ASSERT_FLOAT_WITHIN(1e-3f, auroraCurtain(0.0f, t), auroraCurtain((float)COLUMNS, t));
+        TEST_ASSERT_FLOAT_WITHIN(1e-3f, auroraHem(0.0f, t), auroraHem((float)COLUMNS, t));
+    }
+}
+
+void test_aurora_curtain_has_open_sky_and_full_curtain() {
+    // Over time some columns must be fully open and some fully lit, or the
+    // display degenerates into a uniform glow.
+    bool open = false, full = false;
+    for (float t = 0.0f; t < 200.0f; t += 1.3f)
+        for (int x = 0; x < COLUMNS; x++) {
+            const float c = auroraCurtain((float)x, t);
+            TEST_ASSERT_TRUE(c >= 0.0f && c <= 1.0f);
+            open |= (c == 0.0f);
+            full |= (c == 1.0f);
+        }
+    TEST_ASSERT_TRUE(open);
+    TEST_ASSERT_TRUE(full);
+}
+
+void test_aurora_hem_stays_on_the_lamp() {
+    for (float t = 0.0f; t < 200.0f; t += 0.9f)
+        for (int x = 0; x < COLUMNS; x++) {
+            const float h = auroraHem((float)x, t);
+            TEST_ASSERT_TRUE(h >= 1.0f && h <= (float)ROWS - 10.0f);
+        }
+}
+
+void test_aurora_light_peaks_at_the_hem_and_fades_both_ways() {
+    const float hem = 12.0f;
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.0f, auroraVertical(hem, hem));
+    TEST_ASSERT_TRUE(auroraVertical(hem - 3.0f, hem) < 0.05f);              // sharp below
+    TEST_ASSERT_TRUE(auroraVertical(hem + 3.0f, hem) > 0.7f);               // long rays above
+    TEST_ASSERT_TRUE(auroraVertical(hem + 20.0f, hem) < auroraVertical(hem + 10.0f, hem));
+}
+
+void test_aurora_ray_shimmer_stays_in_range() {
+    for (int x = 0; x < COLUMNS; x++)
+        for (float t = 0.0f; t < 50.0f; t += 0.31f) {
+            const float r = auroraRay(x, t);
+            TEST_ASSERT_TRUE(r >= 1.0f - AURORA_RAY_DEPTH - 1e-4f && r <= 1.0f + 1e-4f);
+        }
+}
+
+void test_aurora_open_sky_is_only_the_dim_sky_colour() {
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        const AuroraPal p = auroraPalette(th);
+        const Rgb8 c = auroraColor(p, 0.0f, 1.0f, 1.0f, 20.0f, 10.0f);
+        TEST_ASSERT_EQUAL_UINT8(p.sky.r, c.r);
+        TEST_ASSERT_EQUAL_UINT8(p.sky.g, c.g);
+        TEST_ASSERT_EQUAL_UINT8(p.sky.b, c.b);
+        TEST_ASSERT_TRUE(maxBrightness(p.sky) <= 8.0f);
+    }
+}
+
+void test_aurora_curtain_is_bright_at_the_hem_in_every_theme() {
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        const Rgb8 c = auroraColor(auroraPalette(th), 1.0f, 1.0f, 1.0f, 12.0f, 12.0f);
+        TEST_ASSERT_TRUE(maxBrightness(c) >= 150.0f);
+    }
+}
+
+void test_aurora_colour_shifts_from_body_to_top_with_height() {
+    // Default theme: green body low, violet top high — blue/green ratio rises.
+    const AuroraPal p = auroraPalette(0);
+    const Rgb8 low  = auroraColor(p, 1.0f, 1.0f, 1.0f, 14.0f, 10.0f);
+    const Rgb8 high = auroraColor(p, 1.0f, 1.0f, 1.0f, 32.0f, 10.0f);
+    TEST_ASSERT_TRUE(low.g > low.b);
+    TEST_ASSERT_TRUE((float)high.b / (high.g + 1.0f) > (float)low.b / (low.g + 1.0f));
+}
+
 int main() {
     UNITY_BEGIN();
 
@@ -607,5 +686,13 @@ int main() {
     RUN_TEST(test_lava_wax_is_never_dark_in_any_theme);
     RUN_TEST(test_lava_liquid_is_dim_and_lit_from_below);
     RUN_TEST(test_lava_colour_brightens_monotonically_into_a_blob);
+    RUN_TEST(test_aurora_waves_are_seamless_across_the_tube_join);
+    RUN_TEST(test_aurora_curtain_has_open_sky_and_full_curtain);
+    RUN_TEST(test_aurora_hem_stays_on_the_lamp);
+    RUN_TEST(test_aurora_light_peaks_at_the_hem_and_fades_both_ways);
+    RUN_TEST(test_aurora_ray_shimmer_stays_in_range);
+    RUN_TEST(test_aurora_open_sky_is_only_the_dim_sky_colour);
+    RUN_TEST(test_aurora_curtain_is_bright_at_the_hem_in_every_theme);
+    RUN_TEST(test_aurora_colour_shifts_from_body_to_top_with_height);
     return UNITY_END();
 }

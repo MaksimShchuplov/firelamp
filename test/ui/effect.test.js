@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Behavioural tests for the effect selector (Flames / Lava lamp): sliders.js
+ * Behavioural tests for the effect selector (Flames / Lava lamp / Aurora): sliders.js
  * sends /setfx, state.js pfx() renders the choice and hides the flame-only
  * sliders, and presets carry the effect.
  * Run with:  node --test test/ui/effect.test.js
@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { boot, FILLED, startedOTA } = require('../ui_helpers.js');
 
-const lavaOn = ui => ui.ctx.document.body.classList.contains('lava');
+const lavaOn = ui => ui.ctx.document.body.classList.contains('nofire');   // flame sliders hidden
 const act = (ui, id) => ui.el(id).classList.contains('act');
 
 async function importFile(ui, content) {
@@ -65,6 +65,23 @@ describe('effect selector (sliders.js, state.js)', () => {
     assert.equal(lavaOn(ui), false);
   });
 
+  test('tapping Aurora sends /setfx?v=2, highlights only Aurora and hides the flame sliders', async () => {
+    const ui = await boot();
+    ui.el('fx2').click();
+    assert.equal(ui.last('/setfx').url, '/setfx?v=2');
+    await ui.respond(ui.last('/setfx'), ui.state({ fx: 2 }));
+    assert.deepEqual([0, 1, 2].map(i => act(ui, 'fx' + i)), [false, false, true]);
+    assert.equal(lavaOn(ui), true);
+  });
+
+  test('switching from Lava lamp straight to Aurora keeps the flame sliders hidden', async () => {
+    const ui = await boot();
+    ui.ctx.pfx(1);
+    ui.ctx.pfx(2);
+    assert.equal(lavaOn(ui), true);
+    assert.deepEqual([0, 1, 2].map(i => act(ui, 'fx' + i)), [false, false, true]);
+  });
+
   test('an out-of-range effect from the lamp falls back to Flames', async () => {
     const ui = await boot();
     ui.ctx.pfx(7);
@@ -108,6 +125,7 @@ describe('effect selector (sliders.js, state.js)', () => {
     await startedOTA(ui);
     assert.equal(ui.el('fx0').disabled, true);
     assert.equal(ui.el('fx1').disabled, true);
+    assert.equal(ui.el('fx2').disabled, true);
   });
 
   test('labels are translated on a language switch', async () => {
@@ -117,6 +135,7 @@ describe('effect selector (sliders.js, state.js)', () => {
     assert.equal(ui.el('lfx').textContent, 'Эффект');
     assert.equal(ui.el('fx0').textContent, 'Пламя');
     assert.equal(ui.el('fx1').textContent, 'Лава-лампа');
+    assert.equal(ui.el('fx2').textContent, 'Сияние');
   });
 });
 
@@ -128,10 +147,10 @@ describe('flame-only sliders (index.html, themes.css)', () => {
 
   test('contrast, cooling, sparking and blend sit inside the block hidden in lava mode', () => {
     for (const id of ['sc', 'sco', 'ssp', 'sbl']) assert.match(block, new RegExp('id=' + id + '\\b'), id);
-    assert.match(css, /body\.lava #fireopts\{display:none\}/);
+    assert.match(css, /body\.nofire #fireopts\{display:none\}/);
   });
 
   test('brightness, the effect selector and the themes stay outside it', () => {
-    for (const id of ['sb', 'fx0', 'fx1', 'tb0']) assert.doesNotMatch(block, new RegExp('id=' + id + '\\b'), id);
+    for (const id of ['sb', 'fx0', 'fx1', 'fx2', 'tb0']) assert.doesNotMatch(block, new RegExp('id=' + id + '\\b'), id);
   });
 });

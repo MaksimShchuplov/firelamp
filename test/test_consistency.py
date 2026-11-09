@@ -214,3 +214,22 @@ def test_boot_rollback_stays_armed():
         "network.cpp: markBootSuccess() must be gated on BOOT_STABLE_MS"
     assert _define("BOOT_STABLE_MS") > _define("OTA_CHECK_DELAY_MS") + 10000, \
         "BOOT_STABLE_MS must outlast the first UpdChk TLS fetch"
+
+
+# ===========================================================================
+# FX_COUNT (config.h) is mirrored by the effect buttons in index.html, the
+# button loops in sliders.js / state.js, and pfx()'s range check.
+# ===========================================================================
+
+def test_effect_count_mirrors_config():
+    n = _define("FX_COUNT")
+    ids = re.findall(r"id=fx(\d+) data-fx=(\d+)", _HTML)
+    assert [int(a) for a, _ in ids] == list(range(n)), "index.html: fx buttons != FX_COUNT %d" % n
+    assert all(a == b for a, b in ids), "index.html: fx id and data-fx disagree"
+    sliders = (_ROOT / "ui" / "js" / "sliders.js").read_text(encoding="utf-8")
+    assert "[%s].forEach(function(f){document.getElementById('fx'+f)" % ",".join(map(str, range(n))) in sliders
+    state = (_ROOT / "ui" / "js" / "state.js").read_text(encoding="utf-8")
+    assert "for(var i=0;i<%d;i++)document.getElementById('fx'+i)" % n in state
+    rng = re.search(r"function pfx\(n\)\{n=\(([^)]*)\)\?n:0;", state)
+    assert rng and sorted(int(v) for v in re.findall(r"n===(\d+)", rng.group(1))) == list(range(1, n)), \
+        "state.js: pfx() accepts a different effect range than FX_COUNT"

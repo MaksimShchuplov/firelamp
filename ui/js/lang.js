@@ -14,6 +14,7 @@ function ul(){
  document.getElementById('lfx').textContent=ru?'Эффект':'Effect';
  document.getElementById('fx0').textContent=ru?'Пламя':'Flames';
  document.getElementById('fx1').textContent=ru?'Лава-лампа':'Lava lamp';
+ document.getElementById('fx2').textContent=ru?'Сияние':'Aurora';
  document.getElementById('lpr').textContent=ru?'Пресеты':'Presets';
  document.getElementById('prexp').textContent=ru?'⬇ Экспорт':'⬇ Export';
  document.getElementById('primp').textContent=ru?'⬆ Импорт':'⬆ Import';
@@ -43,7 +44,7 @@ function ul(){
  document.getElementById('mt10').textContent=ru?'Тема цвета':'Color Theme';
  document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (тёмно-красный), Плазма (пурпурный), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
  document.getElementById('mt14').textContent=ru?'Эффект':'Effect';
- document.getElementById('md14').textContent=ru?'Пламя — симуляция огня. Лава-лампа — капли воска медленно всплывают, сливаются и опускаются, цвет задаёт выбранная тема. В лава-лампе работают яркость и тема, ползунки пламени скрыты.':'Flames simulates fire. Lava lamp: wax blobs slowly rise, merge and sink, coloured by the selected theme. Lava lamp uses brightness and theme; the flame sliders are hidden.';
+ document.getElementById('md14').textContent=ru?'Пламя — симуляция огня. Лава-лампа — капли воска медленно всплывают, сливаются и опускаются. Сияние — занавеси северного сияния плывут вокруг лампы под звёздами. Цвет задаёт тема. В лаве и сиянии работают яркость и тема, ползунки пламени скрыты.':'Flames simulates fire. Lava lamp: wax blobs slowly rise, merge and sink. Aurora: northern-light curtains drift around the lamp under faint stars. The theme sets the colours. Lava lamp and Aurora use brightness and theme; the flame sliders are hidden.';
  document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
  document.getElementById('md11').textContent=ru?'До 8 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы сохранить в слот или удалить.':'Up to 8 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to save or delete.';
  document.getElementById('mt13').textContent=ru?'MQTT Сервер':'MQTT Server';

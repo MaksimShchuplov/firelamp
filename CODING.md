@@ -13,6 +13,8 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 | New shared variable | `globals.h` only |
 | Fire physics / palette | `fire.cpp` only |
 | Lava-lamp effect | `lava.cpp` (+ `lava_math.h` for the math and its tests) |
+| Aurora effect | `aurora.cpp` (+ `aurora_math.h`) |
+| Number of effects | `config.h` `FX_COUNT` — mirrored in index.html, sliders.js, state.js (checked by test_consistency.py) |
 | Web UI layout / HTML | `ui/index.html` only |
 | Web UI styles / CSS  | `ui/css/<name>.css` only |
 | Web UI logic / JS    | `ui/js/<name>.js` only |

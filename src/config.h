@@ -59,7 +59,8 @@
 // ---- Effects ------------------------------------------------------------------
 #define FX_FIRE                 0
 #define FX_LAVA                 1
-#define FX_COUNT                2
+#define FX_AURORA               2
+#define FX_COUNT                3
 #define FX_DEFAULT              FX_FIRE
 
 // ---- Lava lamp (lava.cpp, lava_math.h) ----------------------------------------
@@ -93,6 +94,24 @@
 #define LAVA_T_BG               0x30
 #define LAVA_T_WAX              0x68
 #define LAVA_T_CORE             0x84
+
+// ---- Aurora (aurora.cpp, aurora_math.h) ---------------------------------------
+// Curtains of light hang above a waving lower hem and fade upward into rays.
+// Waves travel around the tube in whole periods, so the strip join is seamless.
+#define AURORA_HEM_Y            9.0f    // mean height of the curtain's lower hem, rows from the base
+#define AURORA_HEM_AMP          4.0f    // how far the hem swings up and down
+#define AURORA_HEM_SOFT         0.9f    // rows: how fast light dies below the hem
+#define AURORA_RAY_LEN          13.0f   // rows: how far the curtain fades upward (1/e)
+#define AURORA_FRINGE           0.8f    // rows: width of the tinted fringe at the hem
+#define AURORA_GAP_LO           0.30f   // curtain density below this is open sky...
+#define AURORA_GAP_HI           0.85f   // ...and above this is full curtain
+#define AURORA_RAY_DEPTH        0.30f   // per-column shimmer depth of the vertical rays
+#define AURORA_PULSE_DEPTH      0.15f   // slow overall breathing of the display
+#define AURORA_STARS            14      // faint twinkling stars in the open sky
+#define AURORA_STAR_MIN_Y       6       // stars only above this row
+#define AURORA_STAR_LEVEL       26      // star peak brightness, /255
+#define AURORA_BLEND            40      // nblend per frame
+#define AURORA_DT_MAX           0.1f    // s; caps a frame step after a pause
 #define PRESET_NAME_MAX_LEN     15
 // Parameter count lives in params.cpp (PARAM_COUNT) — derived from the PARAMS[] registry.
 

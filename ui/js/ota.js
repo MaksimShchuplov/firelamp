@@ -5,7 +5,7 @@ document.getElementById('rwifi').onclick=function(){
       var b=document.getElementById('rwifi');b.textContent=ru?'Перезагрузка...':'Rebooting...';b.disabled=true;xf('/resetwifi').catch(function(){});
     }}]);
 };
-var otaEls=['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','fx0','fx1','rst','chk','rwifi','ibtn','len','lru'];
+var otaEls=['sb','sc','sco','ssp','sbl','tb0','tb1','tb2','tb3','fx0','fx1','fx2','rst','chk','rwifi','ibtn','len','lru'];
 function enableOtaEls(){otaEls.forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=false;});}
 function startOTA(){
   otaActive=true;pausePoll();

@@ -1023,19 +1023,35 @@
   "why": "Importing a presets file drops the effect, so a saved Lava lamp preset comes back as Flames."
  },
  {
-  "id": "effect/lava-keeps-flame-sliders",
+  "id": "effect/alt-effect-keeps-flame-sliders",
   "area": "effect",
   "file": "js/state.js",
-  "find": "document.body.classList.toggle('lava',n===1);",
+  "find": "document.body.classList.toggle('nofire',n!==0);",
   "replace": "",
-  "why": "In Lava lamp mode the contrast, cooling, sparking and blend sliders stay visible although they do nothing."
+  "why": "In Lava lamp or Aurora mode the contrast, cooling, sparking and blend sliders stay visible although they do nothing."
  },
  {
   "id": "effect/fx-out-of-range-not-clamped",
   "area": "effect",
   "file": "js/state.js",
-  "find": "n=n===1?1:0;",
+  "find": "n=(n===1||n===2)?n:0;",
   "replace": "",
   "why": "An unknown effect number from a newer firmware leaves neither effect button highlighted."
+ },
+ {
+  "id": "effect/aurora-hides-nothing",
+  "area": "effect",
+  "file": "js/state.js",
+  "find": "document.body.classList.toggle('nofire',n!==0);",
+  "replace": "document.body.classList.toggle('nofire',n===1);",
+  "why": "Aurora shows the flame sliders although they do nothing there; only Lava lamp hides them."
+ },
+ {
+  "id": "effect/aurora-button-not-wired",
+  "area": "effect",
+  "file": "js/sliders.js",
+  "find": "[0,1,2].forEach(function(f){document.getElementById('fx'+f)",
+  "replace": "[0,1].forEach(function(f){document.getElementById('fx'+f)",
+  "why": "The Aurora button does nothing when tapped."
  }
 ]
