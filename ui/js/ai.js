@@ -44,6 +44,7 @@ function askAI(){
       :e.message==='auth_error'?(ru?'⚠ Неверный ключ API':'⚠ Invalid API key')
       :e.message==='parse_failed'?(ru?'⚠ Ошибка ответа AI':'⚠ AI response error')
       :e.message==='http_error'?(ru?'⚠ Ошибка сервера Gemini':'⚠ Gemini server error')
+      :e.message==='model_unavailable'?(ru?'⚠ Модель Gemini устарела — обновите прошивку':'⚠ Gemini model retired — update firmware')
       :(ru?'⚠ Ошибка':'⚠ Error');
     nm.style.color='#ef4444';nm.textContent=msg;
     if(aiNmTid)clearTimeout(aiNmTid);

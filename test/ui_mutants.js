@@ -108,6 +108,9 @@ const MUTANTS = [
   { id: 'offline-banner-stays-exposed',
     why: 'the banner hides by transform, so without aria-hidden a screen reader kept reading "Lamp not responding" after recovery',
     file: 'js/ui.js', find: "b.classList.remove('show');b.setAttribute('aria-hidden','true');", replace: "b.classList.remove('show');" },
+  { id: 'ai-model-retired-generic',
+    why: 'a retired Gemini model (HTTP 404) fell through to the generic "Error", hiding that a firmware update is needed',
+    file: 'js/ai.js', find: "e.message==='model_unavailable'", replace: "e.message==='model_unavailable_'" },
 ];
 
 // Optional second list: plausible regressions found by an adversarial mutation hunt.

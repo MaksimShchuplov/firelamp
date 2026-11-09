@@ -136,6 +136,7 @@ describe('Surprise Me error messages (ai.js)', () => {
     ['auth_error', 401, '⚠ Invalid API key'],
     ['parse_failed', 502, '⚠ AI response error'],
     ['rate_limit', 429, '⚠ Rate limit — wait a moment'],
+    ['model_unavailable', 502, '⚠ Gemini model retired — update firmware'],
   ];
   for (const [code, status, msg] of cases) {
     test(`firmware error "${code}" (HTTP ${status}) shows "${msg}" in red`, async () => {

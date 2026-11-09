@@ -8,6 +8,9 @@
 #include "certs.h"
 #include "params.h"
 #include <ArduinoJson.h>
+
+#define STR_(x) #x
+#define XSTR(x) STR_(x)
 static void handleSetGeminiKey() {
     if (!isWebRequest()) return;
     const String &k = server.arg("key");
@@ -67,7 +70,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
         "You design fire effects for a physical LED lamp. It is a 125mm diameter metal cylinder "
         "wrapped with a 20-column by 40-row matrix of 800 WS2812B LEDs.\n"
         "Parameters:\n"
-        "b = brightness 0-100\n"
+        "b = brightness " XSTR(SURPRISE_BRIGHT_MIN) "-100\n"
         "c = contrast 0-100 (20=yellowish, 50=warm, 90=deep red)\n"
         "co = cooling 20-150 (40=tall fire, 100=short sparks, avoid <30 to prevent solid columns)\n"
         "sp = sparking 0-255 (20=calm, 120=active, 255=raging)\n"
@@ -88,7 +91,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
     client.setCACertBundle(x509_crt_bundle_start);
     HTTPClient http;
     http.setTimeout(GEMINI_TIMEOUT_MS);
-    http.begin(client, "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
+    http.begin(client, GEMINI_MODEL_URL);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-goog-api-key", apiKey);
     int code = http.POST(body);
@@ -99,6 +102,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
     }
     if (code == 429) { http.end(); FAIL("rate_limit"); }
     if (code == 401 || code == 403) { http.end(); FAIL("auth_error"); }
+    if (code == 404) { http.end(); LOG_WARN("Gemini: model not found — retired?"); FAIL("model_unavailable"); }
     if (code != 200) {
         String eb = http.getString(); http.end();
         LOG_WARN("Gemini: HTTP %d: %.130s", code, eb.c_str());
@@ -139,7 +143,7 @@ static const char *surpriseBody(const String &apiKey, char *outName, size_t name
 
     // Brightness is autoJson=false (gamma path); apply it explicitly, then let
     // the registry clamp/apply c/co/sp/bl/th and fire their side-effects.
-    setBright(constrain(b, BRIGHT_MIN, BRIGHT_MAX));
+    setBright(constrain(b, SURPRISE_BRIGHT_MIN, BRIGHT_MAX));
     applyJsonParams(innerDoc);
     buildHeatPalette();   // idempotent: early-outs if contrast/theme unchanged
     updatePowerCalc();
@@ -186,6 +190,7 @@ static void handleSurprise() {
         else if (strcmp(err, "timeout")     == 0) code = 504;
         else if (strcmp(err, "http_error")  == 0) code = 502;
         else if (strcmp(err, "parse_failed")== 0) code = 502;
+        else if (strcmp(err, "model_unavailable") == 0) code = 502;
         else if (strcmp(err, "auth_error")  == 0) code = 401;
         server.send(code, "application/json",
                     String("{\"error\":\"") + err + "\"}"); return;

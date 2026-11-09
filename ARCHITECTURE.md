@@ -196,7 +196,7 @@ All state-mutating endpoints require header `X-Requested-With: firelamp` (CSRF).
 | `GET /resetwifi` | — | clear credentials + reboot |
 | `POST /setgeminikey` | body: `key=<str>` | save Gemini API key to NVS (`gemini` namespace); POST body keeps key out of URL/logs |
 | `GET /geminikey` | — | `{"set":true/false}` — check if key is configured |
-| `GET /surprise` | — | Synchronous Gemini call (blocks ≤25 s); 200 with full state + `"name"`; 400 `no_key`, 401 `auth_error`, 429 `rate_limit` (busy), 502 `http_error`/`parse_failed`, 504 `timeout` |
+| `GET /surprise` | — | Synchronous Gemini call (blocks ≤25 s); 200 with full state + `"name"`; 400 `no_key`, 401 `auth_error`, 429 `rate_limit` (busy), 502 `http_error`/`parse_failed`/`model_unavailable` (model retired, HTTP 404), 504 `timeout`; brightness is clamped to ≥ `SURPRISE_BRIGHT_MIN` |
 | `POST /setmqtt` | `ip,pt,u,p,t` | save MQTT broker config; `p=-` clears stored password |
 | `GET /getmqtt` | — | `{"ip","pt","u","p_set":bool,"t"}` — password never returned |
 | `GET /sw.js` | — | Service Worker script (no CSRF required; `Cache-Control: no-cache`) |
