@@ -26,23 +26,42 @@ inline AuroraPal auroraPalette(uint8_t theme) {
 // into curtains with open sky between them.
 inline float auroraCurtain(float x, float t) {
     const float k = 2.0f * (float)M_PI / COLUMNS;
-    const float v = 0.55f * (0.5f + 0.5f * sinf(1.0f * k * x + 0.21f * t))
-                  + 0.30f * (0.5f + 0.5f * sinf(2.0f * k * x - 0.13f * t + 1.3f))
-                  + 0.15f * (0.5f + 0.5f * sinf(3.0f * k * x + 0.37f * t + 2.1f));
+    const float s = AURORA_SPEED * t;
+    const float v = 0.55f * (0.5f + 0.5f * sinf(1.0f * k * x + 0.21f * s))
+                  + 0.30f * (0.5f + 0.5f * sinf(2.0f * k * x - 0.13f * s + 1.3f))
+                  + 0.15f * (0.5f + 0.5f * sinf(3.0f * k * x + 0.37f * s + 2.1f));
     return lavaSmooth(AURORA_GAP_LO, AURORA_GAP_HI, v);
 }
 
 // Height of the lower hem for column x, in rows from the base.
 inline float auroraHem(float x, float t) {
     const float k = 2.0f * (float)M_PI / COLUMNS;
-    return AURORA_HEM_Y + AURORA_HEM_AMP * (0.6f * sinf(2.0f * k * x + 0.17f * t)
-                                          + 0.4f * sinf(5.0f * k * x - 0.29f * t + 0.7f));
+    const float s = AURORA_SPEED * t;
+    // The 5- and 7-wave terms are the folds that run along the hem.
+    return AURORA_HEM_Y + AURORA_HEM_AMP * (0.5f * sinf(2.0f * k * x + 0.17f * s)
+                                          + 0.3f * sinf(5.0f * k * x - 0.29f * s + 0.7f)
+                                          + 0.2f * sinf(7.0f * k * x + 0.43f * s + 1.9f));
 }
 
 // Vertical rays: each column shimmers at its own rate, 1 - depth .. 1.
 inline float auroraRay(int x, float t) {
-    const float rate = 0.9f + 0.6f * (float)((x * 37) % 11) / 10.0f;
+    const float rate = AURORA_RAY_RATE_MIN
+                     + (AURORA_RAY_RATE_MAX - AURORA_RAY_RATE_MIN) * (float)((x * 37) % 11) / 10.0f;
     return 1.0f - AURORA_RAY_DEPTH * (0.5f + 0.5f * sinf(rate * t + (float)x * 2.4f));
+}
+
+// Surge brightening for column x, ≥ 1. Every AURORA_SURGE_PERIOD seconds a
+// band of extra light sweeps once round the tube, fading in and out; each surge
+// starts somewhere else and alternates direction.
+inline float auroraSurge(float x, float t) {
+    const int   n     = (int)(t / AURORA_SURGE_PERIOD);
+    const float phase = (t - (float)n * AURORA_SURGE_PERIOD) / AURORA_SURGE_PERIOD;   // 0..1
+    const float start = (float)((n * 7) % COLUMNS);
+    const float trav  = ((n & 1) ? -1.0f : 1.0f) * phase * AURORA_SURGE_TRAVEL;
+    const float pos   = fmodf(start + trav + 2.0f * (float)COLUMNS, (float)COLUMNS);
+    const float d     = lavaDx(x, pos) / LAVA_ASPECT;                                 // columns, short way round
+    return 1.0f + AURORA_SURGE_GAIN * sinf(phase * (float)M_PI)
+                  * expf(-(d * d) / (AURORA_SURGE_W * AURORA_SURGE_W));
 }
 
 // Light profile above and below the hem: a fast fade below, a long one above.

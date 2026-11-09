@@ -103,13 +103,23 @@
 #define AURORA_HEM_SOFT         1.6f    // rows: how fast light dies below the hem
 #define AURORA_RAY_LEN          24.0f   // rows: how far the curtain fades upward (1/e)
 #define AURORA_FRINGE           0.8f    // rows: width of the tinted fringe at the hem
-#define AURORA_GAP_LO           0.15f   // curtain density below this is open sky...
-#define AURORA_GAP_HI           0.60f   // ...and above this is full curtain
+#define AURORA_GAP_LO           0.28f   // curtain density below this is open sky...
+#define AURORA_GAP_HI           0.72f   // ...and above this is full curtain
 #define AURORA_RAY_DEPTH        0.30f   // per-column shimmer depth of the vertical rays
 #define AURORA_PULSE_DEPTH      0.15f   // slow overall breathing of the display
 // Light gain before clipping. At 1.0 the display averaged 19/255 per pixel and
 // 4.6 % of full white, which read as minimum brightness on the lamp.
-#define AURORA_GAIN             1.8f
+#define AURORA_GAIN             2.0f
+// Motion. The first version drifted with 17-48 s periods; on the lamp that read
+// as frozen light (0.5 s frame change 6.9/255 against the lava lamp's 15).
+#define AURORA_SPEED            3.2f    // multiplier on every wave's angular speed
+#define AURORA_RAY_RATE_MIN     2.0f    // rad/s: per-column ray shimmer
+#define AURORA_RAY_RATE_MAX     4.5f
+// Surges: a brightening band sweeps round the curtains, as on an active aurora.
+#define AURORA_SURGE_PERIOD     6.0f    // s between surges
+#define AURORA_SURGE_TRAVEL     20.0f   // columns a surge travels (one full turn)
+#define AURORA_SURGE_W          2.5f    // columns: half-width of the bright band
+#define AURORA_SURGE_GAIN       0.9f    // peak extra light, ×(1 + gain)
 #define AURORA_STARS            14      // faint twinkling stars in the open sky
 #define AURORA_STAR_MIN_Y       6       // stars only above this row
 #define AURORA_STAR_LEVEL       26      // star peak brightness, /255

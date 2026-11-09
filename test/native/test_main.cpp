@@ -613,6 +613,39 @@ void test_aurora_is_not_too_dark_to_see() {
     }
 }
 
+void test_aurora_visibly_moves() {
+    // Regression: the first version changed each pixel by 6.9/255 per 0.5 s on
+    // average and read as frozen light; the lava lamp manages ~15. Require at
+    // least 12 so the curtains are seen to drift, fold and surge.
+    const AuroraPal p = auroraPalette(0);
+    auto frame = [&](float t, int x, int y) {
+        return maxBrightness(auroraColor(p, auroraCurtain((float)x, t), auroraRay(x, t) * auroraSurge((float)x, t),
+                                         1.0f, (float)y, auroraHem((float)x, t)));
+    };
+    double sum = 0.0;
+    int    n   = 0;
+    for (float t = 0.5f; t < 60.0f; t += 0.5f)
+        for (int x = 0; x < COLUMNS; x++)
+            for (int y = 0; y < ROWS; y++, n++) sum += fabsf(frame(t, x, y) - frame(t - 0.5f, x, y));
+    TEST_ASSERT_TRUE(sum / n >= 12.0);
+}
+
+void test_aurora_surge_sweeps_and_fades() {
+    // Outside a surge's band the light is untouched; inside it is boosted, and
+    // between surges (phase 0) there is no boost anywhere.
+    for (int x = 0; x < COLUMNS; x++) {
+        const float s = auroraSurge((float)x, 0.0f);
+        TEST_ASSERT_FLOAT_WITHIN(1e-4f, 1.0f, s);
+    }
+    float peak = 0.0f;
+    for (int x = 0; x < COLUMNS; x++) {
+        const float s = auroraSurge((float)x, AURORA_SURGE_PERIOD * 0.5f);
+        TEST_ASSERT_TRUE(s >= 1.0f && s <= 1.0f + AURORA_SURGE_GAIN + 1e-4f);
+        if (s > peak) peak = s;
+    }
+    TEST_ASSERT_TRUE(peak > 1.0f + 0.8f * AURORA_SURGE_GAIN);
+}
+
 void test_aurora_colour_shifts_from_body_to_top_with_height() {
     // Default theme: green body low, violet top high — blue/green ratio rises.
     const AuroraPal p = auroraPalette(0);
@@ -713,5 +746,7 @@ int main() {
     RUN_TEST(test_aurora_curtain_is_bright_at_the_hem_in_every_theme);
     RUN_TEST(test_aurora_colour_shifts_from_body_to_top_with_height);
     RUN_TEST(test_aurora_is_not_too_dark_to_see);
+    RUN_TEST(test_aurora_visibly_moves);
+    RUN_TEST(test_aurora_surge_sweeps_and_fades);
     return UNITY_END();
 }

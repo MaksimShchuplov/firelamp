@@ -28,7 +28,7 @@ void auroraEffect() {
     for (int x = 0; x < COLUMNS; x++) {
         curtain[x] = auroraCurtain((float)x, s_t);
         hem[x]     = auroraHem((float)x, s_t);
-        ray[x]     = auroraRay(x, s_t);
+        ray[x]     = auroraRay(x, s_t) * auroraSurge((float)x, s_t);
     }
     const float     pulse = 1.0f - AURORA_PULSE_DEPTH * (0.5f + 0.5f * sinf(0.3f * s_t));
     const AuroraPal pal   = auroraPalette(uiTheme.load(std::memory_order_relaxed));
