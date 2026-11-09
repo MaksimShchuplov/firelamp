@@ -24,7 +24,7 @@
 ## Features
 
 - Realistic fire simulation — stochastic per-pixel cooling, upward convection, wind gusts, temporal blending
-- Three effects: a fire simulation, a lava lamp (wax blobs that rise, merge and sink) and an aurora (northern-light curtains under faint stars)
+- Four effects: a fire simulation, a lava lamp (wax blobs that rise, merge and sink), an aurora (northern-light curtains under faint stars) and fireflies (glowing points that wander and flash)
 - Four color themes: Fire, Ember, Plasma, Ice — applied to both effects
 - Responsive web UI served directly from the ESP32 — no CDN, no internet required
 - **PWA** — installable on iOS and Android home screen; works offline (cached UI, offline banner)
@@ -100,7 +100,7 @@ Open `http://firelamp.local` (or the IP shown in the serial monitor).
 | Cooling | 20–150 | Heat dissipation rate — lower = taller flames |
 | Sparking | 0–255 | Ignition rate at the base |
 | Blend | 0–255 | Temporal smoothing — lower = frozen glow |
-| Effect | Flames / Lava lamp / Aurora | The non-fire effects use brightness and theme; the flame sliders hide |
+| Effect | Flames / Lava lamp / Aurora / Fireflies | The non-fire effects use brightness and theme; the flame sliders hide |
 | Theme | Fire / Ember / Plasma / Ice | Color palette |
 | Presets | 8 slots | Tap to load · Long-press to save or delete · Export/Import as JSON |
 
@@ -127,7 +127,7 @@ The lamp subscribes to **`<prefix>/set`** and publishes to **`<prefix>/state`** 
 | `sp` | 0–255 | Sparking |
 | `bl` | 0–255 | Blend |
 | `th` | 0–3 | Theme |
-| `fx` | 0–2 | Effect: 0 flames, 1 lava lamp, 2 aurora |
+| `fx` | 0–3 | Effect: 0 flames, 1 lava lamp, 2 aurora, 3 fireflies |
 
 **Manual `configuration.yaml` example** (only needed if MQTT Discovery is disabled in HA):
 

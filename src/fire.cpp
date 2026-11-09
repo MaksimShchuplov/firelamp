@@ -158,8 +158,9 @@ void fireEffect() {
     // both renderers nblend into leds[], which cross-fades the switch.
     const uint8_t fx = uiFx.load(std::memory_order_relaxed);
     if (fx != FX_FIRE) {
-        if (fx == FX_AURORA) auroraEffect();
-        else                 lavaEffect();
+        if      (fx == FX_AURORA)    auroraEffect();
+        else if (fx == FX_FIREFLIES) firefliesEffect();
+        else                         lavaEffect();
         if (millis() - lastPowerCalc > POWER_CALC_INTERVAL_MS)
             updatePowerCalc();
         return;

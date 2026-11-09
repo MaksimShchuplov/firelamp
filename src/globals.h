@@ -98,6 +98,7 @@ void updatePowerCalc();
 void fireEffect();
 void lavaEffect();   // lava.cpp — Core 0 only, called from fireEffect()
 void auroraEffect(); // aurora.cpp — Core 0 only, called from fireEffect()
+void firefliesEffect(); // fireflies.cpp — Core 0 only, called from fireEffect()
 void updateWind();
 // Drives the strip dark and waits for LEDTask to push it. Call before any
 // self-restart: WS2812B latches its last frame, so restarting while the OTA bar

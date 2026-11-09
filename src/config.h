@@ -60,7 +60,8 @@
 #define FX_FIRE                 0
 #define FX_LAVA                 1
 #define FX_AURORA               2
-#define FX_COUNT                3
+#define FX_FIREFLIES            3
+#define FX_COUNT                4
 #define FX_DEFAULT              FX_FIRE
 
 // ---- Lava lamp (lava.cpp, lava_math.h) ----------------------------------------
@@ -94,6 +95,25 @@
 #define LAVA_T_BG               0x30
 #define LAVA_T_WAX              0x68
 #define LAVA_T_CORE             0x84
+
+// ---- Fireflies (fireflies.cpp, firefly_math.h) -------------------------------
+// Glowing points wander around the tube and flash: a quick rise, a slower
+// fade, then a dark pause, each on its own rhythm, over a dim night meadow.
+#define FLY_COUNT               48
+#define FLY_SPEED_MIN           0.6f    // rows/s
+#define FLY_SPEED_MAX           1.6f
+#define FLY_TURN                2.2f    // rad/s: how quickly a heading wanders
+#define FLY_Y_MIN               1.5f    // rows: keep clear of the base...
+#define FLY_Y_MAX               37.5f   // ...and of the top edge
+#define FLY_PERIOD_MIN          2.2f    // s: one flash cycle
+#define FLY_PERIOD_MAX          4.5f
+#define FLY_FLASH_MIN           1.4f    // s: lit part of the cycle
+#define FLY_FLASH_MAX           2.6f
+#define FLY_RISE                0.25f   // share of the flash spent brightening
+#define FLY_EMBER               0.22f   // faint glow left between flashes, so a fly never fully vanishes
+#define FLY_HALO                1.7f    // rows: glow radius (half brightness)
+#define FLY_REACH               4       // rows/cols scanned around each fly; the halo is negligible beyond
+#define FLY_BLEND               96      // nblend per frame: flashes are quick, keep them crisp
 
 // ---- Aurora (aurora.cpp, aurora_math.h) ---------------------------------------
 // Curtains of light hang above a waving lower hem and fade upward into rays.

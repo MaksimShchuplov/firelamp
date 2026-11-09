@@ -4,7 +4,7 @@ function pc(n){ps(0,100,vc,sc,n);}
 function pco(n){ps(20,150,vco,sco,n);}
 function psp(n){ps(0,255,vsp,ssp,n);}
 function pbl(n){ps(0,255,vbl,sbl,n);}
-function pfx(n){n=(n===1||n===2)?n:0;for(var i=0;i<3;i++)document.getElementById('fx'+i).classList.toggle('act',i===n);document.body.classList.toggle('nofire',n!==0);}
+function pfx(n){n=(n===1||n===2||n===3)?n:0;for(var i=0;i<4;i++)document.getElementById('fx'+i).classList.toggle('act',i===n);document.body.classList.toggle('nofire',n!==0);}
 // per theme: ambient[r,g,b, r2,g2,b2], track[tc1..tc5], thumb[th2,th3,th4]
 var kAmb=[
   [255,120,20, 180,40,8,  '#2a0d04','#7a1f06','#d6510c','#ff8a1f','#ffe7b8', '#ffae45','#ff5e10','#7a1f00'],

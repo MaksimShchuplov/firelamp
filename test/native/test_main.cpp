@@ -9,6 +9,7 @@
 #include "../../src/fire_math.h"
 #include "../../src/lava_math.h"
 #include "../../src/aurora_math.h"
+#include "../../src/firefly_math.h"
 
 // Define firmware identity before including ota_utils.h so the #ifndef guards
 // in that header are skipped and these values are used throughout the tests.
@@ -655,6 +656,121 @@ void test_aurora_colour_shifts_from_body_to_top_with_height() {
     TEST_ASSERT_TRUE((float)high.b / (high.g + 1.0f) > (float)low.b / (low.g + 1.0f));
 }
 
+// =============================================================================
+//  Fireflies (firefly_math.h)
+// =============================================================================
+
+// Renders one frame the way fireflies.cpp does (without the temporal blend)
+// into brightest-channel values, for the brightness and motion floors below.
+static void flyFrame(const Firefly *fl, int n, uint8_t theme, float out[ROWS][COLUMNS]) {
+    const FlyPal p = flyPalette(theme);
+    float rgb[ROWS][COLUMNS][3];
+    for (int y = 0; y < ROWS; y++) {
+        const Rgb8 c = flyNight(p, (float)y / (float)(ROWS - 1));
+        for (int x = 0; x < COLUMNS; x++) { rgb[y][x][0] = c.r; rgb[y][x][1] = c.g; rgb[y][x][2] = c.b; }
+    }
+    for (int i = 0; i < n; i++) {
+        const float g = flyGlow(fl[i].phase, fl[i].flash);
+        const int cx = (int)lroundf(fl[i].x), cy = (int)lroundf(fl[i].y);
+        for (int dy = -FLY_REACH; dy <= FLY_REACH; dy++) {
+            const int y = cy + dy;
+            if (y < 0 || y >= ROWS) continue;
+            for (int dxi = -FLY_REACH; dxi <= FLY_REACH; dxi++) {
+                const int x = ((cx + dxi) % COLUMNS + COLUMNS) % COLUMNS;
+                const float dx = lavaDx((float)x, fl[i].x), ddy = (float)y - fl[i].y;
+                const Rgb8 c = flyLight(p, g * flyHalo(sqrtf(dx * dx + ddy * ddy)));
+                rgb[y][x][0] = fminf(255.0f, rgb[y][x][0] + c.r);
+                rgb[y][x][1] = fminf(255.0f, rgb[y][x][1] + c.g);
+                rgb[y][x][2] = fminf(255.0f, rgb[y][x][2] + c.b);
+            }
+        }
+    }
+    for (int y = 0; y < ROWS; y++)
+        for (int x = 0; x < COLUMNS; x++)
+            out[y][x] = fmaxf(rgb[y][x][0], fmaxf(rgb[y][x][1], rgb[y][x][2]));
+}
+
+static void flySwarm(Firefly *fl) {
+    // Deterministic spread over the documented ranges.
+    for (int i = 0; i < FLY_COUNT; i++) {
+        const float u = (float)((i * 37) % FLY_COUNT) / FLY_COUNT, v = (float)((i * 17) % FLY_COUNT) / FLY_COUNT;
+        fl[i] = {u * COLUMNS, FLY_Y_MIN + v * (FLY_Y_MAX - FLY_Y_MIN), 6.283f * v,
+                 FLY_SPEED_MIN + u * (FLY_SPEED_MAX - FLY_SPEED_MIN), 0.0f,
+                 FLY_PERIOD_MIN + v * (FLY_PERIOD_MAX - FLY_PERIOD_MIN), FLY_FLASH_MIN + u * (FLY_FLASH_MAX - FLY_FLASH_MIN)};
+        fl[i].phase = u * fl[i].period;
+    }
+}
+
+void test_fly_glow_rises_peaks_fades_and_keeps_an_ember() {
+    const float flash = 1.6f;
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, FLY_EMBER, flyGlow(0.0f, flash));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 1.0f, flyGlow(FLY_RISE * flash, flash));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, FLY_EMBER, flyGlow(flash, flash));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, FLY_EMBER, flyGlow(flash + 2.0f, flash));
+    float prev = 0.0f;
+    for (float t = 0.0f; t <= FLY_RISE * flash; t += 0.01f) { const float g = flyGlow(t, flash); TEST_ASSERT_TRUE(g + 1e-5f >= prev); prev = g; }
+    for (float t = FLY_RISE * flash; t <= flash; t += 0.01f) { const float g = flyGlow(t, flash); TEST_ASSERT_TRUE(g <= prev + 1e-5f); prev = g; }
+}
+
+void test_fly_step_wraps_round_the_tube_and_bounces_off_top_and_bottom() {
+    Firefly f = {19.9f, FLY_Y_MAX - 0.1f, 0.3f, FLY_SPEED_MAX, 0.0f, 3.0f, 1.5f};
+    for (int i = 0; i < 5000; i++) {
+        flyStep(f, 0.05f, ((i * 7919) % 200) / 100.0f - 1.0f);
+        TEST_ASSERT_TRUE(f.x >= 0.0f && f.x < (float)COLUMNS);
+        TEST_ASSERT_TRUE(f.y >= FLY_Y_MIN && f.y <= FLY_Y_MAX);
+        TEST_ASSERT_TRUE(f.phase >= 0.0f && f.phase < f.period);
+    }
+}
+
+void test_fly_halo_is_half_at_its_radius_and_negligible_at_reach() {
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 1.0f, flyHalo(0.0f));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 0.5f, flyHalo(FLY_HALO));
+    // Pixels beyond FLY_REACH are skipped; what they lose must be invisible (< 2/255 at full flash).
+    TEST_ASSERT_TRUE(255.0f * flyHalo((float)FLY_REACH + 1.0f) < 2.0f * 4.0f);
+}
+
+void test_fly_light_is_dark_when_off_and_whitens_at_full_flash() {
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        const FlyPal p = flyPalette(th);
+        const Rgb8 off = flyLight(p, 0.0f), full = flyLight(p, 1.0f);
+        TEST_ASSERT_EQUAL_UINT8(0, (uint8_t)maxBrightness(off));
+        TEST_ASSERT_TRUE(maxBrightness(full) >= 200.0f);
+        TEST_ASSERT_TRUE((int)full.r + full.g + full.b > (int)p.glow.r + p.glow.g + p.glow.b);   // core is whiter
+    }
+}
+
+void test_fireflies_are_not_too_dark_to_see() {
+    // Same regression guard as the aurora: the first tuning averaged 15/255.
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        Firefly fl[FLY_COUNT];
+        flySwarm(fl);
+        static float fr[ROWS][COLUMNS];
+        double sum = 0.0;
+        int    n   = 0;
+        for (int step = 0; step < 240; step++) {
+            for (int i = 0; i < FLY_COUNT; i++) flyStep(fl[i], 0.25f, ((step * 31 + i * 17) % 200) / 100.0f - 1.0f);
+            flyFrame(fl, FLY_COUNT, th, fr);
+            for (int y = 0; y < ROWS; y++) for (int x = 0; x < COLUMNS; x++, n++) sum += fr[y][x];
+        }
+        TEST_ASSERT_TRUE(sum / n >= 40.0);
+    }
+}
+
+void test_fireflies_visibly_move_and_flash() {
+    Firefly fl[FLY_COUNT];
+    flySwarm(fl);
+    static float a[ROWS][COLUMNS], b[ROWS][COLUMNS];
+    flyFrame(fl, FLY_COUNT, 0, a);
+    double sum = 0.0;
+    int    n   = 0;
+    for (int step = 0; step < 120; step++) {
+        for (int i = 0; i < FLY_COUNT; i++) flyStep(fl[i], 0.5f, ((step * 13 + i * 29) % 200) / 100.0f - 1.0f);
+        flyFrame(fl, FLY_COUNT, 0, b);
+        for (int y = 0; y < ROWS; y++) for (int x = 0; x < COLUMNS; x++, n++) { sum += fabsf(b[y][x] - a[y][x]); a[y][x] = b[y][x]; }
+    }
+    TEST_ASSERT_TRUE(sum / n >= 12.0);
+}
+
 int main() {
     UNITY_BEGIN();
 
@@ -748,5 +864,11 @@ int main() {
     RUN_TEST(test_aurora_is_not_too_dark_to_see);
     RUN_TEST(test_aurora_visibly_moves);
     RUN_TEST(test_aurora_surge_sweeps_and_fades);
+    RUN_TEST(test_fly_glow_rises_peaks_fades_and_keeps_an_ember);
+    RUN_TEST(test_fly_step_wraps_round_the_tube_and_bounces_off_top_and_bottom);
+    RUN_TEST(test_fly_halo_is_half_at_its_radius_and_negligible_at_reach);
+    RUN_TEST(test_fly_light_is_dark_when_off_and_whitens_at_full_flash);
+    RUN_TEST(test_fireflies_are_not_too_dark_to_see);
+    RUN_TEST(test_fireflies_visibly_move_and_flash);
     return UNITY_END();
 }

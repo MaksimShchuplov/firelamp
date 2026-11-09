@@ -1034,7 +1034,7 @@
   "id": "effect/fx-out-of-range-not-clamped",
   "area": "effect",
   "file": "js/state.js",
-  "find": "n=(n===1||n===2)?n:0;",
+  "find": "n=(n===1||n===2||n===3)?n:0;",
   "replace": "",
   "why": "An unknown effect number from a newer firmware leaves neither effect button highlighted."
  },
@@ -1047,11 +1047,19 @@
   "why": "Aurora shows the flame sliders although they do nothing there; only Lava lamp hides them."
  },
  {
-  "id": "effect/aurora-button-not-wired",
+  "id": "effect/last-effect-button-not-wired",
   "area": "effect",
   "file": "js/sliders.js",
-  "find": "[0,1,2].forEach(function(f){document.getElementById('fx'+f)",
-  "replace": "[0,1].forEach(function(f){document.getElementById('fx'+f)",
-  "why": "The Aurora button does nothing when tapped."
+  "find": "[0,1,2,3].forEach(function(f){document.getElementById('fx'+f)",
+  "replace": "[0,1,2].forEach(function(f){document.getElementById('fx'+f)",
+  "why": "The Fireflies button does nothing when tapped."
+ },
+ {
+  "id": "effect/fireflies-rejected-as-out-of-range",
+  "area": "effect",
+  "file": "js/state.js",
+  "find": "n=(n===1||n===2||n===3)?n:0;",
+  "replace": "n=(n===1||n===2)?n:0;",
+  "why": "Choosing Fireflies highlights Flames and shows the flame sliders, because the UI treats effect 3 as unknown."
  }
 ]
