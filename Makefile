@@ -8,6 +8,6 @@ test:
 	python3 -m pytest test/ -q
 
 # Re-introduces every bug already fixed in the UI poll/slider/OTA/AI/preset paths
-# and requires test/ui/*.test.js to fail on each (~10 s; run in CI).
+# plus the hunted regressions, and requires test/ui/*.test.js to fail on each (~2.5 min; run in CI).
 mutants:
 	node test/ui_mutants.js

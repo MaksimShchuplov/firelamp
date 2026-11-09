@@ -8,10 +8,70 @@
 #include "net_helpers.h"
 #include "certs.h"
 
+// GitHub's /releases/download/<tag>/<file> endpoint, which VERSION_URL and
+// FIRMWARE_URL redirect through, took 10.5-11 s to answer its redirect in
+// Nov 2026 and returned 504 for about one request in five; the old 8 s timeout
+// therefore failed every check. The API answers in ~0.3 s, and an asset's API
+// URL fetched with Accept: application/octet-stream redirects straight to the
+// asset host. So both files are located through the API; the direct URLs stay
+// only as a fallback for when the API refuses.
+static bool resolveReleaseAssets(String &verUrl, String &fwUrl) {
+    String body;
+    {
+        WiFiClientSecure client;
+        client.setCACertBundle(x509_crt_bundle_start);
+        HTTPClient http;
+        http.setTimeout(HTTP_TIMEOUT_MS);
+        if (!http.begin(client, RELEASE_API_URL)) return false;
+        http.addHeader("Accept", "application/vnd.github+json");
+        int code = http.GET();
+        if (code != 200) {
+            LOG_WARN("release API returned HTTP %d", code);
+            http.end(); return false;
+        }
+        body = http.getString();
+        http.end();
+    }  // TLS session freed before the caller opens the next one
+    JsonDocument filter;
+    filter["assets"][0]["name"] = true;
+    filter["assets"][0]["url"]  = true;
+    JsonDocument doc;
+    if (deserializeJson(doc, body, DeserializationOption::Filter(filter)) != DeserializationError::Ok) {
+        LOG_WARN("release API: parse failed");
+        return false;
+    }
+    verUrl = ""; fwUrl = "";
+    for (JsonObject a : doc["assets"].as<JsonArray>()) {
+        const char *name = a["name"] | "";
+        const char *url  = a["url"]  | "";
+        if      (strcmp(name, "version.json") == 0) verUrl = url;
+        else if (strcmp(name, "firmware.bin") == 0) fwUrl  = url;
+    }
+    if (verUrl.length() == 0 || fwUrl.length() == 0) {
+        LOG_WARN("release API: version.json or firmware.bin missing");
+        return false;
+    }
+    return true;
+}
+
+// Opens a GET on a release asset. The Accept header makes an API asset URL
+// redirect to the file instead of returning its metadata; the direct fallback
+// URLs ignore it.
+static int openAsset(HTTPClient &http, WiFiClientSecure &client, const String &url, uint32_t timeoutMs) {
+    client.setCACertBundle(x509_crt_bundle_start);
+    http.setTimeout(timeoutMs);
+    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+    if (!http.begin(client, url)) return HTTPC_ERROR_CONNECTION_REFUSED;
+    http.addHeader("Accept", "application/octet-stream");
+    return http.GET();
+}
+
 // Fetches version.json from GitHub. Caches result for VERSION_CACHE_MS. Returns false on error.
+// outFwUrl receives the firmware.bin URL resolved in the same lookup, so the md5
+// and the binary come from one snapshot of the release.
 static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *outBusy = nullptr,
-                             bool force = false) {
-    static String            s_ver, s_md5;
+                             bool force = false, String *outFwUrl = nullptr) {
+    static String            s_ver, s_md5, s_fwUrl;
     static uint32_t          s_buildN = 0, s_at = 0;
     static std::atomic<bool> s_busy{false};
 
@@ -34,22 +94,27 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *o
     // version.json in separate requests, so a cached md5 from before that window
     // can describe a different binary than the one about to be downloaded.
     if (!force && s_ver.length() > 0 && millis() - s_at < VERSION_CACHE_MS) {
-        ver = s_ver; md5 = s_md5; buildN = s_buildN; return true;
+        ver = s_ver; md5 = s_md5; buildN = s_buildN;
+        if (outFwUrl) *outFwUrl = s_fwUrl;
+        return true;
     }
 
-    WiFiClientSecure client;
-    client.setCACertBundle(x509_crt_bundle_start);
-    HTTPClient http;
-    http.setTimeout(HTTP_TIMEOUT_MS);
-    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-    http.begin(client, VERSION_URL);
-    int code = http.GET();
-    if (code != 200) {
-        LOG_WARN("version fetch returned HTTP %d", code);
-        http.end(); return false;
+    String verUrl, fwUrl;
+    if (!resolveReleaseAssets(verUrl, fwUrl)) {
+        verUrl = VERSION_URL; fwUrl = FIRMWARE_URL;
     }
-    String body = http.getString();
-    http.end();
+    String body;
+    {
+        WiFiClientSecure client;
+        HTTPClient http;
+        int code = openAsset(http, client, verUrl, HTTP_TIMEOUT_MS);
+        if (code != 200) {
+            LOG_WARN("version fetch returned HTTP %d", code);
+            http.end(); return false;
+        }
+        body = http.getString();
+        http.end();
+    }
     {
         JsonDocument doc;
         if (deserializeJson(doc, body) != DeserializationError::Ok) {
@@ -61,7 +126,8 @@ static bool fetchVersionInfo(String &ver, String &md5, uint32_t &buildN, bool *o
         buildN = (uint32_t)(doc["build_n"] | 0u);
     }
     if (ver.length() == 0) { LOG_WARN("version.json: missing version field"); return false; }
-    s_ver = ver; s_md5 = md5; s_buildN = buildN; s_at = millis();
+    s_ver = ver; s_md5 = md5; s_buildN = buildN; s_fwUrl = fwUrl; s_at = millis();
+    if (outFwUrl) *outFwUrl = fwUrl;
     return true;
 }
 
@@ -82,10 +148,10 @@ static void handleCheckUpdate() {
 
 static void handleUpdate() {
     if (!isWebRequest()) return;
-    String ver, md5;
+    String ver, md5, fwUrl;
     uint32_t buildN;
     bool busy = false;
-    if (!fetchVersionInfo(ver, md5, buildN, &busy, true) || !isValidMd5(md5)) {
+    if (!fetchVersionInfo(ver, md5, buildN, &busy, true, &fwUrl) || !isValidMd5(md5)) {
         server.send(503, "application/json", busy ? "{\"error\":\"busy\"}" : "{\"error\":\"fetch_failed\"}");
         return;
     }
@@ -104,17 +170,9 @@ static void handleUpdate() {
     isUpdating.store(true, std::memory_order_release);
 
     WiFiClientSecure dlClient;
-    dlClient.setCACertBundle(x509_crt_bundle_start);
     HTTPClient http;
-    http.setTimeout(OTA_DOWNLOAD_TIMEOUT_MS);
-    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     LOG_INFO("OTA → %s  md5: %s", ver.c_str(), md5.c_str());
-    if (!http.begin(dlClient, FIRMWARE_URL)) {
-        LOG_ERROR("OTA: http.begin failed");
-        isUpdating.store(false, std::memory_order_relaxed);
-        return;
-    }
-    int code = http.GET();
+    int code = openAsset(http, dlClient, fwUrl, OTA_DOWNLOAD_TIMEOUT_MS);
     if (code != 200) {
         LOG_ERROR("OTA firmware fetch: HTTP %d", code);
         http.end();

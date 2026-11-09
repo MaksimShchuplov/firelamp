@@ -62,11 +62,13 @@
 #define WIFI_PORTAL_SSID        "FireLamp-Setup"
 #define WIFI_PORTAL_TIMEOUT_S   120     // portal auto-closes; fire still runs
 #define WIFI_RETRY_MS           15000
-#define HTTP_TIMEOUT_MS         8000    // version.json fetch timeout (the firmware stream uses OTA_DOWNLOAD_TIMEOUT_MS)
+#define HTTP_TIMEOUT_MS         15000   // per-request timeout for the release lookup and version.json (firmware stream: OTA_DOWNLOAD_TIMEOUT_MS); the fallback URLs' redirect alone took ~11 s in Nov 2026
 #define GEMINI_TIMEOUT_MS          25000  // Gemini API response timeout (ESP-side call)
 #define MDNS_NAME               "firelamp"   // → http://firelamp.local
 #define NVS_COMMIT_DELAY_MS     2500    // defer NVS writes to spare flash endurance
 #define NVS_WRITE_MAX_RETRIES   5       // consecutive flush failures before giving up until next change
+#define RELEASE_API_URL "https://api.github.com/repos/MaksimShchuplov/firelamp/releases/tags/latest"
+// Fallbacks, used only when the release API refuses (e.g. its 60 requests/hour unauthenticated limit).
 #define FIRMWARE_URL  "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/firmware.bin"
 #define VERSION_URL   "https://github.com/MaksimShchuplov/firelamp/releases/latest/download/version.json"
 #ifndef FIRMWARE_VERSION
