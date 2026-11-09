@@ -98,15 +98,18 @@
 // ---- Aurora (aurora.cpp, aurora_math.h) ---------------------------------------
 // Curtains of light hang above a waving lower hem and fade upward into rays.
 // Waves travel around the tube in whole periods, so the strip join is seamless.
-#define AURORA_HEM_Y            9.0f    // mean height of the curtain's lower hem, rows from the base
-#define AURORA_HEM_AMP          4.0f    // how far the hem swings up and down
-#define AURORA_HEM_SOFT         0.9f    // rows: how fast light dies below the hem
-#define AURORA_RAY_LEN          13.0f   // rows: how far the curtain fades upward (1/e)
+#define AURORA_HEM_Y            7.0f    // mean height of the curtain's lower hem, rows from the base
+#define AURORA_HEM_AMP          3.5f    // how far the hem swings up and down
+#define AURORA_HEM_SOFT         1.6f    // rows: how fast light dies below the hem
+#define AURORA_RAY_LEN          24.0f   // rows: how far the curtain fades upward (1/e)
 #define AURORA_FRINGE           0.8f    // rows: width of the tinted fringe at the hem
-#define AURORA_GAP_LO           0.30f   // curtain density below this is open sky...
-#define AURORA_GAP_HI           0.85f   // ...and above this is full curtain
+#define AURORA_GAP_LO           0.15f   // curtain density below this is open sky...
+#define AURORA_GAP_HI           0.60f   // ...and above this is full curtain
 #define AURORA_RAY_DEPTH        0.30f   // per-column shimmer depth of the vertical rays
 #define AURORA_PULSE_DEPTH      0.15f   // slow overall breathing of the display
+// Light gain before clipping. At 1.0 the display averaged 19/255 per pixel and
+// 4.6 % of full white, which read as minimum brightness on the lamp.
+#define AURORA_GAIN             1.8f
 #define AURORA_STARS            14      // faint twinkling stars in the open sky
 #define AURORA_STAR_MIN_Y       6       // stars only above this row
 #define AURORA_STAR_LEVEL       26      // star peak brightness, /255

@@ -564,7 +564,7 @@ void test_aurora_hem_stays_on_the_lamp() {
 void test_aurora_light_peaks_at_the_hem_and_fades_both_ways() {
     const float hem = 12.0f;
     TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.0f, auroraVertical(hem, hem));
-    TEST_ASSERT_TRUE(auroraVertical(hem - 3.0f, hem) < 0.05f);              // sharp below
+    TEST_ASSERT_TRUE(auroraVertical(hem - 5.0f, hem) < 0.05f);              // dies within a few rows below
     TEST_ASSERT_TRUE(auroraVertical(hem + 3.0f, hem) > 0.7f);               // long rays above
     TEST_ASSERT_TRUE(auroraVertical(hem + 20.0f, hem) < auroraVertical(hem + 10.0f, hem));
 }
@@ -584,7 +584,7 @@ void test_aurora_open_sky_is_only_the_dim_sky_colour() {
         TEST_ASSERT_EQUAL_UINT8(p.sky.r, c.r);
         TEST_ASSERT_EQUAL_UINT8(p.sky.g, c.g);
         TEST_ASSERT_EQUAL_UINT8(p.sky.b, c.b);
-        TEST_ASSERT_TRUE(maxBrightness(p.sky) <= 8.0f);
+        TEST_ASSERT_TRUE(maxBrightness(p.sky) <= 20.0f);   // a dark night-blue, not a glow
     }
 }
 
@@ -592,6 +592,24 @@ void test_aurora_curtain_is_bright_at_the_hem_in_every_theme() {
     for (uint8_t th = 0; th < THEME_COUNT; th++) {
         const Rgb8 c = auroraColor(auroraPalette(th), 1.0f, 1.0f, 1.0f, 12.0f, 12.0f);
         TEST_ASSERT_TRUE(maxBrightness(c) >= 150.0f);
+    }
+}
+
+void test_aurora_is_not_too_dark_to_see() {
+    // Regression: the first tuning averaged 19/255 per pixel, which read as the
+    // brightness slider's minimum even at 100 %. Average the brightest channel
+    // over the whole lamp for a minute of motion; the lava lamp sits near 80.
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        const AuroraPal p = auroraPalette(th);
+        double sum = 0.0;
+        int    n   = 0;
+        for (float t = 0.0f; t < 60.0f; t += 0.5f)
+            for (int x = 0; x < COLUMNS; x++) {
+                const float c = auroraCurtain((float)x, t), h = auroraHem((float)x, t), r = auroraRay(x, t);
+                for (int y = 0; y < ROWS; y++, n++)
+                    sum += maxBrightness(auroraColor(p, c, r, 1.0f - AURORA_PULSE_DEPTH * 0.5f, (float)y, h));
+            }
+        TEST_ASSERT_TRUE(sum / n >= 60.0);
     }
 }
 
@@ -694,5 +712,6 @@ int main() {
     RUN_TEST(test_aurora_open_sky_is_only_the_dim_sky_colour);
     RUN_TEST(test_aurora_curtain_is_bright_at_the_hem_in_every_theme);
     RUN_TEST(test_aurora_colour_shifts_from_body_to_top_with_height);
+    RUN_TEST(test_aurora_is_not_too_dark_to_see);
     return UNITY_END();
 }

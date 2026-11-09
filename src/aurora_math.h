@@ -14,10 +14,10 @@ struct AuroraPal { Rgb8 sky, fringe, body, top; };
 // fringe and violet top; the others follow the lamp's themes.
 inline AuroraPal auroraPalette(uint8_t theme) {
     switch (theme) {
-        case 1:  return {{2, 0, 1}, {255, 120, 0},  {200, 20, 0},  {90, 0, 30}};    // Ember: rare red aurora
-        case 2:  return {{2, 0, 4}, {80, 120, 255}, {200, 30, 220}, {60, 0, 140}};   // Plasma: violet-pink
-        case 3:  return {{0, 1, 4}, {170, 255, 255}, {0, 200, 190}, {10, 40, 170}};  // Ice: teal-blue
-        default: return {{0, 1, 3}, {230, 40, 140}, {30, 230, 90},  {90, 20, 160}};  // Fire theme: classic
+        case 1:  return {{8, 1, 3},  {255, 120, 0},  {200, 20, 0},  {120, 0, 40}};   // Ember: rare red aurora
+        case 2:  return {{6, 1, 14}, {80, 120, 255}, {200, 30, 220}, {80, 0, 180}};   // Plasma: violet-pink
+        case 3:  return {{1, 4, 16}, {170, 255, 255}, {0, 200, 190}, {20, 60, 210}};  // Ice: teal-blue
+        default: return {{1, 4, 14}, {230, 40, 140}, {30, 230, 90},  {110, 30, 200}}; // Fire theme: classic
     }
 }
 
@@ -60,7 +60,7 @@ inline uint8_t auroraAdd8(uint8_t a, float b) {
 // fringe at the hem through the body to the top colour higher up.
 inline Rgb8 auroraColor(const AuroraPal &p, float curtain, float ray, float pulse, float y, float hem) {
     const float d     = y - hem;
-    const float light = curtain * ray * pulse * auroraVertical(y, hem);
+    const float light = AURORA_GAIN * curtain * ray * pulse * auroraVertical(y, hem);
     const Rgb8  upper = lavaMix(p.body, p.top, lavaSmooth(0.0f, AURORA_RAY_LEN * 1.5f, d));
     const Rgb8  c     = lavaMix(upper, p.fringe, 0.6f * expf(-fabsf(d) / AURORA_FRINGE));
     return {auroraAdd8(p.sky.r, c.r * light), auroraAdd8(p.sky.g, c.g * light), auroraAdd8(p.sky.b, c.b * light)};
