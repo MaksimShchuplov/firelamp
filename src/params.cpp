@@ -10,5 +10,6 @@ const ParamDesc PARAMS[] = {
     {"sp", &uiSparking, SPARKING_DEFAULT, SPARKING_MIN, SPARKING_MAX,  nullptr,          true},
     {"bl", &uiBlend,    BLEND_DEFAULT,    BLEND_MIN,    BLEND_MAX,     nullptr,          true},
     {"th", &uiTheme,    THEME_DEFAULT,    0,            THEME_COUNT-1, buildHeatPalette, true},
+    {"fx", &uiFx,       FX_DEFAULT,       0,            FX_COUNT-1,    nullptr,          true},
 };
 const size_t PARAM_COUNT = sizeof(PARAMS) / sizeof(PARAMS[0]);

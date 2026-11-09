@@ -153,6 +153,16 @@ void fireEffect() {
 
     applyBrightness();  // runs on Core 0, safe alongside FastLED.show()
 
+    // The lava lamp shares brightness, theme and the overlays above. The fire
+    // state below just pauses, so switching back resumes the same flames, and
+    // both renderers nblend into leds[], which cross-fades the switch.
+    if (uiFx.load(std::memory_order_relaxed) == FX_LAVA) {
+        lavaEffect();
+        if (millis() - lastPowerCalc > POWER_CALC_INTERVAL_MS)
+            updatePowerCalc();
+        return;
+    }
+
     // 1. Cooling — snapshot atomic array once with relaxed order to avoid 40 seq_cst loads (memw on LX7) in the inner loop
     uint8_t coolSnap[ROWS];
     for (int y = 0; y < ROWS; y++) coolSnap[y] = coolMax[y].load(std::memory_order_relaxed);

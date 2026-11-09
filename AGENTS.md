@@ -20,6 +20,7 @@ pio device monitor --baud 115200        # serial output
 | New constant / limit | `src/config.h` |
 | New shared variable | `src/globals.h` + `src/main.cpp` |
 | Fire physics / palette | `src/fire.cpp` |
+| Lava-lamp effect | `src/lava.cpp`, `src/lava_math.h` |
 | Web UI (HTML/CSS/JS) | `ui/index.html`, `ui/css/*.css`, `ui/js/*.js` — edit sources, not generated `src/page.h` |
 | WiFi startup / mDNS | `src/network.cpp` |
 | OTA / version check | `src/ota.cpp` |
@@ -106,6 +107,7 @@ All state-mutating endpoints require `X-Requested-With: firelamp` header (CSRF).
 | `GET /setsp` | `v=0..255` | sparking |
 | `GET /setbl` | `v=0..255` | blend |
 | `GET /settheme` | `v=0..3` | theme |
+| `GET /setfx` | `v=0..1` | effect: 0 flames, 1 lava lamp |
 | `GET /reset` | — | restore defaults |
 | `GET /checkupdate` | — | compare version (60 s cache) |
 | `GET /update` | — | start OTA; reboots on success |

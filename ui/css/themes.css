@@ -9,3 +9,6 @@
 .tbtn[data-t="1"]:before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#d83210;margin-right:6px;vertical-align:middle;box-shadow:0 0 6px #d83210}
 .tbtn[data-t="2"]:before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#a840e0;margin-right:6px;vertical-align:middle;box-shadow:0 0 6px #a840e0}
 .tbtn[data-t="3"]:before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#40a0ff;margin-right:6px;vertical-align:middle;box-shadow:0 0 6px #40a0ff}
+.fxbtn.act{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.35);color:#fff}
+/* Contrast, cooling, sparking and blend shape only the fire simulation. */
+body.lava #fireopts{display:none}

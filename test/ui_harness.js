@@ -286,7 +286,7 @@ function loadUI(options) {
     flush,
     setHidden(h) { dom.document.hidden = h; dom.document.dispatch('visibilitychange'); return flush(); },
     /** Full current state object as the lamp would return it. */
-    state(over) { return Object.assign({ b: 100, c: 50, co: 46, sp: 26, w: 12.3, bl: 50, th: 0, upd: 0 }, over || {}); },
+    state(over) { return Object.assign({ b: 100, c: 50, co: 46, sp: 26, w: 12.3, bl: 50, th: 0, fx: 0, upd: 0 }, over || {}); },
   };
   return ui;
   }

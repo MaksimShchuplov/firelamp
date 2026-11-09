@@ -22,9 +22,9 @@ static unsigned long lastReconnectAttempt = 0;
 void mqttPublishState() {
     if (!mqttClient.connected() || mqT.length() == 0) return;
     char j[128];
-    snprintf(j, sizeof(j), "{\"state\":\"%s\",\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"bl\":%d,\"th\":%d}",
+    snprintf(j, sizeof(j), "{\"state\":\"%s\",\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"bl\":%d,\"th\":%d,\"fx\":%d}",
              uiBright > 0 ? "ON" : "OFF",
-             (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking, (int)uiBlend, (int)uiTheme);
+             (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking, (int)uiBlend, (int)uiTheme, (int)uiFx);
     String topic = mqT + "/state";
     // Retained so an HA restart repopulates the entity immediately instead of
     // leaving it "unknown" until the next command. Safe only because the LWT in

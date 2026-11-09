@@ -31,6 +31,7 @@ std::atomic<uint8_t>  uiCooling   {COOLING_DEFAULT};
 std::atomic<uint8_t>  uiSparking  {SPARKING_DEFAULT};
 std::atomic<uint8_t>  uiBlend     {BLEND_DEFAULT};
 std::atomic<uint8_t>  uiTheme     {THEME_DEFAULT};
+std::atomic<uint8_t>  uiFx        {FX_DEFAULT};
 std::atomic<uint8_t>  appliedRaw  {0};
 std::atomic<uint32_t> currentPowerMw{0};
 std::atomic<bool>     updatePending{false};

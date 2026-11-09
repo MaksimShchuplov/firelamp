@@ -571,8 +571,8 @@
   "id": "presets/import-key-missing-th",
   "area": "presets",
   "file": "js/presets.js",
-  "find": "['b','c','co','sp','bl','th'].forEach",
-  "replace": "['b','c','co','sp','bl'].forEach",
+  "find": "['b','c','co','sp','bl','th','fx'].forEach(",
+  "replace": "['b','c','co','sp','bl','fx'].forEach(",
   "why": "Imported presets lose their colour theme and are saved with the live theme instead."
  },
  {
@@ -1013,5 +1013,29 @@
   "find": "inp.value=presets[s]&&presets[s].name?presets[s].name:(ru?",
   "replace": "inp.value=(ru?",
   "why": "Overwriting an existing preset replaces its name with 'Preset 1', unless the user retypes it."
+ },
+ {
+  "id": "presets/import-key-missing-fx",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "['b','c','co','sp','bl','th','fx'].forEach(",
+  "replace": "['b','c','co','sp','bl','th'].forEach(",
+  "why": "Importing a presets file drops the effect, so a saved Lava lamp preset comes back as Flames."
+ },
+ {
+  "id": "effect/lava-keeps-flame-sliders",
+  "area": "effect",
+  "file": "js/state.js",
+  "find": "document.body.classList.toggle('lava',n===1);",
+  "replace": "",
+  "why": "In Lava lamp mode the contrast, cooling, sparking and blend sliders stay visible although they do nothing."
+ },
+ {
+  "id": "effect/fx-out-of-range-not-clamped",
+  "area": "effect",
+  "file": "js/state.js",
+  "find": "n=n===1?1:0;",
+  "replace": "",
+  "why": "An unknown effect number from a newer firmware leaves neither effect button highlighted."
  }
 ]

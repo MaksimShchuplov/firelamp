@@ -37,9 +37,9 @@ bool parseIntArg(const char *name, int lo, int hi, int &out) {
 
 void formatState(char *buf, size_t len) {
     snprintf(buf, len,
-             "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f,\"bl\":%d,\"th\":%d,\"upd\":%d}",
+             "{\"b\":%d,\"c\":%d,\"co\":%d,\"sp\":%d,\"w\":%.1f,\"bl\":%d,\"th\":%d,\"fx\":%d,\"upd\":%d}",
              (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
-             (float)currentPowerMw / 1000.0f, (int)uiBlend, (int)uiTheme, updatePending ? 1 : 0);
+             (float)currentPowerMw / 1000.0f, (int)uiBlend, (int)uiTheme, (int)uiFx, updatePending ? 1 : 0);
 }
 
 void sendVal() {
@@ -59,6 +59,7 @@ bool flushPrefs() {
     ok &= (prefs.putUChar("sparking", uiSparking) != 0);
     ok &= (prefs.putUChar("blend",    uiBlend)    != 0);
     ok &= (prefs.putUChar("theme",    uiTheme)    != 0);
+    ok &= (prefs.putUChar("fx",       uiFx)       != 0);
     return ok;
 }
 
@@ -92,9 +93,9 @@ static void handleRoot() {
     server.send(200, "text/html", "");
     server.sendContent_P(PAGE);
     char init[96];
-    snprintf(init, sizeof(init), "<script>pb(%d);pc(%d);pco(%d);psp(%d);pbl(%d);pth(%d);</script>",
+    snprintf(init, sizeof(init), "<script>pb(%d);pc(%d);pco(%d);psp(%d);pbl(%d);pth(%d);pfx(%d);</script>",
              (int)uiBright, (int)uiContrast, (int)uiCooling, (int)uiSparking,
-             (int)uiBlend, (int)uiTheme);
+             (int)uiBlend, (int)uiTheme, (int)uiFx);
     server.sendContent(init);
     server.sendContent("");
 }
@@ -112,12 +113,13 @@ static void handleSetCo()    { applySimpleParam(COOLING_MIN,  COOLING_MAX,    ui
 static void handleSetSp()    { applySimpleParam(SPARKING_MIN, SPARKING_MAX,   uiSparking); }
 static void handleSetBl()    { applySimpleParam(BLEND_MIN,    BLEND_MAX,      uiBlend); }
 static void handleSetTheme() { applySimpleParam(0,            THEME_COUNT-1,  uiTheme,    buildHeatPalette); }
+static void handleSetFx()    { applySimpleParam(0,            FX_COUNT-1,     uiFx); }
 
 static void handleReset() {
     if (!isWebRequest()) return;
     uiBright = BRIGHT_DEFAULT; uiContrast = CONTRAST_DEFAULT;
     uiCooling = COOLING_DEFAULT; uiSparking = SPARKING_DEFAULT;
-    uiBlend = BLEND_DEFAULT; uiTheme = THEME_DEFAULT;
+    uiBlend = BLEND_DEFAULT; uiTheme = THEME_DEFAULT; uiFx = FX_DEFAULT;
     buildHeatPalette(); recalcCooling();
     markDirty();
     updatePowerCalc(); sendVal();
@@ -261,6 +263,7 @@ void registerBasicHandlers() {
     server.on("/setsp",     handleSetSp);
     server.on("/setbl",     handleSetBl);
     server.on("/settheme",  handleSetTheme);
+    server.on("/setfx",     handleSetFx);
     server.on("/reset",     handleReset);
     server.on("/info",      handleInfo);
     server.on("/debug",     handleDebug);

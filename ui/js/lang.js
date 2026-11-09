@@ -11,6 +11,9 @@ function ul(){
  document.getElementById('rwifi').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
  document.getElementById('lbl').textContent=ru?'Плавность':'Blend';
  document.getElementById('lth').textContent=ru?'Тема':'Theme';
+ document.getElementById('lfx').textContent=ru?'Эффект':'Effect';
+ document.getElementById('fx0').textContent=ru?'Пламя':'Flames';
+ document.getElementById('fx1').textContent=ru?'Лава-лампа':'Lava lamp';
  document.getElementById('lpr').textContent=ru?'Пресеты':'Presets';
  document.getElementById('prexp').textContent=ru?'⬇ Экспорт':'⬇ Export';
  document.getElementById('primp').textContent=ru?'⬆ Импорт':'⬆ Import';
@@ -28,7 +31,7 @@ function ul(){
  document.getElementById('mt4').textContent=ru?'Искры (Зажигание)':'Sparking (Ignition)';
  document.getElementById('md4').textContent=ru?'Управляет хаосом у основания. Высокое = сплошной ревущий жар. Низкое = спокойное тление.':'Dictates chaos at the base. Higher = a solid roaring inferno. Lower = calm smoldering.';
  document.getElementById('mt5').textContent=ru?'По умолчанию':'Reset to Default';
- document.getElementById('md5').textContent=ru?'Восстанавливает все параметры к заводским значениям: яркость 100, контрастность 50, охлаждение 46, искры 26, плавность 50, тема Огонь.':'Restores all parameters to factory defaults: brightness 100, contrast 50, cooling 46, sparking 26, blend 50, theme Fire.';
+ document.getElementById('md5').textContent=ru?'Восстанавливает все параметры к заводским значениям: яркость 100, контрастность 50, охлаждение 46, искры 26, плавность 50, тема Огонь, эффект Пламя.':'Restores all parameters to factory defaults: brightness 100, contrast 50, cooling 46, sparking 26, blend 50, theme Fire, effect Flames.';
  document.getElementById('mt6').textContent=ru?'Проверить обновления':'Check for Update';
  document.getElementById('md6').textContent=ru?'Сравнивает текущую прошивку с последней сборкой на GitHub. При наличии обновления предложит установить его — лампа перезагрузится автоматически.':'Compares current firmware with the latest build on GitHub. If an update is available you can install it — the lamp reboots automatically.';
  document.getElementById('mt7').textContent=ru?'Сменить сеть Wi-Fi':'Reset WiFi';
@@ -39,6 +42,8 @@ function ul(){
  document.getElementById('md9').textContent=ru?'Временное сглаживание кадров. 0 = застывшее свечение, 255 = резкое мерцание. Оптимальный диапазон 30–80.':'Temporal blend per frame. 0 = frozen glow, 255 = sharp flicker. Sweet spot 30–80.';
  document.getElementById('mt10').textContent=ru?'Тема цвета':'Color Theme';
  document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (тёмно-красный), Плазма (пурпурный), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
+ document.getElementById('mt14').textContent=ru?'Эффект':'Effect';
+ document.getElementById('md14').textContent=ru?'Пламя — симуляция огня. Лава-лампа — капли воска медленно всплывают, сливаются и опускаются, цвет задаёт выбранная тема. В лава-лампе работают яркость и тема, ползунки пламени скрыты.':'Flames simulates fire. Lava lamp: wax blobs slowly rise, merge and sink, coloured by the selected theme. Lava lamp uses brightness and theme; the flame sliders are hidden.';
  document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
  document.getElementById('md11').textContent=ru?'До 8 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы сохранить в слот или удалить.':'Up to 8 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to save or delete.';
  document.getElementById('mt13').textContent=ru?'MQTT Сервер':'MQTT Server';

@@ -55,6 +55,44 @@
 
 // ---- Themes / presets ------------------------------------------------------
 #define THEME_COUNT             4       // Fire / Ember / Plasma / Ice
+
+// ---- Effects ------------------------------------------------------------------
+#define FX_FIRE                 0
+#define FX_LAVA                 1
+#define FX_COUNT                2
+#define FX_DEFAULT              FX_FIRE
+
+// ---- Lava lamp (lava.cpp, lava_math.h) ----------------------------------------
+// Metaballs on the cylinder: each blob's field is r²/d², the wax surface sits
+// where the summed field crosses ~1, and blobs merge where their fields add.
+#define LAVA_BLOBS              6
+// Column pitch / row pitch. Columns are ~20 mm apart around the 125 mm tube;
+// the row spacing depends on how the strip was wound. Raise this if blobs look
+// tall and thin on the lamp, lower it if they look squat.
+#define LAVA_ASPECT             1.6f
+#define LAVA_R_MIN              3.0f    // blob radius range, in rows
+#define LAVA_R_MAX              4.6f
+#define LAVA_SPEED_MIN          0.12f   // rad/s of the rise-and-sink cycle: one full cycle takes 21-52 s
+#define LAVA_SPEED_MAX          0.30f
+#define LAVA_DRIFT_MAX          0.25f   // sideways drift, columns/s
+#define LAVA_BREATHE_RATE       0.7f    // rad/s of the slow radius swell
+#define LAVA_BREATHE_DEPTH      0.08f   // ±8 % radius swell
+#define LAVA_POOL_H             2.6f    // bottom pool field = (H/(y+1+wobble))²: surface about 1.5 rows up
+#define LAVA_EDGE_LO            0.8f    // field where the wax edge starts...
+#define LAVA_EDGE_HI            1.2f    // ...and where it is solid wax
+#define LAVA_CORE_LO            2.0f    // field where the hotter core tint starts...
+#define LAVA_CORE_HI            6.0f    // ...and where it peaks
+#define LAVA_CORE_MIX           0.75f   // peak share of the core colour in the wax
+#define LAVA_RIM_SHADE          0.55f   // wax brightness at its edge, rising to full by LAVA_CORE_LO: reads as volume
+#define LAVA_BG_LEVEL           40      // liquid brightness at the base, /255 of the theme's dark tone
+#define LAVA_BLEND              48      // nblend per frame: smooths motion and cross-fades effect switches
+#define LAVA_DT_MAX             0.1f    // s; caps a frame step so a long pause resumes instead of jumping
+// heatRamp() inputs for the liquid, wax and core tones. Kept off the 0x40
+// multiples, where heatRamp has its deliberate seams (ARCHITECTURE.md), so the
+// lava has no dark rings; independent of contrast, which only shapes the fire.
+#define LAVA_T_BG               0x30
+#define LAVA_T_WAX              0x68
+#define LAVA_T_CORE             0x84
 #define PRESET_NAME_MAX_LEN     15
 // Parameter count lives in params.cpp (PARAM_COUNT) — derived from the PARAMS[] registry.
 

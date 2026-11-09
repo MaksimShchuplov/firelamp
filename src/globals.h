@@ -42,6 +42,7 @@ extern std::atomic<uint8_t>  uiCooling;
 extern std::atomic<uint8_t>  uiSparking;
 extern std::atomic<uint8_t>  uiBlend;
 extern std::atomic<uint8_t>  uiTheme;
+extern std::atomic<uint8_t>  uiFx;       // FX_FIRE / FX_LAVA
 extern std::atomic<uint8_t>  appliedRaw;
 extern std::atomic<uint32_t> currentPowerMw;  // milliwatts
 extern std::atomic<bool>     updatePending;
@@ -95,6 +96,7 @@ void setBright(int v);
 void recalcCooling();
 void updatePowerCalc();
 void fireEffect();
+void lavaEffect();   // lava.cpp — Core 0 only, called from fireEffect()
 void updateWind();
 // Drives the strip dark and waits for LEDTask to push it. Call before any
 // self-restart: WS2812B latches its last frame, so restarting while the OTA bar

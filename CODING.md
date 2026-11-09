@@ -12,6 +12,7 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 | Param registry (key/range/default/side-effect) | `params.cpp` (+ `params.h` for `ParamDesc` / `applyJsonParams`) |
 | New shared variable | `globals.h` only |
 | Fire physics / palette | `fire.cpp` only |
+| Lava-lamp effect | `lava.cpp` (+ `lava_math.h` for the math and its tests) |
 | Web UI layout / HTML | `ui/index.html` only |
 | Web UI styles / CSS  | `ui/css/<name>.css` only |
 | Web UI logic / JS    | `ui/js/<name>.js` only |

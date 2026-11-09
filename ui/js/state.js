@@ -4,6 +4,7 @@ function pc(n){ps(0,100,vc,sc,n);}
 function pco(n){ps(20,150,vco,sco,n);}
 function psp(n){ps(0,255,vsp,ssp,n);}
 function pbl(n){ps(0,255,vbl,sbl,n);}
+function pfx(n){n=n===1?1:0;for(var i=0;i<2;i++)document.getElementById('fx'+i).classList.toggle('act',i===n);document.body.classList.toggle('lava',n===1);}
 // per theme: ambient[r,g,b, r2,g2,b2], track[tc1..tc5], thumb[th2,th3,th4]
 var kAmb=[
   [255,120,20, 180,40,8,  '#2a0d04','#7a1f06','#d6510c','#ff8a1f','#ffe7b8', '#ffae45','#ff5e10','#7a1f00'],
@@ -29,6 +30,7 @@ function applyState(x){
   if(x.sp!==undefined&&ae!==ssp)psp(x.sp);
   if(x.bl!==undefined&&ae!==sbl)pbl(x.bl);
   if(x.th!==undefined)pth(x.th);
+  if(x.fx!==undefined)pfx(x.fx);
   if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);
   if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
 }

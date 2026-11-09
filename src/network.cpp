@@ -25,6 +25,7 @@ void loadSettings() {
     uiSparking = prefs.getUChar("sparking", SPARKING_DEFAULT);
     uiBlend    = prefs.getUChar("blend",    BLEND_DEFAULT);
     uiTheme    = prefs.getUChar("theme",    THEME_DEFAULT);
+    uiFx       = prefs.getUChar("fx",       FX_DEFAULT);
     // Sanity-clamp in case NVS held out-of-range bytes from a corrupt write
     // or a downgrade from a future firmware with wider parameter ranges.
     uiBright   = (uint8_t)constrain((int)uiBright,   BRIGHT_MIN,   BRIGHT_MAX);
@@ -33,6 +34,7 @@ void loadSettings() {
     uiSparking = (uint8_t)constrain((int)uiSparking, SPARKING_MIN, SPARKING_MAX);
     uiBlend    = (uint8_t)constrain((int)uiBlend,    BLEND_MIN,    BLEND_MAX);
     uiTheme    = (uint8_t)constrain((int)uiTheme,    0,            THEME_COUNT - 1);
+    uiFx       = (uint8_t)constrain((int)uiFx,       0,            FX_COUNT - 1);
     applyBrightness();
     buildHeatPalette();
     recalcCooling();

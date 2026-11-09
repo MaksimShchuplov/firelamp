@@ -79,7 +79,7 @@ document.getElementById('prfile').addEventListener('change',function(){
       // emoji surrogate pair, and encodeURIComponent throws URIError on lone
       // surrogates — which killed the whole import of a legitimately exported file.
       var u='/savepreset?slot='+pr.slot+'&name='+encodeURIComponent(Array.from(String(pr.name)).slice(0,15).join(''));
-      ['b','c','co','sp','bl','th'].forEach(function(k){if(typeof pr[k]==='number')u+='&'+k+'='+pr[k];});
+      ['b','c','co','sp','bl','th','fx'].forEach(function(k){if(typeof pr[k]==='number')u+='&'+k+'='+pr[k];});
       q=q.then(function(){return xf(u).catch(function(){});});
     });
     q.then(fetchPresets,fetchPresets);

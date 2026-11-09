@@ -7,6 +7,7 @@
 #include "../../src/config.h"
 #include "../../src/mqtt_state.h"
 #include "../../src/fire_math.h"
+#include "../../src/lava_math.h"
 
 // Define firmware identity before including ota_utils.h so the #ifndef guards
 // in that header are skipped and these values are used throughout the tests.
@@ -429,6 +430,101 @@ void test_mqtt_neither_b_nor_state() {
 //  Entry point
 // =============================================================================
 
+// =============================================================================
+//  Lava lamp (lava_math.h)
+// =============================================================================
+
+static float maxBrightness(Rgb8 c) { return (float)(c.r > c.g ? (c.r > c.b ? c.r : c.b) : (c.g > c.b ? c.g : c.b)); }
+
+void test_lava_dx_wraps_the_short_way_round() {
+    // Columns 0 and 19 are neighbours on the tube: one column apart, not 19.
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 1.0f * LAVA_ASPECT, lavaDx(0.0f, 19.0f));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, lavaDx(3.0f, 7.0f), lavaDx(7.0f, 3.0f));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, (COLUMNS / 2) * LAVA_ASPECT, lavaDx(0.0f, (float)(COLUMNS / 2)));
+}
+
+void test_lava_field_is_seamless_across_the_tube_join() {
+    // A blob sitting on the join must look the same on both sides of it.
+    const LavaBlob b[1] = {{19.5f, 20.0f, 3.0f}};
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, lavaField(b, 1, 0.0f, 20.0f, 0.0f), lavaField(b, 1, 19.0f, 20.0f, 0.0f));
+}
+
+void test_lava_blob_centre_is_wax_and_far_liquid_is_not() {
+    const LavaBlob b[1] = {{10.0f, 20.0f, LAVA_R_MIN}};
+    TEST_ASSERT_TRUE(lavaField(b, 1, 10.0f, 20.0f, 0.0f) > LAVA_EDGE_HI);
+    // Opposite side of the tube, mid-height: only a trace of field left.
+    TEST_ASSERT_TRUE(lavaField(b, 1, 0.0f, 35.0f, 0.0f) < LAVA_EDGE_LO);
+}
+
+void test_lava_two_nearby_blobs_merge() {
+    // Each alone leaves the midpoint as liquid; together they bridge it.
+    const float r = 2.6f;
+    const LavaBlob a[1] = {{8.0f, 20.0f, r}}, both[2] = {{8.0f, 20.0f, r}, {12.0f, 20.0f, r}};
+    TEST_ASSERT_TRUE(lavaField(a, 1, 10.0f, 20.0f, 0.0f) < LAVA_EDGE_HI);
+    TEST_ASSERT_TRUE(lavaField(both, 2, 10.0f, 20.0f, 0.0f) >= LAVA_EDGE_HI);
+}
+
+void test_lava_pool_covers_the_base_and_fades_above_it() {
+    for (float w = -0.7f; w <= 0.7f; w += 0.35f) {
+        TEST_ASSERT_TRUE(lavaField(nullptr, 0, 5.0f, 0.0f, w) > LAVA_EDGE_HI);   // base row is wax
+        TEST_ASSERT_TRUE(lavaField(nullptr, 0, 5.0f, 6.0f, w) < LAVA_EDGE_LO);   // clear liquid above
+    }
+}
+
+void test_lava_wobble_stays_within_the_pool_bound() {
+    // lavaField divides by (y + 1 + wobble); |wobble| <= 0.7 keeps it above 0.3.
+    for (int x = 0; x < COLUMNS; x++)
+        for (float t = 0.0f; t < 60.0f; t += 0.37f)
+            TEST_ASSERT_TRUE(fabsf(lavaWobble((float)x, t)) <= 0.7f);
+}
+
+void test_lava_step_keeps_blobs_on_the_tube() {
+    LavaMotion m = {19.9f, LAVA_DRIFT_MAX, 0.0f, LAVA_SPEED_MAX, LAVA_R_MAX, 0.0f};
+    for (int i = 0; i < 4000; i++) {
+        const LavaBlob b = lavaStep(m, 0.05f);
+        TEST_ASSERT_TRUE(b.x >= 0.0f && b.x < (float)COLUMNS);
+        TEST_ASSERT_TRUE(b.y >= -1e-3f && b.y <= (float)(ROWS - 1) + 1e-3f);
+        TEST_ASSERT_TRUE(b.r <= LAVA_R_MAX * (1.0f + LAVA_BREATHE_DEPTH) + 1e-3f);
+    }
+}
+
+void test_lava_wax_is_never_dark_in_any_theme() {
+    // The tones come from heatRamp() off its 0x40 seams: a seam hit would give
+    // black wax. Solid wax must be clearly brighter than the liquid behind it.
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        const LavaPal p = lavaPalette(th);
+        for (float f = LAVA_EDGE_HI; f < 50.0f; f *= 1.5f) {
+            const Rgb8 wax = lavaColor(p, f, 0.5f);
+            TEST_ASSERT_TRUE(maxBrightness(wax) >= 64.0f);   // shaded rim of the deepest theme (Ember) is ~100
+            TEST_ASSERT_TRUE(maxBrightness(wax) > 3.0f * maxBrightness(lavaColor(p, 0.0f, 0.5f)));
+        }
+    }
+}
+
+void test_lava_liquid_is_dim_and_lit_from_below() {
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        const LavaPal p = lavaPalette(th);
+        const Rgb8 low = lavaColor(p, 0.0f, 0.0f), high = lavaColor(p, 0.0f, 1.0f);
+        TEST_ASSERT_TRUE(maxBrightness(low) <= LAVA_BG_LEVEL);
+        TEST_ASSERT_TRUE(maxBrightness(high) <= maxBrightness(low));
+    }
+}
+
+void test_lava_colour_brightens_monotonically_into_a_blob() {
+    // Edge, body and core tints each blend towards a brighter tone, so walking
+    // from liquid into a blob centre never gets darker.
+    for (uint8_t th = 0; th < THEME_COUNT; th++) {
+        const LavaPal p = lavaPalette(th);
+        float prev = -1.0f;
+        for (float f = 0.0f; f < 10.0f; f += 0.05f) {
+            const Rgb8 c = lavaColor(p, f, 0.3f);
+            const float sum = (float)c.r + c.g + c.b;
+            TEST_ASSERT_TRUE(sum + 1.5f >= prev);   // allow uint8 rounding
+            prev = sum;
+        }
+    }
+}
+
 int main() {
     UNITY_BEGIN();
 
@@ -501,5 +597,15 @@ int main() {
     RUN_TEST(test_mqtt_b_and_on_skips_on_restore);
     RUN_TEST(test_mqtt_neither_b_nor_state);
 
+    RUN_TEST(test_lava_dx_wraps_the_short_way_round);
+    RUN_TEST(test_lava_field_is_seamless_across_the_tube_join);
+    RUN_TEST(test_lava_blob_centre_is_wax_and_far_liquid_is_not);
+    RUN_TEST(test_lava_two_nearby_blobs_merge);
+    RUN_TEST(test_lava_pool_covers_the_base_and_fades_above_it);
+    RUN_TEST(test_lava_wobble_stays_within_the_pool_bound);
+    RUN_TEST(test_lava_step_keeps_blobs_on_the_tube);
+    RUN_TEST(test_lava_wax_is_never_dark_in_any_theme);
+    RUN_TEST(test_lava_liquid_is_dim_and_lit_from_below);
+    RUN_TEST(test_lava_colour_brightens_monotonically_into_a_blob);
     return UNITY_END();
 }

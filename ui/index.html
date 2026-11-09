@@ -34,6 +34,7 @@
 <div class=mt id=mt8>Power</div><div class=md id=md8></div>
 <div class=mt id=mt9>Blend</div><div class=md id=md9></div>
 <div class=mt id=mt10>Theme</div><div class=md id=md10></div>
+<div class=mt id=mt14>Effect</div><div class=md id=md14></div>
 <div class=mt id=mt11>Presets</div><div class=md id=md11></div>
 <div class=mt id=mt13>MQTT Server (Smart Home)</div><div class=md id=md13></div>
 <input class=txtin id=mqip type=text placeholder="Broker IP (e.g. 192.168.1.10)" autocomplete=off spellcheck=false>
@@ -50,6 +51,9 @@
 <p class=label id=lb>Brightness</p><div class=val id=vb>--</div>
 <input class=bar id=sb type=range min=0 max=100 value=100 aria-labelledby=lb>
 <div class=desc id=db>Full brightness</div>
+<p class=label id=lfx>Effect</p>
+<div class=themes><button class="tbtn fxbtn act" id=fx0 data-fx=0>Flames</button><button class="tbtn fxbtn" id=fx1 data-fx=1>Lava lamp</button></div>
+<div id=fireopts>
 <p class=label id=lc>Contrast</p><div class=val id=vc>--</div>
 <input class=bar id=sc type=range min=0 max=100 value=50 aria-labelledby=lc>
 <div class=desc id=dc>Warm balanced</div>
@@ -62,6 +66,7 @@
 <p class=label id=lbl>Blend</p><div class=val id=vbl>--</div>
 <input class=bar id=sbl type=range min=0 max=255 value=50 aria-labelledby=lbl>
 <div class=desc id=dbl>Natural fire</div>
+</div>
 <p class=label id=lth>Theme</p>
 <div class=themes><button class="tbtn act" id=tb0 data-t=0>Fire</button><button class=tbtn id=tb1 data-t=1>Ember</button><button class=tbtn id=tb2 data-t=2>Plasma</button><button class=tbtn id=tb3 data-t=3>Ice</button></div>
 <p class=label id=lpr>Presets</p>
