@@ -210,8 +210,10 @@ static void handleLog() {
     portEXIT_CRITICAL(&logMux);
 
     server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    server.send(200, "text/html", "");
-    server.sendContent(F("<!doctype html><meta name='viewport' content='width=device-width'>"
+    // Log lines carry UTF-8 (e.g. "—"); without a declared charset Safari
+    // renders them as Windows-1251 mojibake.
+    server.send(200, "text/html; charset=utf-8", "");
+    server.sendContent(F("<!doctype html><meta charset=utf-8><meta name='viewport' content='width=device-width'>"
                    "<style>body{background:#111;color:#ccc;font:13px monospace;padding:8px}"
                    "pre{white-space:pre-wrap;word-break:break-all}</style><pre>"));
                    
