@@ -170,18 +170,6 @@ describe('name box prefill', () => {
     assert.equal(ui.el('prename').value, 'Cozy');
   });
 
-  test('the AI effect name is offered until a slider changes the look', async () => {
-    const ui = await boot();
-    ui.el('surprise').click();
-    await ui.flush();
-    await ui.respond(ui.last('/surprise'), Object.assign(ui.state(), { name: 'Aurora' }));
-    await tapSlot(ui, 1);
-    assert.equal(ui.el('prename').value, 'Aurora', 'AI name offered right after Surprise Me');
-    ui.el('precancel').click();
-    await moveSlider(ui, 'sb', 30);
-    await tapSlot(ui, 2);
-    assert.equal(ui.el('prename').value, 'Preset 3', 'stale AI name no longer offered');
-  });
 });
 
 // ===========================================================================

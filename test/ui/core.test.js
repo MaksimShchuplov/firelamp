@@ -242,7 +242,7 @@ describe('OTA (ota.js)', () => {
     const ui = await boot();
     await startedOTA(ui);
     for (let i = 0; i < 5; i++) await rebootProbe(ui, { uptime_s: 900, version: 'aaa' });
-    for (const id of ['sb', 'sc', 'surprise', 'rst']) assert.equal(ui.el(id).disabled, false, id);
+    for (const id of ['sb', 'sc', 'rst']) assert.equal(ui.el(id).disabled, false, id);
     const polls = ui.callsTo('/state').length;
     await ui.advance(5000);
     assert.equal(ui.callsTo('/state').length, polls + 1);
@@ -270,57 +270,6 @@ describe('OTA (ota.js)', () => {
 });
 
 // ===========================================================================
-describe('Surprise Me (ai.js)', () => {
-  test('polling is paused while the request is in flight', async () => {
-    const ui = await boot();
-    ui.el('surprise').click();
-    const polls = ui.callsTo('/state').length;
-    await ui.advance(20000);
-    assert.equal(ui.callsTo('/state').length, polls);
-  });
-
-  test('success applies the effect and resumes polling', async () => {
-    const ui = await boot();
-    ui.el('surprise').click();
-    await ui.respond(ui.last('/surprise'), Object.assign(ui.state({ b: 61, th: 1 }), { name: 'Ember' }));
-    assert.equal(val(ui, 'sb'), '61');
-    assert.match(ui.el('ainame').textContent, /^Ember/);
-    assert.equal(ui.el('surprise').disabled, false);
-    const polls = ui.callsTo('/state').length;
-    await ui.advance(5000);
-    assert.equal(ui.callsTo('/state').length, polls + 1);
-  });
-
-  test('an error resumes polling and re-enables the button', async () => {
-    const ui = await boot();
-    ui.el('surprise').click();
-    await ui.respond(ui.last('/surprise'), { error: 'http_error' }, 502);
-    assert.equal(ui.el('surprise').disabled, false);
-    assert.match(ui.el('ainame').textContent, /Gemini server error/);
-    const polls = ui.callsTo('/state').length;
-    await ui.advance(5000);
-    assert.equal(ui.callsTo('/state').length, polls + 1);
-  });
-
-  test('a Surprise finishing after OTA started neither resumes polling nor re-enables itself', async () => {
-    const ui = await boot();
-    ui.el('surprise').click();
-    const req = ui.last('/surprise');
-    await checkAndInstall(ui, 'aaa', 'bbb');
-    await ui.respond(req, Object.assign(ui.state(), { name: 'Late' }));
-    assert.equal(ui.el('surprise').disabled, true);
-    const polls = ui.callsTo('/state').length;
-    await ui.advance(20000);
-    assert.equal(ui.callsTo('/state').length, polls, 'OTA owns the poll pause');
-  });
-
-  test('the effect name is truncated to 15 codepoints, not UTF-16 units', async () => {
-    const ui = await boot();
-    ui.el('surprise').click();
-    await ui.respond(ui.last('/surprise'), Object.assign(ui.state(), { name: '🔥'.repeat(20) }));
-    assert.equal(Array.from(ui.ctx.lastAiName).length, 15);
-  });
-});
 
 // ===========================================================================
 

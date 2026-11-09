@@ -6,6 +6,16 @@
 #include "mqtt.h"
 
 void loadSettings() {
+    // The Gemini integration was removed; erase the API key it left in NVS so
+    // the secret does not linger in flash. A read-only begin() fails (with a
+    // harmless log line) when the namespace no longer exists.
+    {
+        Preferences g;
+        if (g.begin("gemini", true)) {
+            g.end();
+            if (g.begin("gemini", false)) { g.clear(); g.end(); }
+        }
+    }
     prefs.begin("lamp", false);
     // "bright2": key renamed from "bright" after gamma curve change to force
     // NVS re-read on existing devices; keep as-is to preserve field settings.
@@ -91,7 +101,6 @@ void startNetwork() {
     registerBasicHandlers();
     registerPresetHandlers();
     registerOtaHandlers();
-    registerGeminiHandlers();
     registerMqttHandlers();
     registerFlashHandlers();
     registerPwaHandlers();

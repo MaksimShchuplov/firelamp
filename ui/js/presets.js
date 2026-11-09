@@ -1,12 +1,12 @@
 var presets=[{},{},{},{},{},{},{},{}],activePreset=-1;
 function updPresetBtns(){presets.forEach(function(pr,i){var b=document.getElementById('pr'+i);if(pr.name){b.textContent=pr.name;b.classList.add('filled');}else{b.textContent='+';b.classList.remove('filled');}b.classList.toggle('act',i===activePreset);});}
-function clearActive(){activePreset=-1;lastAiName='';document.getElementById('ainame').textContent='';updPresetBtns();}
+function clearActive(){activePreset=-1;updPresetBtns();}
 function fetchPresets(){fetch('/getpresets').then(r=>r.json()).then(function(d){presets=d;updPresetBtns();}).catch(function(){});}
 function deletePreset(s){xf('/deletepreset?slot='+s).then(function(){if(activePreset===s)activePreset=-1;fetchPresets();}).catch(function(){});}
 function saveSlot(s){
   pendingSlot=s;
   var inp=document.getElementById('prename');
-  inp.value=presets[s]&&presets[s].name?presets[s].name:lastAiName||(ru?'Пресет ':'Preset ')+(s+1);
+  inp.value=presets[s]&&presets[s].name?presets[s].name:(ru?'Пресет ':'Preset ')+(s+1);
   inp.placeholder=ru?'Название...':'Name...';
   document.getElementById('prein').classList.add('show');
   setTimeout(function(){inp.focus();inp.select();},200);

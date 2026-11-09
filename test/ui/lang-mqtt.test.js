@@ -25,13 +25,6 @@ async function bootWith(opts, over) {
   return ui;
 }
 
-/** Open the help modal and answer its /geminikey probe. */
-async function openHelp(ui, keySet) {
-  ui.el('ibtn').click();
-  await ui.flush();
-  await ui.respond(ui.last('/geminikey'), { set: keySet });
-}
-
 function fillMqtt(ui, f) {
   ui.el('mqip').value = f.ip;
   ui.el('mqpt').value = f.pt;
@@ -57,52 +50,6 @@ describe('help modal (lang.js)', () => {
     assert.equal(modalOpen(ui), false, 'Escape closes the modal');
   });
 
-  test('a stored Gemini key shows as "Key saved ✓" in green and stays so across a language switch', async () => {
-    const ui = await boot();
-    await openHelp(ui, true);
-    assert.equal(ui.callsTo('/geminikey').length, 1, 'opening help asks the lamp for key status');
-    assert.equal(text(ui, 'aikeystatus'), 'Key saved ✓');
-    assert.equal(ui.el('aikeystatus').style.color, GREEN);
-    ui.el('lru').click();
-    assert.equal(text(ui, 'aikeystatus'), 'Ключ сохранён ✓');
-    ui.el('len').click();
-    assert.equal(text(ui, 'aikeystatus'), 'Key saved ✓');
-  });
-
-  test('a missing Gemini key shows as "No key set" in red and is translated on a language switch', async () => {
-    const ui = await boot();
-    await openHelp(ui, false);
-    assert.equal(text(ui, 'aikeystatus'), 'No key set');
-    assert.equal(ui.el('aikeystatus').style.color, RED);
-    ui.el('lru').click();
-    assert.equal(text(ui, 'aikeystatus'), 'Ключ не задан');
-  });
-
-  test('a network failure saving the key keeps its specific message across language switches', async () => {
-    const ui = await boot();
-    ui.el('aikey').value = 'AIzaXYZ';
-    ui.el('aiksave').click();
-    await ui.flush();
-    await ui.fail(ui.last('/setgeminikey'));
-    assert.equal(text(ui, 'aikeystatus'), 'Network error');
-    ui.el('lru').click();
-    assert.equal(text(ui, 'aikeystatus'), 'Ошибка сети');
-    ui.el('len').click();
-    assert.equal(text(ui, 'aikeystatus'), 'Network error', 'must not degrade to a generic "Error"');
-  });
-
-  test('a rejected key save keeps its specific message across language switches', async () => {
-    const ui = await boot();
-    ui.el('aikey').value = 'AIzaXYZ';
-    ui.el('aiksave').click();
-    await ui.flush();
-    await ui.respond(ui.last('/setgeminikey'), { error: 'invalid_key' }, 400);
-    assert.equal(text(ui, 'aikeystatus'), 'Save failed');
-    ui.el('lru').click();
-    assert.equal(text(ui, 'aikeystatus'), 'Ошибка сохранения');
-    ui.el('len').click();
-    assert.equal(text(ui, 'aikeystatus'), 'Save failed');
-  });
 });
 
 // ===========================================================================
@@ -174,17 +121,6 @@ describe('language switch (lang.js)', () => {
     assert.equal(text(ui, 'offb'), '');
     ui.el('lru').click();
     assert.equal(text(ui, 'offb'), '');
-  });
-
-  test('switching language while Surprise Me is thinking keeps a busy label, in the new language next tick', async () => {
-    const ui = await boot();
-    ui.el('surprise').click();
-    await ui.flush();
-    assert.equal(text(ui, 'surprise'), '✨ Thinking 0s…');
-    ui.el('lru').click();
-    assert.notEqual(text(ui, 'surprise'), '✨ Удиви меня', 'must not reset to the idle label');
-    await ui.advance(1000);
-    assert.equal(text(ui, 'surprise'), '✨ Думаю 1s…');
   });
 
   test('switching language re-translates the slider value descriptions', async () => {

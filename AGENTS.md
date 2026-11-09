@@ -23,7 +23,6 @@ pio device monitor --baud 115200        # serial output
 | Web UI (HTML/CSS/JS) | `ui/index.html`, `ui/css/*.css`, `ui/js/*.js` — edit sources, not generated `src/page.h` |
 | WiFi startup / mDNS | `src/network.cpp` |
 | OTA / version check | `src/ota.cpp` |
-| AI Surprise Me effect | `src/gemini.cpp` |
 | Preset CRUD | `src/presets.cpp` |
 | Shared HTTP utilities | `src/net_helpers.h` |
 
@@ -37,7 +36,6 @@ Each module owns its routes; `network.cpp` only wires them together.
 handlers.cpp  →  registerBasicHandlers()   setb/c/co/sp/bl/theme, reset, info, debug, resetwifi, root
 presets.cpp   →  registerPresetHandlers()  getpresets, savepreset, loadpreset, deletepreset
 ota.cpp       →  registerOtaHandlers()     checkupdate, update; + startAutoUpdateTask()
-gemini.cpp    →  registerGeminiHandlers()  surprise, setgeminikey, geminikey
 network.cpp   →  startNetwork() / serviceNetwork() — no handlers, only wiring
 ```
 
@@ -78,7 +76,7 @@ static void handleXxx() {
 }
 ```
 
-CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/getpresets`, `/geminikey`, `/getmqtt`, `/sw.js`, `/manifest.json`.
+CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/getpresets`, `/getmqtt`, `/sw.js`, `/manifest.json`.
 `/debug` keeps the guard — it exposes SSID, heap stats, and all tuning params.
 
 ## Code style
@@ -93,7 +91,7 @@ CSRF exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/
 `COLUMNS 20` · `ROWS 40` · `NUM_LEDS 800` · `PRESET_COUNT 8` · `THEME_COUNT 4`
 `BRIGHT_DEFAULT 100` · `CONTRAST_DEFAULT 50` · `COOLING_DEFAULT 46` · `SPARKING_DEFAULT 26`
 `BLEND_DEFAULT 50` · `THEME_DEFAULT 0` (0=Fire 1=Ember 2=Plasma 3=Ice)
-`NVS_COMMIT_DELAY_MS 2500` · `GEMINI_TIMEOUT_MS 25000` · `UPDCHK_STACK_BYTES 12288`
+`NVS_COMMIT_DELAY_MS 2500` · `UPDCHK_STACK_BYTES 12288`
 
 ## HTTP API
 
@@ -117,6 +115,3 @@ All state-mutating endpoints require `X-Requested-With: firelamp` header (CSRF).
 | `GET /loadpreset` | `slot=0..7` | load preset |
 | `GET /deletepreset` | `slot=0..7` | clear slot |
 | `GET /resetwifi` | — | clear credentials + reboot |
-| `POST /setgeminikey` | body: `key=<str>` | save Gemini key to NVS |
-| `GET /geminikey` | — | `{"set":true/false}` |
-| `GET /surprise` | — | Synchronous Gemini call (blocks ≤25 s, ~2 s with thinking off); HTTP 200 with full state + `"name"` |

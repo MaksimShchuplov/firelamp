@@ -6,7 +6,7 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 
 | Task | Read |
 |------|------|
-| New HTTP endpoint | The module that owns it (handlers/presets/ota/gemini/mqtt/flash/pwa) |
+| New HTTP endpoint | The module that owns it (handlers/presets/ota/mqtt/flash/pwa) |
 | New constant / limit | `config.h` only |
 | Slider param range | `config.h` only (`*_MIN`/`*_MAX`) — single source for HTTP, MQTT, NVS clamp |
 | Param registry (key/range/default/side-effect) | `params.cpp` (+ `params.h` for `ParamDesc` / `applyJsonParams`) |
@@ -17,7 +17,6 @@ These rules exist so AI-assisted edits stay scoped: touch one file, load one fil
 | Web UI logic / JS    | `ui/js/<name>.js` only |
 | Startup / WiFi / mDNS | `network.cpp` only |
 | OTA / version check | `ota.cpp` only |
-| AI Surprise Me | `gemini.cpp` only |
 | Preset CRUD | `presets.cpp` only |
 | MQTT broker / config | `mqtt.cpp` + `ui/js/mqtt.js` |
 | Manual flash recovery (`/flash`) | `flash.cpp` only |
@@ -33,12 +32,11 @@ Never read all files. Never read UI files for C++ changes. `src/page.h` is gener
 handlers.cpp  →  registerBasicHandlers()   — root, state, setb/c/co/sp/bl/theme, reset, info, debug, log, resetwifi
 presets.cpp   →  registerPresetHandlers()  — getpresets, savepreset, loadpreset, deletepreset
 ota.cpp       →  registerOtaHandlers()     — checkupdate, update; plus startAutoUpdateTask()
-gemini.cpp    →  registerGeminiHandlers()  — surprise, setgeminikey, geminikey
 mqtt.cpp      →  registerMqttHandlers()    — setmqtt, getmqtt; plus initMqtt(), serviceMqtt()
 flash.cpp     →  registerFlashHandlers()   — /flash (GET form + POST upload)
 pwa.cpp       →  registerPwaHandlers()     — manifest.json, sw.js
 network.cpp   →  startNetwork() / serviceNetwork() — no handlers, just wiring
-params.cpp    →  PARAMS[] registry         — one row per UI param: key, atomic, default, range, side-effect; drives presets + MQTT/Gemini JSON apply
+params.cpp    →  PARAMS[] registry         — one row per UI param: key, atomic, default, range, side-effect; drives presets + MQTT JSON apply
 ```
 
 To add a new endpoint: add handler + `server.on()` inside the relevant `registerXxx()`.
@@ -84,7 +82,7 @@ static void handleXxx() {
 }
 ```
 
-CSRF guard exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/getpresets`, `/geminikey`, `/getmqtt`, `/sw.js`, `/manifest.json`.
+CSRF guard exceptions (read-only, no outbound requests): `/state`, `/info`, `/log`, `/getpresets`, `/getmqtt`, `/sw.js`, `/manifest.json`.
 `/debug` is NOT an exception — it exposes SSID, heap details, and all tuning params, so it keeps the guard.
 
 ## Code style
@@ -103,7 +101,7 @@ Checklist (in order):
 1. `config.h` — add `FOO_DEFAULT`, range limits as `#define`
 2. `globals.h` — add `extern std::atomic<uint8_t> uiFoo;`
 3. `main.cpp` — add definition `std::atomic<uint8_t> uiFoo{FOO_DEFAULT};`
-4. `params.cpp` — add `PARAMS[]` row `{"fo", &uiFoo, FOO_DEFAULT, FOO_MIN, FOO_MAX, sideEffectOrNullptr, true}` — this alone makes presets, MQTT `firelamp/set`, and Gemini pick it up
+4. `params.cpp` — add `PARAMS[]` row `{"fo", &uiFoo, FOO_DEFAULT, FOO_MIN, FOO_MAX, sideEffectOrNullptr, true}` — this alone makes presets and MQTT `firelamp/set` pick it up
 5. `handlers.cpp` — add `handleSetFoo()` + wire in `registerBasicHandlers()`
 6. `handlers.cpp:flushPrefs()` — add `prefs.putUChar("foo", uiFoo)`
 7. `network.cpp:loadSettings()` — load + clamp from NVS

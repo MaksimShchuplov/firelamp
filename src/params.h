@@ -9,7 +9,7 @@
 //  PARAMETER REGISTRY — single source of truth for every UI parameter
 // =============================================================================
 // Each parameter used to be described by its range in config.h, clamped
-// independently in handlers.cpp / mqtt.cpp / gemini.cpp / presets.cpp, and
+// independently in handlers.cpp / mqtt.cpp / presets.cpp, and
 // listed across five parallel arrays in presets.cpp. The registry collapses all
 // of that into one table: NVS/JSON/MQTT key, live atomic, default, range, and
 // the side-effect to run when the value changes.

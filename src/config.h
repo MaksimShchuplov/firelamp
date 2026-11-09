@@ -63,13 +63,6 @@
 #define WIFI_PORTAL_TIMEOUT_S   120     // portal auto-closes; fire still runs
 #define WIFI_RETRY_MS           15000
 #define HTTP_TIMEOUT_MS         15000   // per-request timeout for the release lookup and version.json (firmware stream: OTA_DOWNLOAD_TIMEOUT_MS); the fallback URLs' redirect alone took ~11 s in Nov 2026
-#define GEMINI_TIMEOUT_MS          25000  // Gemini API response timeout (ESP-side call)
-// Google retires Gemini models; a retired one answers 404, reported to the UI as
-// "model_unavailable" so the message points at a firmware update, not a server fault.
-#define GEMINI_MODEL_URL "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-// Floor for the brightness Surprise Me may pick: the model sometimes chooses
-// b=0..10, which reads as the lamp switching itself off.
-#define SURPRISE_BRIGHT_MIN     30
 #define MDNS_NAME               "firelamp"   // → http://firelamp.local
 #define NVS_COMMIT_DELAY_MS     2500    // defer NVS writes to spare flash endurance
 #define NVS_WRITE_MAX_RETRIES   5       // consecutive flush failures before giving up until next change

@@ -56,10 +56,11 @@ void initMqtt() {
         // 15 s). The TCP connect itself is bounded separately in serviceMqtt()
         // via the explicit-timeout WiFiClient::connect overload.
         mqttClient.setSocketTimeout(5);
-        // /surprise blocks Core 1 — and therefore mqttClient.loop(), the only
-        // PINGREQ source — for up to GEMINI_TIMEOUT_MS. PubSubClient's 15 s
-        // default would let the broker drop the session at 1.5x = 22.5 s and
-        // discard any firelamp/set command still in the socket buffer.
+        // A slow update check (fallback URLs: up to HTTP_TIMEOUT_MS per hop)
+        // blocks Core 1 — and therefore mqttClient.loop(), the only PINGREQ
+        // source. PubSubClient's 15 s default would let the broker drop the
+        // session at 1.5x = 22.5 s and discard any firelamp/set command still
+        // in the socket buffer.
         mqttClient.setKeepAlive(60);
         mqttClient.setServer(mqIp.c_str(), mqPt);
         mqttClient.setCallback([](char* topic, byte* payload, unsigned int length) {

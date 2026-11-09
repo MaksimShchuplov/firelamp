@@ -98,14 +98,6 @@ a seconds-wide window. The complete fix is to download from the immutable
 emitting the tag in `version.json` and building the firmware URL from it — a
 change to the OTA URL contract.
 
-### `/surprise` blocks Core 1 for up to 25 s
-**Trigger: something other than MQTT keepalive is actually harmed by it.**
-
-`setKeepAlive(60)` removed the broker disconnect, which was the only
-demonstrated consequence. Making the handler asynchronous (202 + result
-cached for the next poll) is a real change to the endpoint contract and the
-UI, for a problem that currently manifests as nothing.
-
 ### Extend `fire_math.h` to convection and cooling
 **Trigger: someone is editing those formulas anyway.**
 
@@ -139,11 +131,11 @@ immediate `/state` fetch (the blob becomes static) and an ETag, so it is a
 page-load contract change.
 
 ### Host-side tests for the C++ glue
-**Trigger: the next regression in `params.cpp`, `presets.cpp` or `gemini.cpp`.**
+**Trigger: the next regression in `params.cpp` or `presets.cpp`.**
 
 The UI half is done (`test/test/ui/*.test.js`, mutation-checked). On the C++
 side `applyJsonParams()` needs an ArduinoJson shim to run natively, and
-`presets.cpp` key construction / `gemini.cpp` response parsing are untested.
+`presets.cpp` key construction is untested.
 
 ### Keyboard access to preset long-press actions
 Save-to-filled-slot and delete are pointer-only. A keyboard route needs a new
@@ -164,14 +156,13 @@ corrected by calculation alone.
 ### TLS certificate validation without a clock
 `WiFiClientSecure` is given the CA bundle but the firmware never calls
 `configTime()`, so at the first handshake the system clock reads 1970. mbedTLS
-should then reject every certificate as not-yet-valid — yet OTA and Gemini
-demonstrably work in the field. Either the Arduino core relaxes the time check
+should then reject every certificate as not-yet-valid — yet OTA demonstrably works in the field. Either the Arduino core relaxes the time check
 or something else sets the clock; find out which before relying on it, and
 consider an explicit NTP sync before the first TLS use.
 
 ### LAN threat model
 No endpoint is authenticated: anyone on the LAN can reach `/resetwifi`,
-`/setmqtt`, `/setgeminikey`, `/update` and `/flash`. The CSRF header stops
+`/setmqtt`, `/update` and `/flash`. The CSRF header stops
 cross-origin browser attacks only. This is the accepted design for a home lamp
 on a trusted network; recorded so it is a decision, not an oversight.
 

@@ -14,7 +14,6 @@ CSS_FILES = [
     "css/themes.css",
     "css/presets.css",
     "css/sheet.css",
-    "css/ai.css",
 ]
 
 JS_FILES = [
@@ -25,7 +24,6 @@ JS_FILES = [
     "js/sliders.js",
     "js/presets.js",
     "js/ota.js",
-    "js/ai.js",
     "js/mqtt.js",
     "js/poll.js",
 ]

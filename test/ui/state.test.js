@@ -8,7 +8,7 @@
  */
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { boot, val, offline, moveSlider, stallPoll } = require('../ui_helpers.js');
+const { boot, val, offline, moveSlider, stallPoll, checkAndInstall, startedOTA, rebootProbe } = require('../ui_helpers.js');
 
 const bodyOff = ui => ui.ctx.document.body.classList.contains('off');
 const rootVar = (ui, name) => ui.ctx.document.documentElement.style[name];
@@ -30,33 +30,37 @@ async function twoFailures(ui) {
 }
 
 // ===========================================================================
+
+// ===========================================================================
+// OTA is the pause path's caller: installing an update pauses polling until the
+// lamp is back or the update fails.
 describe('pausing the poll (state.js)', () => {
-  test('a poll in flight when Surprise Me starts does not count as a failure when it times out', async () => {
+  test('a poll in flight when an update starts does not count as a failure when it times out', async () => {
     const ui = await boot();
     await twoFailures(ui);
     await ui.advance(1000);                               // third poll is now in flight
     const inflight = ui.last('/state');
     assert.equal(inflight.settled, false, 'precondition: a poll is in flight');
-    ui.el('surprise').click();
-    await ui.advance(5000);                               // in-flight poll aborts during Surprise
+    await checkAndInstall(ui, 'aaa', 'bbb');
+    await ui.advance(5000);                               // in-flight poll aborts while paused
     assert.equal(inflight.aborted, true, 'precondition: the poll timed out');
     assert.equal(offline(ui), false, 'a superseded poll must not raise "Lamp not responding"');
   });
 
-  test('a poll in flight when Surprise Me starts is not applied when it answers', async () => {
+  test('a poll in flight when an update starts is not applied when it answers', async () => {
     const ui = await boot();
     await ui.advance(5000);
     const inflight = ui.last('/state');
-    ui.el('surprise').click();
+    await checkAndInstall(ui, 'aaa', 'bbb');
     await ui.respond(inflight, ui.state({ b: 7, c: 90 }));
     assert.equal(val(ui, 'sb'), '100');
     assert.equal(val(ui, 'sc'), '50');
   });
 
-  test('after Surprise Me finishes, returning to the tab refreshes immediately', async () => {
+  test('after a failed update resumes polling, returning to the tab refreshes immediately', async () => {
     const ui = await boot();
-    ui.el('surprise').click();
-    await ui.respond(ui.last('/surprise'), Object.assign(ui.state({ b: 61 }), { name: 'Ember' }));
+    await startedOTA(ui);
+    for (let i = 0; i < 5; i++) await rebootProbe(ui, { uptime_s: 900, version: 'aaa' });
     await ui.setHidden(true);
     const polls = ui.callsTo('/state').length;
     await ui.setHidden(false);

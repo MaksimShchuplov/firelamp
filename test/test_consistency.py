@@ -183,9 +183,8 @@ def test_mqtt_discovery_onoff_matches_callback():
 
 def test_preset_name_len_mirrors_config():
     n = _define("PRESET_NAME_MAX_LEN")
-    _AI = (_ROOT / "ui" / "js" / "ai.js").read_text(encoding="utf-8")
     _TESTUI = (_ROOT / "test" / "test_ui.js").read_text(encoding="utf-8")
-    for label, src in (("presets.js", _PRESETS), ("ai.js", _AI), ("test_ui.js", _TESTUI)):
+    for label, src in (("presets.js", _PRESETS), ("test_ui.js", _TESTUI)):
         m = re.search(r"Array\.from\(.*?\)\.slice\(0,\s*(\d+)\)", src)
         assert m, "%s: no codepoint clamp found" % label
         assert int(m.group(1)) == n, "%s: clamp %s != PRESET_NAME_MAX_LEN %d" % (label, m.group(1), n)

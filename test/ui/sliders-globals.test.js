@@ -18,13 +18,6 @@ async function withActivePreset() {
   return ui;
 }
 
-/** Run a Surprise Me so an AI effect name is on screen. */
-async function withAiName(ui) {
-  ui.el('surprise').click();
-  await ui.respond(ui.last('/surprise'), Object.assign(ui.state(), { name: 'Aurora' }));
-  assert.match(ui.el('ainame').textContent, /^Aurora/, 'precondition: AI name shown');
-}
-
 /** Collect unhandled promise rejections raised while `fn` runs. */
 async function unhandledDuring(fn) {
   const seen = [];
@@ -157,18 +150,11 @@ describe('theme buttons', () => {
 });
 
 // ===========================================================================
-describe('changing the look clears the active preset and AI effect name', () => {
+describe('changing the look clears the active preset', () => {
   test('moving Blend un-highlights the loaded preset', async () => {
     const ui = await withActivePreset();
     await moveSlider(ui, 'sbl', 120);
     assert.equal(ui.el('pr0').classList.contains('act'), false);
-  });
-
-  test('moving Blend clears the AI effect name', async () => {
-    const ui = await boot();
-    await withAiName(ui);
-    await moveSlider(ui, 'sbl', 120);
-    assert.equal(ui.el('ainame').textContent, '');
   });
 
   test('moving any slider un-highlights the loaded preset', async () => {
@@ -179,21 +165,12 @@ describe('changing the look clears the active preset and AI effect name', () => 
     }
   });
 
-  // Preset and AI-name halves are separate tests: a Surprise Me itself clears the
-  // active preset, so combining them would make the preset assertion vacuous.
   test('a theme tap un-highlights the loaded preset', async () => {
     const ui = await withActivePreset();
     ui.el('tb2').click();
     assert.equal(ui.el('pr0').classList.contains('act'), false);
     await ui.respond(ui.last('/settheme'), ui.state({ th: 2 }));
     assert.equal(ui.el('pr0').classList.contains('act'), false, 'still cleared after the response');
-  });
-
-  test('a theme tap clears the AI effect name', async () => {
-    const ui = await boot();
-    await withAiName(ui);
-    ui.el('tb2').click();
-    assert.equal(ui.el('ainame').textContent, '');
   });
 
   test('Reset un-highlights the loaded preset', async () => {
@@ -204,12 +181,6 @@ describe('changing the look clears the active preset and AI effect name', () => 
     assert.equal(ui.el('pr0').classList.contains('act'), false, 'still cleared after the response');
   });
 
-  test('Reset clears the AI effect name', async () => {
-    const ui = await boot();
-    await withAiName(ui);
-    ui.el('rst').click();
-    assert.equal(ui.el('ainame').textContent, '');
-  });
 });
 
 // ===========================================================================

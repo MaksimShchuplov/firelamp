@@ -32,8 +32,8 @@ function applyState(x){
   if(x.w!=null)document.getElementById('vw').textContent=x.w.toFixed(1);
   if(x.upd&&!document.getElementById('chk').disabled){var vi=document.getElementById('vinfo');if(!vi.textContent){vi.style.color='#fbbf24';vi.textContent=ru?'● Доступно обновление':'● Update available';}}
 }
-// The one pause/resume path for polling. OTA and Surprise Me both block the
-// lamp for tens of seconds; a poll in that window would fail 3x and raise a
+// The one pause/resume path for polling. OTA blocks the lamp for tens of
+// seconds; a poll in that window would fail 3x and raise a
 // false offline banner. pullSeq++ in pausePoll() also discards any poll
 // already in flight. pollTid is assigned ONLY here, so the interval exists
 // exactly while polling is not paused — its callback needs no pause check.
@@ -49,7 +49,7 @@ function resumePoll(){clearInterval(pollTid);pollPaused=false;pollTid=setInterva
 // (lastIn changed) or within the last second (a poll sent inside the 120 ms
 // debounce): applying it would rewrite the value under the user's finger, and
 // activeElement is no guard — WebKit does not focus range inputs. Gated here,
-// not in applyState: /loadpreset, /surprise, /reset and /settheme apply their
+// not in applyState: /loadpreset, /reset and /settheme apply their
 // own responses and must never be suppressed. A discarded response still
 // counts as the lamp answering, so the offline banner logic runs first.
 function pull(){var seq=++pullSeq,li=lastIn,ac=new AbortController(),to=setTimeout(function(){ac.abort();},4000);

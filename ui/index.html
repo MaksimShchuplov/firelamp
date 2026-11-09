@@ -16,7 +16,6 @@
 <link rel=stylesheet href=css/themes.css>
 <link rel=stylesheet href=css/presets.css>
 <link rel=stylesheet href=css/sheet.css>
-<link rel=stylesheet href=css/ai.css>
 </head><body>
 <div id=offb class=offb role=status aria-hidden=true></div>
 <div id=shdim class=shdim></div>
@@ -36,10 +35,6 @@
 <div class=mt id=mt9>Blend</div><div class=md id=md9></div>
 <div class=mt id=mt10>Theme</div><div class=md id=md10></div>
 <div class=mt id=mt11>Presets</div><div class=md id=md11></div>
-<div class=mt id=mt12>✨ Surprise Me (AI)</div><div class=md id=md12></div>
-<input class=txtin id=aikey type=password placeholder="Gemini API key" autocomplete=off spellcheck=false>
-<button class=btnsave id=aiksave>Save key</button>
-<div id=aikeystatus class=statustxt></div>
 <div class=mt id=mt13>MQTT Server (Smart Home)</div><div class=md id=md13></div>
 <input class=txtin id=mqip type=text placeholder="Broker IP (e.g. 192.168.1.10)" autocomplete=off spellcheck=false>
 <input class=txtin id=mqpt type=number placeholder="Port (1883)" autocomplete=off style="margin-top:4px">
@@ -77,8 +72,6 @@
 <button class=reset id=chk style="margin-top:10px;border-color:#1e3a8a;color:#60a5fa">Check for Update</button>
 <div id=vinfo style="font-size:11px;color:#888;margin-top:6px;text-align:center"></div>
 <button class=reset id=rwifi style="margin-top:10px;border-color:#7a1616;color:#f87171">Reset WiFi</button>
-<button class=surprise id=surprise>✨ Surprise Me</button>
-<div class=ainame id=ainame></div>
 <div class=stat><span id=lw>Power:</span> <span id=vw>0.0</span> W</div>
 </div>
 <script src=js/globals.js></script>
@@ -88,7 +81,6 @@
 <script src=js/sliders.js></script>
 <script src=js/presets.js></script>
 <script src=js/ota.js></script>
-<script src=js/ai.js></script>
 <script src=js/mqtt.js></script>
 <script src=js/poll.js></script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>

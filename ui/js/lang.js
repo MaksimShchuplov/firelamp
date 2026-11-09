@@ -41,19 +41,9 @@ function ul(){
  document.getElementById('md10').textContent=ru?'Цветовая палитра пламени: Огонь (красно-оранжевый), Тление (тёмно-красный), Плазма (пурпурный), Лёд (синий).':'Color palette: Fire (red/orange/white), Ember (deep dark red), Plasma (purple/magenta/white), Ice (blue/cyan/white).';
  document.getElementById('mt11').textContent=ru?'Пресеты':'Presets';
  document.getElementById('md11').textContent=ru?'До 8 наборов параметров. Нажмите + чтобы сохранить. Нажмите на заполненный слот чтобы загрузить. Удерживайте чтобы сохранить в слот или удалить.':'Up to 8 parameter sets. Tap + to save. Tap a filled slot to load. Long-press to save or delete.';
- document.getElementById('mt12').textContent=ru?'✨ Удиви меня (ИИ)':'✨ Surprise Me (AI)';
- document.getElementById('md12').textContent=ru?'Gemini AI придумает уникальный эффект пламени. Вставьте API-ключ Gemini ниже — он сохранится в памяти лампы и будет работать с любого устройства.':'Gemini AI designs a unique flame effect each time. Paste your Gemini API key below — it is stored on the lamp and works from any device.';
  document.getElementById('mt13').textContent=ru?'MQTT Сервер':'MQTT Server';
  document.getElementById('md13').textContent=ru?'Подключение к брокеру умного дома (например, Home Assistant). Лампа публикует статус в топик [Base Topic]/state и слушает [Base Topic]/set':'Connect to Smart Home broker (e.g. Home Assistant). Lamp publishes to [Base Topic]/state and listens to [Base Topic]/set';
- document.getElementById('aiksave').textContent=ru?'Сохранить ключ':'Save key';
- document.getElementById('aikey').placeholder=ru?'Ключ Gemini API':'Gemini API key';
  document.getElementById('mqsave').textContent=ru?'Сохранить MQTT':'Save MQTT';
- var ks=document.getElementById('aikeystatus');
- if(ks.dataset.ks==='ok')ks.textContent=ru?'Ключ сохранён ✓':'Key saved ✓';
- else if(ks.dataset.ks==='notset')ks.textContent=ru?'Ключ не задан':'No key set';
- else if(ks.dataset.ks==='savefail')ks.textContent=ru?'Ошибка сохранения':'Save failed';
- else if(ks.dataset.ks==='neterr')ks.textContent=ru?'Ошибка сети':'Network error';
- var sp2=document.getElementById('surprise');if(sp2&&!sp2.disabled)sp2.textContent=ru?'✨ Удиви меня':'✨ Surprise Me';
  var vi=document.getElementById('vinfo');if(vi.textContent==='● Доступно обновление'||vi.textContent==='● Update available'){vi.textContent=ru?'● Доступно обновление':'● Update available';}
  var ob=document.getElementById('offb');if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';
  dynAll();
@@ -63,12 +53,6 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&document.ge
 document.getElementById('ibtn').onclick=function(){
   document.getElementById('mod').classList.add('show');
   document.getElementById('mcls').focus();
-  fetch('/geminikey').then(r=>r.json()).then(function(x){
-    var s=document.getElementById('aikeystatus');
-    s.textContent=x.set?(ru?'Ключ сохранён ✓':'Key saved ✓'):(ru?'Ключ не задан':'No key set');
-    s.style.color=x.set?'#4ade80':'#f87171';
-    s.dataset.ks=x.set?'ok':'notset';
-  }).catch(function(){});
 };
 document.getElementById('mcls').onclick=function(){document.getElementById('mod').classList.remove('show')};
 document.getElementById('len').onclick=function(){ru=false;localStorage.setItem('lang','en');ul();};

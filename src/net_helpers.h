@@ -31,7 +31,6 @@ void registerBasicHandlers();   // handlers.cpp: root, state, set*, reset, info,
 void registerPresetHandlers();  // presets.cpp:  getpresets, savepreset, loadpreset, deletepreset
 void registerOtaHandlers();     // ota.cpp:      checkupdate, update
 void startAutoUpdateTask();     // ota.cpp:      launch background version-check FreeRTOS task
-void registerGeminiHandlers();  // gemini.cpp:   surprise, setgeminikey, geminikey
 void registerFlashHandlers();   // flash.cpp:    /flash manual firmware upload (recovery)
 void registerPwaHandlers();     // pwa.cpp:      manifest.json, sw.js
 void loadSettings();

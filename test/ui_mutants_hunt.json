@@ -352,166 +352,6 @@
   "why": "The 'Up to date ✓' confirmation flashes for 0.3 s, too short to read, so the user cannot tell the check completed."
  },
  {
-  "id": "ai-ui/ai-interval-not-cleared-on-success",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "clearTimeout(to);clearInterval(etid);\n    if(r.status===429)",
-  "replace": "clearTimeout(to);\n    if(r.status===429)",
-  "why": "After a successful Surprise the button label goes back to 'Thinking Ns…' within a second and keeps counting forever, even though the button is enabled."
- },
- {
-  "id": "ai-ui/ai-interval-not-cleared-on-error",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "clearTimeout(to);clearInterval(etid);\n    btn.textContent",
-  "replace": "clearTimeout(to);\n    btn.textContent",
-  "why": "After any Surprise error the button keeps counting up 'Thinking Ns…' with no end, while it is enabled and idle."
- },
- {
-  "id": "ai-ui/ai-abort-at-25s",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "ac.abort();},30000)",
-  "replace": "ac.abort();},25000)",
-  "why": "A Gemini answer taking 25 to 30 s is applied on the lamp, but the UI already shows 'AI timed out', keeps the old slider values and drops the effect name."
- },
- {
-  "id": "ai-ui/ai-timeout-not-cleared-on-success",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "clearTimeout(to);clearInterval(etid);\n    if(r.status===429)",
-  "replace": "clearInterval(etid);\n    if(r.status===429)",
-  "why": "Only in a very narrow window: a response whose body finishes after the 30 s mark is reported as 'AI timed out' even though it arrived. In practice ESP replies are a single small send, so this is almost never visible."
- },
- {
-  "id": "ai-ui/ai-abort-maps-to-generic",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "e.name==='AbortError'",
-  "replace": "e.name==='TimeoutError'",
-  "why": "When the lamp never answers, the user gets a generic '⚠ Error' instead of '⚠ AI timed out'."
- },
- {
-  "id": "ai-ui/ai-no-key-code-typo",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "e.message==='no_key'",
-  "replace": "e.message==='nokey'",
-  "why": "A user who has not set a key sees '⚠ Error' instead of being told to set the API key in settings."
- },
- {
-  "id": "ai-ui/ai-auth-code-typo",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "e.message==='auth_error'",
-  "replace": "e.message==='auth'",
-  "why": "With an invalid Gemini key the user sees '⚠ Error' instead of '⚠ Invalid API key'."
- },
- {
-  "id": "ai-ui/ai-parse-code-typo",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "e.message==='parse_failed'",
-  "replace": "e.message==='parse_error'",
-  "why": "An unparseable Gemini reply shows '⚠ Error' instead of '⚠ AI response error'."
- },
- {
-  "id": "ai-ui/ai-success-keeps-fade-timer",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "if(aiNmTid){clearTimeout(aiNmTid);aiNmTid=null;}clearActive();",
-  "replace": "clearActive();",
-  "why": "If the user retries within 4 s of an error and the retry succeeds, the new effect name disappears a moment after it appears."
- },
- {
-  "id": "ai-ui/ai-error-no-clear-prev-fade",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "if(aiNmTid)clearTimeout(aiNmTid);\n",
-  "replace": "",
-  "why": ""
- },
- {
-  "id": "ai-ui/ai-start-no-color-reset",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "btn.disabled=true;nm.style.color='#fbbf24';nm.textContent='';",
-  "replace": "btn.disabled=true;nm.textContent='';",
-  "why": "An effect name that arrives within 4 s of an error is shown in error red instead of amber."
- },
- {
-  "id": "ai-ui/ai-no-disable-on-start",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "btn.disabled=true;nm.style.color",
-  "replace": "nm.style.color",
-  "why": "A double tap sends two /surprise requests. The second gets 429 and shows 'Rate limit', re-enables the button and resumes polling while the first request still blocks the lamp, which can raise a false offline banner. Two elapsed counters also fight over the label."
- },
- {
-  "id": "ai-ui/key-empty-guard-dropped",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "if(!v)return;",
-  "replace": "",
-  "why": "Tapping Save with an empty field posts key= and the firmware returns 400, so the user sees 'Save failed' plus a 1.5 s disabled ✗ button instead of nothing happening."
- },
- {
-  "id": "ai-ui/key-no-trim",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "getElementById('aikey').value.trim()",
-  "replace": "getElementById('aikey').value",
-  "why": "A key pasted with a trailing space or newline is rejected by the firmware (it refuses bytes below 0x21), so the user sees 'Save failed' for a valid key."
- },
- {
-  "id": "ai-ui/key-field-not-cleared",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "if(x.ok){document.getElementById('aikey').value='';",
-  "replace": "if(x.ok){",
-  "why": "After a successful save the API secret stays visible in the input field."
- },
- {
-  "id": "ai-ui/key-ok-dataset-wrong",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "s.style.color='#4ade80';s.dataset.ks='ok';",
-  "replace": "s.style.color='#4ade80';s.dataset.ks='saved';",
-  "why": "After saving a key, switching language leaves the status 'Key saved ✓' untranslated."
- },
- {
-  "id": "ai-ui/key-catch-no-reenable",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "b.textContent='✗';\n    setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';b.disabled=false;},1500);",
-  "replace": "b.textContent='✗';\n    setTimeout(function(){b.textContent=ru?'Сохранить ключ':'Save key';},1500);",
-  "why": "After one network failure the Save key button stays disabled until the page is reloaded."
- },
- {
-  "id": "ai-ui/key-no-content-type",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": ",'Content-Type':'application/x-www-form-urlencoded'",
-  "replace": "",
-  "why": "fetch sends text/plain, so the ESP WebServer puts the body in arg 'plain' and server.arg('key') is empty. Every save returns 400 'Save failed', and the key can never be set."
- },
- {
-  "id": "ai-ui/key-no-encode",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "'key='+encodeURIComponent(v)",
-  "replace": "'key='+v",
-  "why": "A key containing +, & or % is mangled on the wire and either saved wrong or rejected. Real Gemini keys use only [A-Za-z0-9_-], so this is low impact."
- },
- {
-  "id": "ai-ui/key-no-csrf",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "headers:{'X-Requested-With':'firelamp',",
-  "replace": "headers:{",
-  "why": "The firmware's isWebRequest() rejects the POST, so the key is never saved and the user sees Save failed or Network error."
- },
- {
   "id": "ai-ui/sheet-action-no-hide",
   "area": "ai-ui",
   "file": "js/ui.js",
@@ -590,14 +430,6 @@
   "find": "b.classList.toggle('act',i===activePreset);",
   "replace": "b.classList.toggle('act',i===activePreset+1);",
   "why": "The highlight lands on the slot after the one the user loaded."
- },
- {
-  "id": "presets/clearactive-keeps-name",
-  "area": "presets",
-  "file": "js/presets.js",
-  "find": "activePreset=-1;lastAiName='';document.getElementById('ainame').textContent='';",
-  "replace": "activePreset=-1;document.getElementById('ainame').textContent='';",
-  "why": "After the user changes the AI effect with a slider, saving to an empty slot still offers the stale AI name."
  },
  {
   "id": "presets/delete-keeps-active",
@@ -792,14 +624,6 @@
   "why": "After page load all buttons stay unlabelled, so saved presets are invisible until some other action redraws them."
  },
  {
-  "id": "presets/saveslot-prefill-ignore-existing",
-  "area": "presets",
-  "file": "js/presets.js",
-  "find": "inp.value=presets[s]&&presets[s].name?presets[s].name:lastAiName||",
-  "replace": "inp.value=lastAiName||",
-  "why": "Overwriting an existing preset replaces its name with 'Preset 1' or the AI name, unless the user retypes it."
- },
- {
   "id": "presets/saveslot-index-off",
   "area": "presets",
   "file": "js/presets.js",
@@ -846,38 +670,6 @@
   "find": "e.key==='Escape'&&",
   "replace": "e.key==='Esc'&&",
   "why": "Escape no longer closes the help modal. Keyboard users have to tab to the X button."
- },
- {
-  "id": "lang-mqtt/ibtn-no-geminikey-fetch",
-  "area": "lang-mqtt",
-  "file": "js/lang.js",
-  "find": "fetch('/geminikey').then(r=>r.json()).then(function(x){",
-  "replace": "Promise.resolve({}).then(function(x){",
-  "why": "The help modal always says 'No key set', even when a Gemini key is stored on the lamp."
- },
- {
-  "id": "lang-mqtt/ibtn-no-dataset-ks",
-  "area": "lang-mqtt",
-  "file": "js/lang.js",
-  "find": "s.dataset.ks=x.set?'ok':'notset';",
-  "replace": "",
-  "why": "After switching language, the key status stays in the old language."
- },
- {
-  "id": "lang-mqtt/ibtn-ks-inverted",
-  "area": "lang-mqtt",
-  "file": "js/lang.js",
-  "find": "s.dataset.ks=x.set?'ok':'notset';",
-  "replace": "s.dataset.ks=x.set?'notset':'ok';",
-  "why": "With a key stored, switching language flips the status to 'No key set'."
- },
- {
-  "id": "lang-mqtt/ibtn-color-inverted",
-  "area": "lang-mqtt",
-  "file": "js/lang.js",
-  "find": "s.style.color=x.set?'#4ade80':'#f87171';",
-  "replace": "s.style.color=x.set?'#f87171':'#4ade80';",
-  "why": "'Key saved' shows in red and 'No key set' in green."
  },
  {
   "id": "lang-mqtt/ibtn-no-focus",
@@ -950,30 +742,6 @@
   "find": "if(ob.classList.contains('show'))ob.textContent=ru?'⚠ Лампа не отвечает':'⚠ Lamp not responding';",
   "replace": "",
   "why": "The offline banner stays in the old language after a switch."
- },
- {
-  "id": "lang-mqtt/ks-error-not-retranslated",
-  "area": "lang-mqtt",
-  "file": "js/lang.js",
-  "find": "else if(ks.dataset.ks==='neterr')ks.textContent=ru?'Ошибка сети':'Network error';",
-  "replace": "",
-  "why": "ul() no longer re-translates the network-error key status, so a language switch leaves it in the old language"
- },
- {
-  "id": "lang-mqtt/ks-ok-retranslate-wrong-key",
-  "area": "lang-mqtt",
-  "file": "js/lang.js",
-  "find": "if(ks.dataset.ks==='ok')",
-  "replace": "if(ks.dataset.ks==='set')",
-  "why": "'Key saved ✓' stays in English after switching to Russian."
- },
- {
-  "id": "lang-mqtt/surprise-relabel-while-busy",
-  "area": "lang-mqtt",
-  "file": "js/lang.js",
-  "find": "if(sp2&&!sp2.disabled)",
-  "replace": "if(sp2)",
-  "why": "For up to 1 s the busy button reads 'Surprise Me', until the 1 s ticker rewrites it. This is a brief visual glitch."
  },
  {
   "id": "lang-mqtt/ul-no-dynAll",
@@ -1167,24 +935,6 @@
   "why": "I re-ran the mutant without editing any file. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported # pass 37, # fail 0, so it survives.\n\nIt is also equivalent. The line is ui/js/ota.js:45, inside the rebootProbe `/info` handler. `d` comes from `r.json()`, so it is plain parsed JSON with no getters and reading `d.uptime_s` has no side effects. Original: `d.uptime_s!==undefined && d.uptime_s>=120`. Mutant: `d.uptime_s>=120`. The two can only differ when `d.uptime_s` is undefined, and in that case `undefined>=120` turns undefined into NaN, which compares false. So the mutant is f"
  },
  {
-  "id": "ai-ui/ai-429-status-check-dropped",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "if(r.status===429)throw new Error('rate_limit');",
-  "replace": "",
-  "equivalent": true,
-  "why": "I re-ran the mutant without editing any file. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported # pass 37, # fail 0, so it survives.\n\nIt is equivalent for any response the firmware can actually send. In src/gemini.cpp:handleSurprise there are only two ways to return HTTP 429:\n- the busy gate at line 163: server.send(429, \"application/json\", \"{\\\"error\\\":\\\"rate_limit\\\"}\")\n- the error mapping at lines 185-191, where err==\"rate_limit\" gives code 429 and the body is String(\"{\\\"error\\\":\\\"\") + err + \"\\\"}\", which is again {\"error\":\"rate_limit\"}.\n\nSo every 429 the lamp sends has a v"
- },
- {
-  "id": "ai-ui/ai-fade-not-nulled",
-  "area": "ai-ui",
-  "file": "js/ai.js",
-  "find": "nm.style.color='#fbbf24';aiNmTid=null;},4000)",
-  "replace": "nm.style.color='#fbbf24';},4000)",
-  "equivalent": true,
-  "why": "I ran the mutant myself and it applied cleanly: no \"UI_MUTATION #\" line, and the result was \"# pass 37 / # fail 0\", so it survives.\n\nProof that it is equivalent: `aiNmTid` is declared in ui/js/globals.js:22. The only places that read it are both in ui/js/ai.js:\n- line 34, on success: `if(aiNmTid){clearTimeout(aiNmTid);aiNmTid=null;}`\n- line 49, on error: `if(aiNmTid)clearTimeout(aiNmTid);`, which is immediately followed by `aiNmTid=setTimeout(...)` on line 50.\n\nNo other file uses it. The mutant only changes things after the 4 s timer has fired: `aiNmTid` keeps the old, already-fired timer hand"
- },
- {
   "id": "presets/save-timeout-no-reset",
   "area": "presets",
   "file": "js/presets.js",
@@ -1255,5 +1005,13 @@
   "replace": ".value.trim();",
   "equivalent": true,
   "why": "I re-ran it without editing anything. The mutation applied (no \"UI_MUTATION #\" line) and the suite reported # pass 37 / # fail 0, so it survives.\n\nWhy it is equivalent: the only thing `t` is used for in ui/js/mqtt.js is the `&t=` field of the POST /setmqtt body. The response handler never reads `t`, and the #mqt input is never written back from it. When the field is empty or only whitespace, the original sends `t=firelamp` and the mutant sends `t=`. The firmware handles both the same way. In src/mqtt.cpp handleSetMqtt(), line 214 is `String t = server.arg(\"t\"); if (t.length() == 0) t = \"firela"
+ },
+ {
+  "id": "presets/saveslot-prefill-ignore-existing",
+  "area": "presets",
+  "file": "js/presets.js",
+  "find": "inp.value=presets[s]&&presets[s].name?presets[s].name:(ru?",
+  "replace": "inp.value=(ru?",
+  "why": "Overwriting an existing preset replaces its name with 'Preset 1', unless the user retypes it."
  }
 ]

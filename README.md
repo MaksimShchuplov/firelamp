@@ -3,7 +3,7 @@
 [![Build](https://github.com/MaksimShchuplov/firelamp/actions/workflows/build.yml/badge.svg)](https://github.com/MaksimShchuplov/firelamp/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/MaksimShchuplov/firelamp?label=latest)](https://github.com/MaksimShchuplov/firelamp/releases/latest)
 
-800-LED WS2812B fire lamp on an ESP32-S3. Browser UI served from the chip, OTA updates straight from GitHub Releases, Home Assistant over MQTT, and Gemini AI effects. No cloud middleman, no app, no compiled-in credentials.
+800-LED WS2812B fire lamp on an ESP32-S3. Browser UI served from the chip, OTA updates straight from GitHub Releases, and Home Assistant over MQTT. No cloud middleman, no app, no compiled-in credentials.
 
 ---
 
@@ -28,7 +28,6 @@
 - Responsive web UI served directly from the ESP32 — no CDN, no internet required
 - **PWA** — installable on iOS and Android home screen; works offline (cached UI, offline banner)
 - **MQTT** — pub/sub compatible with Home Assistant and any MQTT broker
-- **Surprise Me** — Gemini 2.5 Flash generates a unique named effect on demand (~2 s response)
 - Eight saveable presets with names
 - OTA updates from GitHub Releases — one tap; LED strip shows a download progress bar
 - Automatic rollback on three consecutive crashes
@@ -102,7 +101,6 @@ Open `http://firelamp.local` (or the IP shown in the serial monitor).
 | Blend | 0–255 | Temporal smoothing — lower = frozen glow |
 | Theme | Fire / Ember / Plasma / Ice | Color palette |
 | Presets | 8 slots | Tap to load · Long-press to save or delete · Export/Import as JSON |
-| Surprise Me | — | Gemini AI effect — requires a key set in Settings |
 
 All parameters persist to flash automatically.
 
