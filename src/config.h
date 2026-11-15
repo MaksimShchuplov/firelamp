@@ -69,11 +69,13 @@
 // where the summed field crosses ~1, and blobs merge where their fields add.
 #define LAVA_BLOBS              6
 // Column pitch / row pitch. Columns are ~20 mm apart around the 125 mm tube;
-// the row spacing depends on how the strip was wound. Raise this if blobs look
-// tall and thin on the lamp, lower it if they look squat.
-#define LAVA_ASPECT             1.6f
-#define LAVA_R_MIN              3.0f    // blob radius range, in rows
-#define LAVA_R_MAX              4.6f
+// the row spacing depends on how the strip was wound. Lower this if blobs look
+// tall and thin on the lamp, raise it if they look squat. 1.6 (the first
+// estimate) gave visibly upright ovals on the real lamp; 1.3 corrects that.
+// Also shapes firefly halos and drift, so they stay round too.
+#define LAVA_ASPECT             1.3f
+#define LAVA_R_MIN              2.4f    // blob radius range, in rows (was 3.0-4.6: read as too big on the lamp)
+#define LAVA_R_MAX              3.6f
 #define LAVA_SPEED_MIN          0.12f   // rad/s of the rise-and-sink cycle: one full cycle takes 21-52 s
 #define LAVA_SPEED_MAX          0.30f
 #define LAVA_DRIFT_MAX          0.25f   // sideways drift, columns/s
