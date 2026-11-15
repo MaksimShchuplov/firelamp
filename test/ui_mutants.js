@@ -115,7 +115,13 @@ function runSuite(m) {
   return new Promise(resolve => {
     const env = Object.assign({}, process.env);
     if (m) env.UI_MUTATION = JSON.stringify(m); else delete env.UI_MUTATION;
-    const child = spawn(process.execPath, ['--test', SUITE], { cwd: ROOT, env });
+    // A reporter set through NODE_OPTIONS would clash with the explicit one below.
+    if (env.NODE_OPTIONS) env.NODE_OPTIONS = env.NODE_OPTIONS.split(/\s+/).filter(o => !/^--test-reporter/.test(o)).join(' ');
+    // The verdicts below parse TAP ('# pass N', '# fail N', 'not ok'). Ask for it
+    // explicitly: the default reporter for a non-TTY changed to 'spec' on the CI
+    // runner's newer Node, the baseline then looked red, and a missing '# fail'
+    // line would have counted every mutant as survived.
+    const child = spawn(process.execPath, ['--test', '--test-reporter=tap', SUITE], { cwd: ROOT, env });
     let out = '';
     child.stdout.on('data', d => { out += d; });
     child.stderr.on('data', d => { out += d; });
@@ -153,7 +159,9 @@ async function main() {
       if (!sourceHas(m)) { results[i] = { m, status: 'STALE', note: `find-string no longer in ui/${m.file}` }; continue; }
       const out = await runSuite(m);
       if (/UI_MUTATION #\d+/.test(out)) { results[i] = { m, status: 'STALE', note: 'harness rejected the mutation' }; continue; }
-      const failed = ((out.match(/^# fail (\d+)/m) || [0, '0'])[1]) | 0;
+      const tally = out.match(/^# fail (\d+)/m);
+      if (!tally) { results[i] = { m, status: 'STALE', note: 'no TAP summary in the test output — runner/reporter mismatch' }; continue; }
+      const failed = tally[1] | 0;
       const names = [...out.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map(x => x[1])
         .filter(n => !/\.test\.js$/.test(n) && !/^(poll lifecycle|sliders|OTA|Surprise|preset|shipped)/.test(n));
       results[i] = failed > 0 ? { m, status: 'killed', note: names.slice(0, 2).join('; ') } : { m, status: 'SURVIVED', note: m.why };
